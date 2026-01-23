@@ -42,26 +42,7 @@
                             <div class="admin-ball">-</div>
                         </div>
                     </div>
-                    <div class="stats-text">Total Sacadas: <span id="count-called">0</span>/75</div>
-                </div>
-            </div>
-
-            <div class="nav-group">
-                <label>CONFIGURACIÓN DE VICTORIA</label>
-                <select id="game-mode" onchange="changeMode()" class="select-dark">
-                    <option value="line">Normal (Línea/Diagonal)</option>
-                    <option value="full">Cartón Lleno (Blackout)</option>
-                    <option value="corners">4 Esquinas</option>
-                    <option value="custom">Figura Manual (Patrón)</option>
-                </select>
-                
-                <div id="pattern-display" class="pattern-display"></div>
-                <small id="pattern-explanation" class="pattern-explanation"></small>
-
-                <div id="custom-ui" class="hidden pattern-box" style="margin-top:10px;">
-                    <div style="text-align:center; margin-bottom:5px; font-size:0.7rem;">Dibuja la figura:</div>
-                    <div id="pattern-grid" class="pattern-mini"></div>
-                    <button onclick="sendPattern()" class="btn-xs">APLICAR FIGURA</button>
+                    <div class="stats-text">Total Sacadas: <span id="count-called">0</span>/300</div>
                 </div>
             </div>
 
@@ -73,9 +54,36 @@
                 </div>
             </div>
 
+            <div class="nav-group">
+                <label>🏆 GANADORES</label>
+                <ul id="winner-list" class="scroll-list gold-text sidebar-winners">
+                </ul>
+            </div>
+
+            <div class="nav-group">
+                <label>🎫 ESTADO DE CARTONES</label>
+                <div class="sidebar-cards-status">
+                    <div class="cards-summary">
+                        <div class="status-item">
+                            <span class="status-label">EN USO:</span>
+                            <span class="status-count used" id="used-cards-count">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">DISPONIBLES:</span>
+                            <span class="status-count available" id="available-cards-count">75</span>
+                        </div>
+                    </div>
+                    <div class="cards-grid" id="cards-status-grid">
+                        <!-- Cards will be populated here -->
+                    </div>
+                </div>
+            </div>
+
             <div class="sidebar-footer">
-                <button onclick="resetGame()" class="btn-danger-outline">REINICIAR PARTIDA</button>
-                <button onclick="logout()" class="btn-link">Cerrar Sesión</button>
+                <button onclick="openAddPlayerModal()" class="btn-danger-outline" style="margin-bottom: 8px;">➕ AGREGAR JUGADOR</button>
+                <button onclick="resetGame()" class="btn-danger-outline">NUEVA RONDA</button>
+                <button onclick="fullReset()" class="btn-danger-outline" style="margin-top: 8px;">REINICIAR TODO</button>
+                <button onclick="logout()" class="btn-link" style="margin-top: 8px;">Cerrar Sesión</button>
             </div>
         </aside>
 
@@ -89,39 +97,85 @@
             </header>
 
             <div class="grid-content">
-                
-                <div class="card board-card">
-                    <div id="master-board" class="master-board-grid">
-                        </div>
+
+                <div class="left-column">
+                    <div class="last-number-display">
+                        <div class="last-number-label">ÚLTIMO NÚMERO</div>
+                        <div id="last-number-large" class="last-number-large">--</div>
+                    </div>
+                    <div class="card board-card">
+                        <div id="master-board" class="master-board-grid">
+                            </div>
+                    </div>
                 </div>
 
                 <div class="side-column">
-                    
+
                     <div class="card info-card">
                         <div class="card-header">
-                            <h3>⏳ JUGADORES PENDIENTES</h3>
-                            <span class="badge-count" id="pending-count">0</span>
+                            <h3>🎯 CONFIGURACIÓN DE CARTONES</h3>
                         </div>
-                        <ul id="pending-list" class="scroll-list">
-                            </ul>
+                        <div class="game-config-content">
+                            <select id="game-mode" onchange="changeMode()" class="select-dark" style="margin-bottom: 15px;">
+                                <option value="line">Normal (Línea/Diagonal)</option>
+                                <option value="full">Cartón Lleno (Blackout)</option>
+                                <option value="corners">4 Esquinas</option>
+                                <option value="x">X (Diagonales Cruzadas)</option>
+                                <option value="plus">Plus (Centro + Brazos)</option>
+                                <option value="corners_center">Esquinas + Centro</option>
+                                <option value="frame">Marco Exterior</option>
+                                <option value="inner_frame">Marco Interior</option>
+                                <option value="letter_h">Letra H</option>
+                                <option value="letter_t">Letra T</option>
+                                <option value="small_square">Cuadrado Pequeño</option>
+                                <option value="diamond">Diamante</option>
+                                <option value="star">Estrella</option>
+                                <option value="heart">Corazón</option>
+                                <option value="airplane">Avión</option>
+                                <option value="arrow">Flecha</option>
+                                <option value="crazy">Crazy (Zigzag)</option>
+                                <option value="pyramid">Pirámide</option>
+                                <option value="cross">Cruz</option>
+                                <option value="custom">Figura Manual (Personalizada)</option>
+                            </select>
+
+                            <div class="pattern-container">
+                                <div id="pattern-display" class="pattern-display-large"></div>
+                            </div>
+                            <small id="pattern-explanation" class="pattern-explanation" style="display: block; text-align: center; margin: 10px 0; font-weight: 600;"></small>
+
+                            <div id="custom-ui" class="hidden custom-pattern-ui">
+                                <div style="text-align:center; margin-bottom:10px; font-size:0.8rem; font-weight:600;">DIBUJA TU FIGURA PERSONALIZADA:</div>
+                                <div id="pattern-grid" class="pattern-mini-large"></div>
+                                <button onclick="sendPattern()" class="btn-apply-pattern">APLICAR FIGURA</button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="card info-card">
                         <div class="card-header">
-                            <h3>JUGADORES ACTIVOS</h3>
-                            <span class="badge-count" id="player-count">0</span>
+                            <h3>👥 JUGADORES</h3>
                         </div>
-                        <ul id="player-list" class="scroll-list">
-                            </ul>
+                        <div class="players-section">
+                            <div class="player-tabs">
+                                <button class="tab-button active" onclick="switchTab('pending')">⏳ PENDIENTES <span class="badge-count" id="pending-count">0</span></button>
+                                <button class="tab-button" onclick="switchTab('active')">ACTIVOS <span class="badge-count" id="player-count">0</span></button>
+                            </div>
+                            <div id="pending-content" class="tab-content active">
+                                <ul id="pending-list" class="scroll-list">
+                                </ul>
+                            </div>
+                            <div id="active-content" class="tab-content">
+                                <ul id="player-list" class="scroll-list">
+                                </ul>
+                                <div id="virtual-players-notice" class="info-notice" style="display: none; margin-top: 10px; padding: 8px; background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; font-size: 0.85rem; color: #2e7d32;">
+                                    <strong>📱 Jugadores Agregados Manualmente:</strong> Estos jugadores pueden ganar premios pero no están conectados físicamente.
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="card info-card">
-                        <div class="card-header" style="border-bottom: 3px solid #f59e0b;">
-                            <h3>🏆 GANADORES</h3>
-                        </div>
-                        <ul id="winner-list" class="scroll-list gold-text">
-                            </ul>
-                    </div>
+
 
                 </div>
             </div>
@@ -138,6 +192,40 @@
             </div>
             <div class="modal-actions">
                 <button onclick="closeAdminModal()" class="btn-confirm">CONFIRMAR VICTORIA</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-player-modal" class="modal-backdrop hidden">
+        <div class="modal-card slide-up" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>➕ AGREGAR JUGADOR MANUALMENTE</h3>
+                <button onclick="closeAddPlayerModal()" class="btn-close">✕</button>
+            </div>
+            <div class="modal-content" style="padding: 20px;">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Nombre del Jugador:</label>
+                    <input type="text" id="new-player-name" placeholder="Ingresa el nombre..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Seleccionar Cartones:</label>
+                    <div class="card-picker-ui" style="border: 1px solid #eee; padding: 10px; border-radius: 6px;">
+                        <div class="picker-controls">
+                            <input type="number" id="admin-manual-input" placeholder="#" min="1" max="300">
+                            <button onclick="adminAddManualCard()" class="btn-add">➕ Agregar</button>
+                            <button onclick="adminAddRandomCard()" class="btn-random">🎲 Aleatorio</button>
+                        </div>
+                        <small class="hint-text" id="card-availability-hint">Verificando disponibilidad...</small>
+                        <div id="admin-selected-list" class="chips-container" style="margin-top: 10px;"></div>
+                        <div id="card-availability-grid" class="mini-card-grid" style="margin-top: 10px; display: grid; grid-template-columns: repeat(15, 1fr); gap: 2px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 5px; border-radius: 4px;"></div>
+                    </div>
+                </div>
+
+                <div class="modal-actions" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="closeAddPlayerModal()" class="btn-secondary">CANCELAR</button>
+                    <button onclick="addPlayerManually()" class="btn-primary">AGREGAR JUGADOR</button>
+                </div>
             </div>
         </div>
     </div>
@@ -216,6 +304,13 @@
                 setTimeout(() => el.style.transform = "scale(1)", 200);
             }
 
+            // Update large last number display
+            document.getElementById('last-number-large').innerText = num;
+            // Add pulse animation effect
+            const largeDisplay = document.getElementById('last-number-large');
+            largeDisplay.style.animation = 'none';
+            setTimeout(() => largeDisplay.style.animation = 'numberPulse 0.8s ease-out', 10);
+
             if(!isSpinning) document.getElementById('roulette-display').innerText = num;
             document.getElementById('count-called').innerText = calledNumbers.size;
             updateAdminLast5(last5);
@@ -225,15 +320,34 @@
         socket.on('update_players', (p) => {
             document.getElementById('player-count').innerText = p.length;
             const list = document.getElementById('player-list');
-            list.innerHTML = p.map(u => `
-                <li>
-                    <div style="display:flex; flex-direction:column; line-height:1.2;">
-                        <span style="font-weight:800; color:var(--stream-header)">${u.name}</span>
-                        <span style="font-size:0.75rem; color:#666;">Cartones: ${u.cardCount}</span>
-                    </div>
-                    <button onclick="kick('${u.id}')" class="btn-kick" title="Expulsar">✕</button>
-                </li>
-            `).join('');
+
+            // Check if there are virtual players
+            const hasVirtualPlayers = p.some(u => u.status === 'virtual');
+            const noticeElement = document.getElementById('virtual-players-notice');
+            if (hasVirtualPlayers) {
+                noticeElement.style.display = 'block';
+            } else {
+                noticeElement.style.display = 'none';
+            }
+
+            list.innerHTML = p.map(u => {
+                const isVirtual = u.status === 'virtual';
+                const statusIcon = isVirtual ? '📱' : '🟢';
+                const statusText = isVirtual ? 'Agregado manualmente' : 'Conectado';
+                const kickButton = isVirtual ? '' : `<button onclick="kick('${u.id}')" class="btn-kick" title="Expulsar">✕</button>`;
+
+                return `
+                    <li style="${isVirtual ? 'background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%); border-left: 4px solid #4caf50;' : ''}">
+                        <div style="display:flex; flex-direction:column; line-height:1.2; flex:1;">
+                            <span style="font-weight:800; color:var(--stream-header); display:flex; align-items:center; gap:5px;">
+                                ${statusIcon} ${u.name}
+                            </span>
+                            <span style="font-size:0.75rem; color:#666;">Cartones: ${u.cardCount} • ${statusText}</span>
+                        </div>
+                        ${kickButton}
+                    </li>
+                `;
+            }).join('');
         });
 
         // Lista de Jugadores Pendientes
@@ -324,27 +438,51 @@
             const cells = [];
             for(let i=0; i<25; i++) {
                 const cell = document.createElement('div');
-                cell.className = 'pattern-cell';
+                cell.className = 'pattern-cell-large';
                 cells.push(cell);
                 container.appendChild(cell);
             }
 
             const explanations = {
                 'line': 'Cualquier línea horizontal, vertical o diagonal',
-                'full': 'Todo el cartón marcado',
+                'full': 'Todo el cartón marcado (Blackout)',
                 'corners': 'Las 4 esquinas del cartón',
+                'x': 'Ambas diagonales cruzadas (X)',
+                'plus': 'Centro más los 4 brazos (+)',
+                'corners_center': '4 esquinas más el centro',
+                'frame': 'Marco exterior del cartón',
+                'inner_frame': 'Marco interior (cuadrado central)',
+                'letter_h': 'Patrón en forma de H',
+                'letter_t': 'Patrón en forma de T',
+                'small_square': 'Cuadrado pequeño en esquina superior izquierda',
+                'diamond': 'Patrón en forma de diamante',
                 'custom': 'Patrón personalizado definido abajo'
             };
 
-            if(mode === 'full') {
-                cells.forEach(c => c.classList.add('active'));
-            } else if(mode === 'corners') {
-                [0,4,20,24].forEach(i => cells[i].classList.add('active'));
-            } else if(mode === 'line') {
-                // Show horizontal line (row 2: 5-9)
-                for(let i=5; i<=9; i++) cells[i].classList.add('active');
-            } else if(mode === 'custom') {
-                customGrid.forEach((active, i) => { if(active) cells[i].classList.add('active'); });
+            // Define patterns for each mode
+            const patterns = {
+                'full': Array(25).fill(true),
+                'corners': [true,false,false,false,true, false,false,false,false,false, false,false,true,false,false, false,false,false,false,false, false,false,false,false,true],
+                'x': [true,false,false,false,true, false,true,false,true,false, false,false,true,false,false, false,true,false,true,false, true,false,false,false,true],
+                'plus': [false,false,true,false,false, false,false,true,false,false, true,true,true,true,true, false,false,true,false,false, false,false,true,false,false],
+                'corners_center': [true,false,false,false,true, false,false,false,false,false, false,false,true,false,false, false,false,false,false,false, false,false,false,false,true],
+                'frame': [true,true,true,true,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,true,true,true,true],
+                'inner_frame': [false,false,false,false,false, false,true,true,true,false, false,true,false,true,false, false,true,true,true,false, false,false,false,false,false],
+                'letter_h': [true,false,false,false,true, true,false,false,false,true, true,true,true,true,true, true,false,false,false,true, true,false,false,false,true],
+                'letter_t': [true,true,true,true,true, false,false,true,false,false, false,false,true,false,false, false,false,true,false,false, false,false,true,false,false],
+                'small_square': [true,true,false,false,false, true,true,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
+                'diamond': [false,false,true,false,false, false,true,false,true,false, true,false,false,false,true, false,true,false,true,false, false,false,true,false,false],
+                'line': [false,false,false,false,false, true,true,true,true,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
+                'custom': customGrid
+            };
+
+            // Apply the pattern
+            if(patterns[mode]) {
+                cells.forEach((cell, index) => {
+                    if(patterns[mode][index]) {
+                        cell.classList.add('active');
+                    }
+                });
             }
 
             document.getElementById('pattern-explanation').innerText = explanations[mode] || '';
@@ -368,6 +506,7 @@
 
         function changeMode() {
             const mode = document.getElementById('game-mode').value;
+            console.log(`🎮 Cambiando patrón a: ${mode}`);
             toggleCustomUI(mode);
             updatePatternDisplay(mode);
             socket.emit('admin_set_pattern', { type: mode });
@@ -379,8 +518,14 @@
         }
 
         function resetGame() {
-            if(confirm("⚠️ ¿REINICIAR PARTIDA? \nSe borrará todo el progreso del tablero actual.")) {
+            if(confirm("⚠️ ¿INICIAR NUEVA RONDA? \nLos jugadores permanecerán conectados pero se reiniciará el tablero.")) {
                 socket.emit('admin_reset');
+            }
+        }
+
+        function fullReset() {
+            if(confirm("⚠️ ¿REINICIAR TODO? \nSe desconectarán TODOS los jugadores y se reiniciará completamente el sistema.")) {
+                socket.emit('admin_full_reset');
             }
         }
 
@@ -403,10 +548,244 @@
             document.getElementById('admin-winner-modal').classList.add('hidden');
         }
 
+        function switchTab(tab) {
+            // Remove active class from all tab buttons and contents
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            // Add active class to selected tab button and content
+            if (tab === 'pending') {
+                document.querySelector('.tab-button:first-child').classList.add('active');
+                document.getElementById('pending-content').classList.add('active');
+            } else if (tab === 'active') {
+                document.querySelector('.tab-button:last-child').classList.add('active');
+                document.getElementById('active-content').classList.add('active');
+            }
+        }
+
+        let currentPendingPlayers = []; // Store pending players data
+
+        // Función para actualizar el estado de los cartones
+        function updateCardsStatus() {
+            // Get all active player cards
+            const activePlayers = Array.from(document.querySelectorAll('#player-list li'))
+                .map(li => {
+                    const text = li.querySelector('span:last-child').textContent;
+                    const match = text.match(/Cartones: (\d+)/);
+                    return match ? parseInt(match[1]) : 0;
+                })
+                .reduce((total, count) => total + count, 0);
+
+            // Get all pending player cards from stored data
+            const pendingCards = currentPendingPlayers.reduce((total, player) => total + player.cardCount, 0);
+
+            const usedCards = activePlayers + pendingCards;
+
+            // Update counts
+            document.getElementById('used-cards-count').innerText = usedCards;
+            document.getElementById('available-cards-count').innerText = 300 - usedCards;
+
+            // Update grid (simplified - just show used/available status)
+            const grid = document.getElementById('cards-status-grid');
+            grid.innerHTML = '';
+
+            // For now, just show a simple indicator since we don't have detailed card assignment info
+            for(let i = 1; i <= 300; i++) {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card-status-item available'; // Default to available
+                cardDiv.innerText = i;
+                grid.appendChild(cardDiv);
+            }
+        }
+
+
+
+        socket.on('update_pending_players', (p) => {
+            currentPendingPlayers = p; // Store pending players data
+            document.getElementById('pending-count').innerText = p.length;
+            const list = document.getElementById('pending-list');
+            list.innerHTML = p.map(u => `
+                <li style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <div style="display:flex; flex-direction:column; line-height:1.2; flex:1;">
+                        <span style="font-weight:800; color:#856404">${u.name}</span>
+                        <span style="font-size:0.75rem; color:#856404;">Cartones: ${u.cardCount} (${u.cardIds.join(', ')})</span>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="acceptPlayer('${u.id}')" class="btn-accept" title="Aceptar">✓</button>
+                        <button onclick="rejectPlayer('${u.id}')" class="btn-reject" title="Rechazar">✕</button>
+                    </div>
+                </li>
+            `).join('');
+            updateCardsStatus(); // Update cards status when pending players change
+        });
+
+        // Initialize cards status on load
+        document.addEventListener('DOMContentLoaded', updateCardsStatus);
+
+        // Handle card availability response
+        socket.on('card_availability', (data) => {
+            takenCardsData = new Set(data.takenCards);
+            updateCardAvailabilityDisplay(data.availableCount);
+            renderCardAvailabilityGrid();
+        });
+
+        socket.on('admin_success', (data) => {
+            alert(data.message);
+            // Refresh card availability after adding player
+            socket.emit('get_card_availability');
+        });
+
+        socket.on('admin_error', (data) => {
+            alert('Error: ' + data.message);
+        });
+
+        // --- FUNCIONES PARA AGREGAR JUGADORES MANUALMENTE ---
+        let adminSelectedCards = [];
+        let takenCardsData = new Set();
+
+        function openAddPlayerModal() {
+            document.getElementById('add-player-modal').classList.remove('hidden');
+            document.getElementById('new-player-name').value = '';
+            adminSelectedCards = [];
+            renderAdminSelectedCards();
+
+            // Request current card availability
+            socket.emit('get_card_availability');
+        }
+
+        function closeAddPlayerModal() {
+            document.getElementById('add-player-modal').classList.add('hidden');
+        }
+
+        function renderAdminSelectedCards() {
+            const container = document.getElementById('admin-selected-list');
+            container.innerHTML = '';
+
+            if (adminSelectedCards.length === 0) {
+                container.innerHTML = '<span style="color:#666; font-size:0.8rem">Ningún cartón seleccionado</span>';
+                return;
+            }
+
+            adminSelectedCards.forEach(id => {
+                const chip = document.createElement('div');
+                chip.className = 'card-chip';
+                chip.innerHTML = `<span>#${id}</span> <button onclick="adminRemoveCard(${id})">×</button>`;
+                container.appendChild(chip);
+            });
+        }
+
+        function adminAddManualCard() {
+            const input = document.getElementById('admin-manual-input');
+            const id = parseInt(input.value);
+            if (isNaN(id) || id < 1 || id > 300) {
+                alert("El número debe estar entre 1 y 300");
+                return;
+            }
+            if (adminSelectedCards.includes(id)) {
+                alert("Ya seleccionaste este cartón");
+                return;
+            }
+            adminSelectedCards.push(id);
+            renderAdminSelectedCards();
+            input.value = '';
+        }
+
+        function adminAddRandomCard() {
+            let rand;
+            let safety = 0;
+            do {
+                rand = Math.floor(Math.random() * 300) + 1;
+                safety++;
+            } while (adminSelectedCards.includes(rand) && safety < 500);
+
+            adminSelectedCards.push(rand);
+            renderAdminSelectedCards();
+        }
+
+        function adminRemoveCard(id) {
+            adminSelectedCards = adminSelectedCards.filter(cardId => cardId !== id);
+            renderAdminSelectedCards();
+        }
+
+        function addPlayerManually() {
+            const playerName = document.getElementById('new-player-name').value.trim();
+
+            if (!playerName) {
+                alert("Por favor ingresa el nombre del jugador");
+                return;
+            }
+
+            if (adminSelectedCards.length === 0) {
+                alert("Por favor selecciona al menos un cartón");
+                return;
+            }
+
+            // Send to server
+            socket.emit('admin_add_player', {
+                name: playerName,
+                cardIds: adminSelectedCards
+            });
+
+            // Close modal and reset
+            closeAddPlayerModal();
+            adminSelectedCards = [];
+        }
+
+        function updateCardAvailabilityDisplay(availableCount) {
+            const hintElement = document.getElementById('card-availability-hint');
+            hintElement.innerText = `Cartones disponibles: ${availableCount}/300`;
+        }
+
+        function renderCardAvailabilityGrid() {
+            const gridElement = document.getElementById('card-availability-grid');
+            gridElement.innerHTML = '';
+
+            for (let i = 1; i <= 300; i++) {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'availability-card';
+                cardDiv.innerText = i;
+
+                if (takenCardsData.has(i)) {
+                    cardDiv.classList.add('taken');
+                    cardDiv.title = 'Cartón ocupado';
+                } else {
+                    cardDiv.classList.add('available');
+                    cardDiv.title = 'Cartón disponible';
+                    cardDiv.onclick = () => toggleCardSelection(i);
+                }
+
+                gridElement.appendChild(cardDiv);
+            }
+        }
+
+        function toggleCardSelection(cardId) {
+            if (adminSelectedCards.includes(cardId)) {
+                // Deselect
+                adminSelectedCards = adminSelectedCards.filter(id => id !== cardId);
+            } else {
+                // Select
+                adminSelectedCards.push(cardId);
+            }
+            renderAdminSelectedCards();
+            updateCardGridSelection();
+        }
+
+        function updateCardGridSelection() {
+            const gridCards = document.querySelectorAll('.availability-card');
+            gridCards.forEach(card => {
+                const cardId = parseInt(card.innerText);
+                if (adminSelectedCards.includes(cardId)) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+        }
+
         // --- ANIMACIÓN DE RULETA ---
         function spinRoulette() {
             if(isSpinning) return;
-            
+
             // Encontrar números disponibles
             let pool = [];
             for(let i=1; i<=75; i++) {
@@ -424,7 +803,7 @@
                 // Mostrar número aleatorio del pool visualmente
                 const randomIndex = Math.floor(Math.random() * pool.length);
                 disp.innerText = pool[randomIndex];
-                
+
                 count++;
                 if(count > maxSpins) {
                     clearInterval(interval);

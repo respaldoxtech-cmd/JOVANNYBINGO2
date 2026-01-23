@@ -141,6 +141,81 @@
         let myCards = []; // Cartones descargados
         let selectedIds = []; // Cartones seleccionados en el login
         let currentPattern = 'line'; // Patrón actual del juego
+        let playerSession = null; // Datos de sesión persistente
+
+        // Cargar sesión guardada al iniciar
+        function loadSavedSession() {
+            const saved = localStorage.getItem('yovanny_bingo_session');
+            if (saved) {
+                try {
+                    playerSession = JSON.parse(saved);
+                    console.log('Sesión guardada encontrada:', playerSession);
+                    return playerSession;
+                } catch (e) {
+                    localStorage.removeItem('yovanny_bingo_session');
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        // Guardar sesión actual
+        function saveSession(sessionData) {
+            playerSession = sessionData;
+            localStorage.setItem('yovanny_bingo_session', JSON.stringify(sessionData));
+        }
+
+        // Limpiar sesión
+        function clearSession() {
+            playerSession = null;
+            localStorage.removeItem('yovanny_bingo_session');
+        }
+
+        // Intentar reconexión automática
+        function attemptAutoReconnect() {
+            const session = loadSavedSession();
+            if (session && session.status === 'approved') {
+                console.log('Intentando reconexión automática...');
+
+                // Mostrar pantalla de reconexión
+                document.getElementById('login-screen').classList.remove('active');
+                setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 300);
+
+                const reconnectScreen = document.createElement('div');
+                reconnectScreen.id = 'reconnect-screen';
+                reconnectScreen.className = 'login-wrapper active';
+                reconnectScreen.innerHTML = `
+                    <div class="login-container glass-effect" style="text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 20px;">🔄</div>
+                        <h2>Reconectando...</h2>
+                        <p>Restaurando tu sesión de juego...</p>
+                        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 20px;">
+                            Usuario: ${session.username}<br>
+                            Cartones: ${session.cardIds.length}
+                        </p>
+                    </div>
+                `;
+                document.body.appendChild(reconnectScreen);
+
+                // Intentar reconectar
+                socket.emit('reconnect_player', {
+                    username: session.username,
+                    cardIds: session.cardIds,
+                    sessionId: session.sessionId
+                });
+
+                // Timeout por si falla la reconexión
+                setTimeout(() => {
+                    if (document.getElementById('reconnect-screen')) {
+                        document.getElementById('reconnect-screen').remove();
+                        document.getElementById('login-screen').classList.add('active');
+                        document.getElementById('login-screen').classList.remove('hidden');
+                        clearSession();
+                        alert('No se pudo reconectar. Por favor inicia sesión nuevamente.');
+                    }
+                }, 5000);
+            }
+        }
 
         // --- LÓGICA DEL SELECTOR DE CARTONES ---
 
@@ -165,7 +240,6 @@
             id = parseInt(id);
             if (isNaN(id) || id < 1 || id > 300) return alert("El número debe estar entre 1 y 300");
             if (selectedIds.includes(id)) return alert("Ya seleccionaste este cartón");
-            if (selectedIds.length >= 4) return alert("Máximo 4 cartones por jugador"); // Limite opcional de UI
 
             selectedIds.push(id);
             renderChips();
@@ -392,10 +466,7 @@
             document.getElementById('winner-overlay').classList.remove('hidden');
             confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
 
-            // Auto-cerrar el overlay después de 8 segundos para continuar el juego
-            setTimeout(() => {
-                document.getElementById('winner-overlay').classList.add('hidden');
-            }, 8000);
+
         });
 
         // Celebración automática cuando alguien gana
