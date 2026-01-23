@@ -255,9 +255,30 @@ io.on('connection', (socket) => {
     });
 
     socket.on('admin_reset', () => {
+        // Reset game state
         gameState.calledNumbers = [];
         gameState.last5Numbers = [];
+        gameState.last5Winners = [];
+
+        // Disconnect all active players
+        io.sockets.sockets.forEach(s => {
+            if (s.data.cardIds) {
+                // This is a player, disconnect them
+                s.emit('kicked');
+                s.disconnect();
+            }
+        });
+
+        // Clear taken cards
+        takenCards.clear();
+
+        // Clear pending players
+        pendingPlayers.clear();
+
+        // Emit game reset (though players are disconnected, admin will receive it)
         io.emit('game_reset');
+        io.emit('update_pending_players', getPendingPlayers());
+        io.emit('update_players', getActivePlayers());
     });
 
     socket.on('bingo_shout', () => {
