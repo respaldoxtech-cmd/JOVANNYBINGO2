@@ -14,12 +14,11 @@
 
     <div class="watermark-layer"></div>
 
-    <!-- Botón de Admin en esquina superior derecha -->
-    <button onclick="goToAdmin()" class="admin-access-btn" title="Panel de Administrador">
-        🔧
-    </button>
-
     <div id="login-screen" class="login-wrapper active">
+        <!-- Botón de Admin en esquina superior derecha -->
+        <button onclick="goToAdmin()" class="admin-access-btn" title="Panel de Administrador">
+            🔧
+        </button>
         <div class="login-container glass-effect">
             <div class="brand-area">
                 <img src="logo.png" alt="Yovanny Bingo" class="brand-logo">
@@ -227,21 +226,28 @@
 
         // --- MANEJO DE ERROR: CARTÓN OCUPADO ---
         socket.on('join_error', (data) => {
-            const errorDiv = document.getElementById('login-error');
-            errorDiv.innerText = data.message; // Mensaje del servidor (ej: "Cartón #5 ocupado")
-            errorDiv.style.display = 'block';
-            // Animación de shake
-            document.querySelector('.login-container').animate([
-                { transform: 'translateX(0)' },
-                { transform: 'translateX(-10px)' },
-                { transform: 'translateX(10px)' },
-                { transform: 'translateX(0)' }
-            ], { duration: 300 });
-
-            // Si hay error, remover pantalla de espera y mostrar login nuevamente
             const waitingScreen = document.getElementById('waiting-screen');
             if(waitingScreen) {
-                waitingScreen.remove();
+                // Mostrar el error en la pantalla de espera
+                waitingScreen.innerHTML = `
+                    <div class="login-container glass-effect" style="text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 20px; color: #ef4444;">❌</div>
+                        <h2>Error de Ingreso</h2>
+                        <p>${data.message}</p>
+                        <button onclick="backToLogin()" class="btn-primary" style="margin-top: 20px;">Volver al Login</button>
+                    </div>
+                `;
+            } else {
+                // Fallback: mostrar en la pantalla de login
+                const errorDiv = document.getElementById('login-error');
+                errorDiv.innerText = data.message;
+                errorDiv.style.display = 'block';
+                document.querySelector('.login-container').animate([
+                    { transform: 'translateX(0)' },
+                    { transform: 'translateX(-10px)' },
+                    { transform: 'translateX(10px)' },
+                    { transform: 'translateX(0)' }
+                ], { duration: 300 });
                 document.getElementById('login-screen').classList.add('active');
                 document.getElementById('login-screen').classList.remove('hidden');
             }
@@ -456,6 +462,14 @@
                 // Recargar la página para volver al login
                 location.reload();
             }
+        }
+
+        // Función para volver al login desde error
+        function backToLogin() {
+            const waitingScreen = document.getElementById('waiting-screen');
+            if(waitingScreen) waitingScreen.remove();
+            document.getElementById('login-screen').classList.add('active');
+            document.getElementById('login-screen').classList.remove('hidden');
         }
 
         // Función para ir al panel de admin
