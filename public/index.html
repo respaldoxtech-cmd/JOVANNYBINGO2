@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Yovanny Bingo Online</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="player-app">
+
+    <div class="watermark-layer"></div>
+
+    <div id="login-screen" class="login-wrapper active">
+        <div class="login-container glass-effect">
+            <div class="brand-area">
+                <img src="logo.png" alt="Yovanny Bingo" class="brand-logo">
+            </div>
+            <div class="form-group">
+                <label>Nombre de Jugador</label>
+                <input type="text" id="username" placeholder="Tu Apodo" autocomplete="off" maxlength="15">
+            </div>
+            <div class="form-group">
+                <label>Selecciona tus Cartones</label>
+
+                <div class="card-picker-ui">
+                    <div class="picker-controls">
+                        <input type="number" id="manual-input" placeholder="#" min="1" max="300">
+                        <button onclick="addManualCard()" class="btn-add">+</button>
+                        <button onclick="addRandomCard()" class="btn-random">🎲</button>
+                    </div>
+                    <small class="hint-text">Elige del 1 al 300</small>
+
+                    <div id="selected-list" class="chips-container"></div>
+                </div>
+            </div>
+            <div id="login-error" style="color: #ef4444; font-size: 0.9rem; margin-top: 10px; display: none; font-weight: bold;"></div>
+
+            <button onclick="joinGame()" class="btn-primary full-width">INGRESAR A SALA</button>
+        </div>
+    </div>
+
+    <div class="global-announcement">
+        <div class="marquee-content">
+            <span class="announce-icon">🔴 EN VIVO:</span>
+            <span id="announcement-text">BIENVENIDOS A LA SALA DE BINGO YOVANNY... ESPERANDO INSTRUCCIONES...</span>
+        </div>
+    </div>
+
+    <div id="game-screen" class="app-shell hidden">
+
+        <header class="app-header glass-effect">
+            <div class="header-left">
+                <div class="avatar-circle"><span id="user-initial">Y</span></div>
+                <div class="user-meta">
+                    <span id="player-name-display" class="user-name">Usuario</span>
+                    <span class="user-status">En línea</span>
+                </div>
+            </div>
+            <div class="header-center">
+                <div class="current-ball-display">
+                    <div class="ball-label">BOLA</div>
+                    <div id="current-number" class="ball-value">--</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="mode-badge">
+                    <span class="mode-label">MODO</span>
+                    <strong id="mode-display">FULL</strong>
+                </div>
+            </div>
+        </header>
+
+        <div class="history-bar">
+            <span class="history-label">Yovanny Bingo:</span>
+            <div id="player-last-5" class="history-track"></div>
+        </div>
+
+        <main class="cards-area">
+            <div id="cards-container" class="cards-scroll-view"></div>
+        </main>
+
+        <nav class="bottom-nav glass-effect">
+            <button onclick="toggleHistory()" class="nav-item">
+                <span class="icon">🏆</span>
+                <span class="label">Ganadores</span>
+            </button>
+            <div class="fab-container">
+                <button onclick="shoutBingo()" class="btn-fab pulse">BINGO</button>
+            </div>
+            <button onclick="downloadAllCards()" class="nav-item">
+                <span class="icon">📥</span>
+                <span class="label">Descargar</span>
+            </button>
+        </nav>
+
+
+    </div>
+
+    <div id="history-modal" class="modal-backdrop hidden">
+        <div class="modal-card slide-up">
+            <div class="modal-header">
+                <h3>Ganadores Recientes</h3>
+                <button onclick="toggleHistory()" class="btn-close">✕</button>
+            </div>
+            <ul id="history-list" class="data-list"></ul>
+        </div>
+    </div>
+
+    <div id="winner-overlay" class="fullscreen-overlay hidden">
+        <div class="winner-box zoom-in">
+            <div class="icon-trophy">🏆</div>
+            <h2>¡BINGO!</h2>
+            <h3 id="winner-name-announce">Nombre</h3>
+            <p>Cartón <span id="winner-card-announce">#00</span></p>
+            <button onclick="closeOverlay()" class="btn-primary">Continuar</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let myCards = []; // Cartones descargados
+        let selectedIds = []; // Cartones seleccionados en el login
+
+        // --- LÓGICA DEL SELECTOR DE CARTONES ---
+
+        function renderChips() {
+            const container = document.getElementById('selected-list');
+            container.innerHTML = '';
+
+            if (selectedIds.length === 0) {
+                container.innerHTML = '<span style="color:#666; font-size:0.8rem">Ningún cartón seleccionado</span>';
+                return;
+            }
+
+            selectedIds.forEach(id => {
+                const chip = document.createElement('div');
+                chip.className = 'card-chip';
+                chip.innerHTML = `<span>#${id}</span> <button onclick="removeCard(${id})">×</button>`;
+                container.appendChild(chip);
+            });
+        }
+
+        function addCardToSelection(id) {
+            id = parseInt(id);
+            if (isNaN(id) || id < 1 || id > 300) return alert("El número debe estar entre 1 y 300");
+            if (selectedIds.includes(id)) return alert("Ya seleccionaste este cartón");
+            if (selectedIds.length >= 4) return alert("Máximo 4 cartones por jugador"); // Limite opcional de UI
+
+            selectedIds.push(id);
+            renderChips();
+        }
+
+        function removeCard(id) {
+            selectedIds = selectedIds.filter(x => x !== id);
+            renderChips();
+        }
+
+        function addManualCard() {
+            const input = document.getElementById('manual-input');
+            addCardToSelection(input.value);
+            input.value = '';
+            input.focus();
+        }
+
+        function addRandomCard() {
+            let rand;
+            let safety = 0;
+            do {
+                rand = Math.floor(Math.random() * 300) + 1;
+                safety++;
+            } while (selectedIds.includes(rand) && safety < 500);
+
+            addCardToSelection(rand);
+        }
+
+        // --- LÓGICA DEL JUEGO ---
+
+        function joinGame() {
+            const user = document.getElementById('username').value;
+            const errorDiv = document.getElementById('login-error');
+
+            if(!user) {
+                errorDiv.innerText = "Escribe tu nombre";
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if(selectedIds.length === 0) {
+                errorDiv.innerText = "Selecciona al menos un cartón";
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            errorDiv.style.display = 'none';
+            // Enviamos el array selectedIds directamente
+            socket.emit('join_game', { username: user, cardIds: selectedIds });
+        }
+
+        // --- MANEJO DE ERROR: CARTÓN OCUPADO ---
+        socket.on('join_error', (data) => {
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.innerText = data.message; // Mensaje del servidor (ej: "Cartón #5 ocupado")
+            errorDiv.style.display = 'block';
+            // Animación de shake
+            document.querySelector('.login-container').animate([
+                { transform: 'translateX(0)' },
+                { transform: 'translateX(-10px)' },
+                { transform: 'translateX(10px)' },
+                { transform: 'translateX(0)' }
+            ], { duration: 300 });
+        });
+
+        // Si entra con éxito, inicializamos la UI
+        socket.on('init_cards', ({ cards }) => {
+            myCards = cards;
+            const user = document.getElementById('username').value;
+
+            // Ocultar login y mostrar juego
+            document.getElementById('login-screen').classList.remove('active');
+            setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 300);
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            document.getElementById('player-name-display').innerText = user;
+            document.getElementById('user-initial').innerText = user.charAt(0).toUpperCase();
+
+            // Renderizar cartones
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+            cards.forEach(card => {
+                const cardEl = document.createElement('div');
+                cardEl.className = 'bingo-card';
+                cardEl.id = `card-visual-${card.id}`;
+
+                const head = document.createElement('div');
+                head.className = 'card-head';
+                head.innerHTML = `<span><b>Yovanny Bingo #${card.id}</b></span> <button class='btn-mini-dl' onclick='downloadSingleCard(${card.id})'>⬇</button>`;
+                cardEl.appendChild(head);
+
+                const grid = document.createElement('div');
+                grid.className = 'card-grid disable-clicks';
+
+                ['B','I','N','G','O'].forEach(l => {
+                    const cell = document.createElement('div');
+                    cell.className = `grid-header col-${l}`;
+                    cell.innerText = l;
+                    grid.appendChild(cell);
+                });
+
+                for(let i=0; i<5; i++) {
+                    const row = [card.B[i], card.I[i], card.N[i], card.G[i], card.O[i]];
+                    row.forEach(n => {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell';
+                        if(n === "FREE") {
+                            cell.classList.add('marked', 'free');
+                            cell.innerHTML = "★";
+                        } else {
+                            cell.innerText = n;
+                            cell.id = `c${card.id}-n${n}`;
+                        }
+                        grid.appendChild(cell);
+                    });
+                }
+                cardEl.appendChild(grid);
+                container.appendChild(cardEl);
+            });
+        });
+
+        socket.on('kicked', () => { alert("Has sido expulsado."); location.reload(); });
+
+        socket.on('sync_state', (s) => {
+            document.getElementById('announcement-text').innerText = s.message;
+            updateMode(s.pattern);
+            updateHistory(s.last5Winners);
+            updateLast5(s.last5Numbers);
+            s.calledNumbers.forEach(markNumberInAllCards);
+        });
+
+
+
+        socket.on('number_called', ({ num, last5 }) => {
+            const ball = document.getElementById('current-number');
+            ball.style.transform = "scale(0.8)";
+            setTimeout(() => {
+                ball.innerText = num;
+                ball.style.transform = "scale(1)";
+            }, 150);
+            
+            markNumberInAllCards(num);
+            updateLast5(last5);
+            if(navigator.vibrate) navigator.vibrate(50);
+        });
+
+        socket.on('message_updated', (msg) => document.getElementById('announcement-text').innerText = msg);
+        socket.on('pattern_changed', (p) => updateMode(p));
+        
+        socket.on('winner_announced', (data) => {
+            document.getElementById('winner-name-announce').innerText = data.user;
+            document.getElementById('winner-card-announce').innerText = `#${data.card}`;
+            document.getElementById('winner-overlay').classList.remove('hidden');
+            confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+        });
+
+        socket.on('update_history', (h) => updateHistory(h));
+        
+        socket.on('invalid_bingo', () => {
+            const btn = document.querySelector('.btn-fab');
+            btn.style.background = "#ef4444";
+            btn.innerText = "Error";
+            setTimeout(() => { 
+                btn.style.background = ""; 
+                btn.innerText = "BINGO"; 
+            }, 1000);
+        });
+
+        socket.on('game_reset', () => {
+            document.querySelectorAll('.grid-cell').forEach(c => c.classList.remove('marked'));
+            document.getElementById('current-number').innerText = "--";
+            document.getElementById('winner-overlay').classList.add('hidden');
+            updateLast5([]);
+        });
+
+        function markNumberInAllCards(num) {
+            myCards.forEach(card => {
+                const el = document.getElementById(`c${card.id}-n${num}`);
+                if(el) el.classList.add('marked');
+            });
+        }
+
+        function updateLast5(arr) {
+            document.getElementById('player-last-5').innerHTML = arr.map(n => `<div class="hist-ball">${n}</div>`).join('');
+        }
+        function updateMode(p) {
+            // Mapeo actualizado de nombres para el usuario
+            const map = {
+                'line': 'NORMAL (LÍNEA)',
+                'full': 'CARTÓN LLENO',
+                'corners': '4 ESQUINAS',
+                'custom': 'FIGURA MANUAL'
+            };
+            document.getElementById('mode-display').innerText = map[p] || p;
+        }
+        function updateHistory(l) {
+            document.getElementById('history-list').innerHTML = l.length ? l.map(w => `<li><span class="t-name">${w.user}</span> <span class="t-card">#${w.card}</span></li>`).join('') : '<li class="empty">Lista vacía</li>';
+        }
+
+        function toggleHistory() { document.getElementById('history-modal').classList.toggle('hidden'); }
+        function shoutBingo() { socket.emit('bingo_shout'); }
+        function closeOverlay() { document.getElementById('winner-overlay').classList.add('hidden'); }
+        
+        // --- FUNCIÓN DE DESCARGA INTELIGENTE ---
+        
+        // 1. Descargar UN SOLO cartón (cuando clickean el icono del cartón)
+        async function downloadSingleCard(cardId) {
+            const cardElement = document.getElementById(`card-visual-${cardId}`);
+            if(!cardElement) return;
+
+            // Ocultar botón de descarga temporalmente para la foto
+            const btn = cardElement.querySelector('.btn-mini-dl');
+            if(btn) btn.style.display = 'none';
+
+            await captureAndSave(cardElement, `Yovanny-Bingo-Carton-${cardId}.png`);
+
+            // Restaurar botón
+            if(btn) btn.style.display = 'flex';
+        }
+
+        // 2. Descargar TODOS los cartones (Botón del Dock)
+        async function downloadAllCards() {
+            if(myCards.length === 0) return alert("No tienes cartones.");
+            
+            const mainBtn = document.querySelector('.nav-item span.label');
+            const originalText = mainBtn.innerText;
+            mainBtn.innerText = "Guardando...";
+
+            // Iterar y descargar uno por uno con un pequeño delay para no bloquear
+            for (let i = 0; i < myCards.length; i++) {
+                await downloadSingleCard(myCards[i].id);
+                // Pequeña pausa para que el navegador procese la descarga
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            mainBtn.innerText = originalText;
+        }
+
+        // Función auxiliar de captura
+        async function captureAndSave(element, filename) {
+            // Guardar estilos originales
+            const originalBg = element.style.background;
+            const originalColor = element.style.color;
+            const originalBorder = element.style.border;
+
+            // Aplicar estilos "Modo Impresión" (Alto Contraste) para que se vea bien la imagen
+            element.style.background = "#ffffff";
+            element.style.color = "#000000";
+            element.style.border = "3px solid #000000";
+            element.style.borderRadius = "8px";
+
+            // Cambiar colores de celdas para alto contraste
+            const cells = element.querySelectorAll('.grid-cell');
+            cells.forEach(c => {
+                c.style.border = "2px solid #333333";
+                c.style.backgroundColor = "#ffffff"; // Fondo blanco
+                c.style.color = "#000000"; // Texto negro
+                c.style.fontWeight = "900";
+                c.style.fontSize = "1.4rem";
+                if(c.classList.contains('marked')) {
+                    c.style.backgroundColor = "#000000"; // Marca negra
+                    c.style.color = "#ffffff"; // Texto blanco
+                    c.style.border = "2px solid #000000";
+                }
+                if(c.classList.contains('free')) {
+                    c.style.color = "#ff6b35"; // Color especial para FREE
+                    c.style.fontSize = "1.8rem";
+                }
+            });
+
+            // Cambiar colores de headers de columnas
+            const headers = element.querySelectorAll('.grid-header');
+            headers.forEach(h => {
+                h.style.backgroundColor = "#e74c3c"; // Rojo fuerte
+                h.style.color = "#ffffff";
+                h.style.border = "2px solid #c0392b";
+                h.style.fontWeight = "900";
+            });
+
+            // Cambiar el título del cartón
+            const title = element.querySelector('.card-head span');
+            if(title) {
+                title.style.color = "#000000";
+                title.style.fontWeight = "900";
+                title.style.fontSize = "1.1rem";
+            }
+
+            try {
+                const canvas = await html2canvas(element, {
+                    scale: 3, // Mayor calidad
+                    backgroundColor: "#ffffff",
+                    useCORS: true,
+                    logging: false,
+                    width: element.offsetWidth,
+                    height: element.offsetHeight
+                });
+
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+
+            } catch (err) {
+                console.error("Error al guardar", err);
+            } finally {
+                // Restaurar estilos originales (Modo App Oscuro)
+                element.style.background = originalBg;
+                element.style.color = originalColor;
+                element.style.border = originalBorder;
+                element.style.borderRadius = "";
+
+                // Restaurar celdas
+                cells.forEach(c => {
+                    c.style.border = "";
+                    c.style.backgroundColor = "";
+                    c.style.color = "";
+                    c.style.fontWeight = "";
+                    c.style.fontSize = "";
+                });
+
+                // Restaurar headers
+                headers.forEach(h => {
+                    h.style.backgroundColor = "";
+                    h.style.color = "";
+                    h.style.border = "";
+                    h.style.fontWeight = "";
+                });
+
+                // Restaurar título
+                if(title) {
+                    title.style.color = "";
+                    title.style.fontWeight = "";
+                    title.style.fontSize = "";
+                }
+            }
+        }
+    </script>
+</body>
+</html>

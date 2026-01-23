@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Yovanny Bingo</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <script>
+        if (!sessionStorage.getItem('yovanny_admin_auth')) {
+            window.location.href = '/admin-login.html'; // O '/login.html' si no usaste el login dedicado
+        }
+    </script>
+</head>
+<body class="admin-ui">
+
+    <div class="watermark-layer"></div>
+
+    <div class="dashboard-layout">
+        
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="logo.png" alt="Logo" class="admin-logo-img">
+                <span class="brand-name">PANEL DE CONTROL</span>
+            </div>
+
+            <div class="nav-group">
+                <label>BOMBO VIRTUAL</label>
+                <div class="roulette-widget">
+                    <div id="roulette-display" class="big-num">--</div>
+                    <button onclick="spinRoulette()" class="btn-action">GIRAR BOLA</button>
+                    
+                    <div class="last-5-container">
+                        <small class="last-5-label">Últimas 5:</small>
+                        <div id="admin-last-5" class="last-5-row">
+                            <div class="admin-ball">-</div>
+                            <div class="admin-ball">-</div>
+                            <div class="admin-ball">-</div>
+                            <div class="admin-ball">-</div>
+                            <div class="admin-ball">-</div>
+                        </div>
+                    </div>
+                    <div class="stats-text">Total Sacadas: <span id="count-called">0</span>/75</div>
+                </div>
+            </div>
+
+            <div class="nav-group">
+                <label>CONFIGURACIÓN DE VICTORIA</label>
+                <select id="game-mode" onchange="changeMode()" class="select-dark">
+                    <option value="line">Normal (Línea/Diagonal)</option>
+                    <option value="full">Cartón Lleno (Blackout)</option>
+                    <option value="corners">4 Esquinas</option>
+                    <option value="custom">Figura Manual (Patrón)</option>
+                </select>
+                
+                <div id="pattern-display" class="pattern-display"></div>
+                <small id="pattern-explanation" class="pattern-explanation"></small>
+
+                <div id="custom-ui" class="hidden pattern-box" style="margin-top:10px;">
+                    <div style="text-align:center; margin-bottom:5px; font-size:0.7rem;">Dibuja la figura:</div>
+                    <div id="pattern-grid" class="pattern-mini"></div>
+                    <button onclick="sendPattern()" class="btn-xs">APLICAR FIGURA</button>
+                </div>
+            </div>
+
+            <div class="nav-group">
+                <label>NOTICIERO (TICKER)</label>
+                <div class="input-row">
+                    <input type="text" id="announce-input" placeholder="Escribe un anuncio...">
+                    <button onclick="updateMessage()" class="btn-icon-sm">ENVIAR</button>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button onclick="resetGame()" class="btn-danger-outline">REINICIAR PARTIDA</button>
+                <button onclick="logout()" class="btn-link">Cerrar Sesión</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-nav">
+                <h2>
+                    <span style="color:var(--stream-accent)">YOVANNY BINGO</span>
+                    <span style="font-weight:400; font-size:1rem; margin-left:10px; color:#666;">| MONITOR EN VIVO</span>
+                </h2>
+                <span class="badge-live">● TRANSMITIENDO</span>
+            </header>
+
+            <div class="grid-content">
+                
+                <div class="card board-card">
+                    <div id="master-board" class="master-board-grid">
+                        </div>
+                </div>
+
+                <div class="side-column">
+                    
+                    <div class="card info-card">
+                        <div class="card-header">
+                            <h3>JUGADORES CONECTADOS</h3>
+                            <span class="badge-count" id="player-count">0</span>
+                        </div>
+                        <ul id="player-list" class="scroll-list">
+                            </ul>
+                    </div>
+
+                    <div class="card info-card">
+                        <div class="card-header" style="border-bottom: 3px solid #f59e0b;">
+                            <h3>🏆 GANADORES</h3>
+                        </div>
+                        <ul id="winner-list" class="scroll-list gold-text">
+                            </ul>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="admin-winner-modal" class="modal-backdrop hidden">
+        <div class="winner-alert-box bounce-in">
+            <div class="alert-icon">🚨</div>
+            <h2>¡BINGO CANTADO!</h2>
+            <div class="winner-details">
+                <h3 id="modal-winner-name">Nombre del Jugador</h3>
+                <p>Ganó con el Cartón <span id="modal-winner-card" class="highlight-card">#000</span></p>
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeAdminModal()" class="btn-confirm">CONFIRMAR VICTORIA</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let calledNumbers = new Set();
+        let customGrid = Array(25).fill(false);
+        let isSpinning = false;
+
+        // 1. INICIALIZAR TABLERO MAESTRO
+        const board = document.getElementById('master-board');
+        board.innerHTML = ''; // Limpiar por seguridad
+        for(let i=1; i<=75; i++) {
+            const d = document.createElement('div');
+            d.innerText = i;
+            d.className = 'num-item'; // Clase del CSS nuevo
+            d.id = `btn-${i}`;
+            // Permitir marcar/desmarcar manualmente si el admin quiere corregir
+            d.onclick = () => {
+                if(!isSpinning) callNumber(i);
+            };
+            board.appendChild(d);
+        }
+
+        // 2. INICIALIZAR GRID DE PATRÓN MANUAL
+        const pGrid = document.getElementById('pattern-grid');
+        pGrid.innerHTML = '';
+        for(let i=0; i<25; i++) {
+            const d = document.createElement('div');
+            d.className = 'p-dot';
+            if(i === 12) {
+                d.style.background = '#ccc'; // Centro FREE
+                d.style.cursor = 'default';
+            } else {
+                d.onclick = function() {
+                    this.classList.toggle('active');
+                    customGrid[i] = !customGrid[i];
+                };
+            }
+            pGrid.appendChild(d);
+        }
+
+        // --- SOCKET LISTENERS (LA INTELIGENCIA) ---
+
+        // Sincronizar estado al entrar
+        socket.on('sync_state', (s) => {
+            // Actualizar tablero
+            s.calledNumbers.forEach(n => {
+                calledNumbers.add(n);
+                const el = document.getElementById(`btn-${n}`);
+                if(el) el.classList.add('active');
+            });
+            
+            // Actualizar textos y contadores
+            document.getElementById('announce-input').value = s.message;
+            document.getElementById('count-called').innerText = calledNumbers.size;
+            updateWinners(s.last5Winners);
+            updateAdminLast5(s.last5Numbers);
+            
+            // Sincronizar modo de juego
+            const modeSelect = document.getElementById('game-mode');
+            modeSelect.value = s.pattern;
+            toggleCustomUI(s.pattern);
+            updatePatternDisplay(s.pattern);
+        });
+
+        // Bola Nueva
+        socket.on('number_called', ({num, last5}) => {
+            calledNumbers.add(num);
+            const el = document.getElementById(`btn-${num}`);
+            if(el) {
+                el.classList.add('active');
+                // Efecto visual de parpadeo
+                el.style.transform = "scale(1.3)";
+                setTimeout(() => el.style.transform = "scale(1)", 200);
+            }
+
+            if(!isSpinning) document.getElementById('roulette-display').innerText = num;
+            document.getElementById('count-called').innerText = calledNumbers.size;
+            updateAdminLast5(last5);
+        });
+
+        // Lista de Jugadores
+        socket.on('update_players', (p) => {
+            document.getElementById('player-count').innerText = p.length;
+            const list = document.getElementById('player-list');
+            list.innerHTML = p.map(u => `
+                <li>
+                    <div style="display:flex; flex-direction:column; line-height:1.2;">
+                        <span style="font-weight:800; color:var(--stream-header)">${u.name}</span>
+                        <span style="font-size:0.75rem; color:#666;">Cartones: ${u.cardCount}</span>
+                    </div>
+                    <button onclick="kick('${u.id}')" class="btn-kick" title="Expulsar">✕</button>
+                </li>
+            `).join('');
+        });
+
+        // Historial de Ganadores
+        socket.on('update_history', (w) => updateWinners(w));
+
+        // ALERTA DE GANADOR (POPUP)
+        socket.on('winner_announced', (data) => {
+            document.getElementById('modal-winner-name').innerText = data.user;
+            document.getElementById('modal-winner-card').innerText = `#${data.card}`;
+            const modal = document.getElementById('admin-winner-modal');
+            modal.classList.remove('hidden');
+            
+            // Sonido de alerta (opcional)
+            if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        });
+
+        // Reinicio
+        socket.on('game_reset', () => {
+            calledNumbers.clear();
+            document.querySelectorAll('.num-item').forEach(b => b.classList.remove('active'));
+            document.getElementById('count-called').innerText = "0";
+            document.getElementById('roulette-display').innerText = "--";
+            updateAdminLast5([]);
+            closeAdminModal();
+        });
+
+        // --- FUNCIONES INTERNAS ---
+
+        function updateAdminLast5(arr) {
+            const container = document.getElementById('admin-last-5');
+            const displayArr = [...arr];
+            // Rellenar con guiones para mantener el layout fijo
+            while(displayArr.length < 5) displayArr.push("-");
+            
+            container.innerHTML = displayArr.map(n => 
+                `<div class="admin-ball">${n}</div>`
+            ).join('');
+        }
+
+        function updateWinners(list) {
+            const ul = document.getElementById('winner-list');
+            ul.innerHTML = list.map(w => 
+                `<li>
+                    <span>⭐ ${w.user}</span> 
+                    <span style="background:var(--stream-highlight); padding:2px 6px; border-radius:4px; color:white;">#${w.card}</span>
+                </li>`
+            ).join('');
+        }
+
+        function toggleCustomUI(mode) {
+            const ui = document.getElementById('custom-ui');
+            if(mode === 'custom') ui.classList.remove('hidden');
+            else ui.classList.add('hidden');
+        }
+
+        function updatePatternDisplay(mode) {
+            const container = document.getElementById('pattern-display');
+            container.innerHTML = '';
+            const cells = [];
+            for(let i=0; i<25; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'pattern-cell';
+                cells.push(cell);
+                container.appendChild(cell);
+            }
+
+            const explanations = {
+                'line': 'Cualquier línea horizontal, vertical o diagonal',
+                'full': 'Todo el cartón marcado',
+                'corners': 'Las 4 esquinas del cartón',
+                'custom': 'Patrón personalizado definido abajo'
+            };
+
+            if(mode === 'full') {
+                cells.forEach(c => c.classList.add('active'));
+            } else if(mode === 'corners') {
+                [0,4,20,24].forEach(i => cells[i].classList.add('active'));
+            } else if(mode === 'line') {
+                // Show horizontal line (row 2: 5-9)
+                for(let i=5; i<=9; i++) cells[i].classList.add('active');
+            } else if(mode === 'custom') {
+                customGrid.forEach((active, i) => { if(active) cells[i].classList.add('active'); });
+            }
+
+            document.getElementById('pattern-explanation').innerText = explanations[mode] || '';
+        }
+
+        // --- ACCIONES DEL ADMIN ---
+
+        function callNumber(n) {
+            if(!calledNumbers.has(n)) socket.emit('admin_call_number', n);
+        }
+
+        function kick(id) {
+            if(confirm("¿Seguro que deseas expulsar a este jugador? Se liberarán sus cartones.")) {
+                socket.emit('admin_kick_player', id);
+            }
+        }
+
+        function updateMessage() {
+            socket.emit('admin_set_message', document.getElementById('announce-input').value);
+        }
+
+        function changeMode() {
+            const mode = document.getElementById('game-mode').value;
+            toggleCustomUI(mode);
+            updatePatternDisplay(mode);
+            socket.emit('admin_set_pattern', { type: mode });
+        }
+
+        function sendPattern() {
+            socket.emit('admin_set_pattern', { type: 'custom', grid: customGrid });
+            alert("Figura personalizada aplicada.");
+        }
+
+        function resetGame() {
+            if(confirm("⚠️ ¿REINICIAR PARTIDA? \nSe borrará todo el progreso del tablero actual.")) {
+                socket.emit('admin_reset');
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('yovanny_admin_auth');
+            window.location.href = '/admin-login.html';
+        }
+
+        function closeAdminModal() {
+            document.getElementById('admin-winner-modal').classList.add('hidden');
+        }
+
+        // --- ANIMACIÓN DE RULETA ---
+        function spinRoulette() {
+            if(isSpinning) return;
+            
+            // Encontrar números disponibles
+            let pool = [];
+            for(let i=1; i<=75; i++) {
+                if(!calledNumbers.has(i)) pool.push(i);
+            }
+
+            if(pool.length === 0) return alert("¡Juego Terminado! Ya salieron todas las bolas.");
+
+            isSpinning = true;
+            const disp = document.getElementById('roulette-display');
+            let count = 0;
+            const maxSpins = 15; // Cuántas veces cambia el número antes de parar
+
+            const interval = setInterval(() => {
+                // Mostrar número aleatorio del pool visualmente
+                const randomIndex = Math.floor(Math.random() * pool.length);
+                disp.innerText = pool[randomIndex];
+                
+                count++;
+                if(count > maxSpins) {
+                    clearInterval(interval);
+                    // Elegir el número final REAL y enviarlo al servidor
+                    const finalNumber = pool[Math.floor(Math.random() * pool.length)];
+                    disp.innerText = finalNumber;
+                    callNumber(finalNumber);
+                    isSpinning = false;
+                }
+            }, 60); // Velocidad de cambio (ms)
+        }
+    </script>
+</body>
+</html>

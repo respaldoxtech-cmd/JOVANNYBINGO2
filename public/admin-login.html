@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Administrativo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
+    <style>
+        /* --- ESTILO EXCLUSIVO ADMIN LOGIN --- */
+        :root {
+            --bg-dark: #020617; /* Fondo ultra oscuro */
+            --primary: #6366f1; /* Indigo */
+            --glass: rgba(30, 41, 59, 0.7);
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #f8fafc;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.15) 0%, transparent 40%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        .login-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 50px 40px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Logo Brillante */
+        .logo-container {
+            margin-bottom: 30px;
+            position: relative;
+            display: inline-block;
+        }
+        .logo-img {
+            width: 160px;
+            filter: drop-shadow(0 0 15px rgba(99, 102, 241, 0.3));
+            transition: transform 0.3s;
+        }
+        .logo-img:hover { transform: scale(1.05); }
+
+        h2 {
+            margin: 0 0 10px 0;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            font-size: 1.5rem;
+        }
+        p {
+            margin: 0 0 30px 0;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        /* Input de Alta Seguridad */
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .input-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .security-input {
+            width: 100%;
+            padding: 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+            font-family: monospace; /* Estilo password */
+            letter-spacing: 2px;
+        }
+        .security-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        /* Botón Pro */
+        .btn-access {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        .btn-access:hover {
+            box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+            transform: translateY(-2px);
+        }
+        .btn-access:active { transform: translateY(0); }
+
+        .error-msg {
+            color: #ef4444;
+            font-size: 0.85rem;
+            margin-top: 15px;
+            display: none; /* Oculto por defecto */
+            animation: shake 0.3s;
+        }
+
+        /* Animaciones */
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="logo-container">
+            <img src="logo.png" alt="Yovanny Bingo" class="logo-img">
+        </div>
+
+        <h2>Panel de Control</h2>
+        <p>Identifícate para gestionar el juego</p>
+
+        <div class="input-group">
+            <label class="input-label">Clave de Acceso</label>
+            <input type="password" id="adminPass" class="security-input" placeholder="••••••••">
+        </div>
+
+        <button onclick="attemptLogin()" class="btn-access">DESBLOQUEAR SISTEMA</button>
+        <div id="error-msg" class="error-msg">⚠ Acceso denegado. Intente nuevamente.</div>
+    </div>
+
+    <script>
+        // Permitir Enter para enviar
+        document.getElementById("adminPass").addEventListener("keyup", function(event) {
+            if (event.key === "Enter") attemptLogin();
+        });
+
+        async function attemptLogin() {
+            const pass = document.getElementById('adminPass').value;
+            const btn = document.querySelector('.btn-access');
+            const errorDiv = document.getElementById('error-msg');
+            
+            // Efecto de carga visual
+            const originalText = btn.innerText;
+            btn.innerText = "VERIFICANDO...";
+            btn.style.opacity = "0.7";
+            errorDiv.style.display = 'none';
+
+            try {
+                const res = await fetch('/admin-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pass })
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    // ÉXITO
+                    btn.innerText = "ACCESO CONCEDIDO";
+                    btn.style.background = "#10b981"; // Verde éxito
+                    sessionStorage.setItem('yovanny_admin_auth', 'true');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/admin.html';
+                    }, 500);
+                } else {
+                    // ERROR
+                    throw new Error("Password incorrecto");
+                }
+            } catch (e) {
+                btn.innerText = originalText;
+                btn.style.opacity = "1";
+                errorDiv.style.display = 'block';
+                document.getElementById('adminPass').value = '';
+                document.getElementById('adminPass').focus();
+            }
+        }
+    </script>
+</body>
+</html>
