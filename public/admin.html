@@ -244,7 +244,7 @@
                 <li style="background: #fff3cd; border-left: 4px solid #ffc107;">
                     <div style="display:flex; flex-direction:column; line-height:1.2; flex:1;">
                         <span style="font-weight:800; color:#856404">${u.name}</span>
-                        <span style="font-size:0.75rem; color:#856404;">Cartones: ${u.cardCount}</span>
+                        <span style="font-size:0.75rem; color:#856404;">Cartones: ${u.cardCount} (${u.cardIds.join(', ')})</span>
                     </div>
                     <div style="display:flex; gap:5px;">
                         <button onclick="acceptPlayer('${u.id}')" class="btn-accept" title="Aceptar">✓</button>

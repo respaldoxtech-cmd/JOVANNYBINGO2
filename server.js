@@ -347,6 +347,7 @@ function getPendingPlayers() {
         id: socketId,
         name: player.username,
         cardCount: player.cardIds.length,
+        cardIds: player.cardIds,
         timestamp: player.timestamp
     }));
 }
