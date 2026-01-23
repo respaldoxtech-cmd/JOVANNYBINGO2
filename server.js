@@ -24,6 +24,9 @@ let gameState = {
     message: "¡BIENVENIDOS AL BINGO YOVANNY!"
 };
 
+// Sistema de moderación de jugadores
+let pendingPlayers = new Map(); // socketId -> {username, cardIds, socket}
+
 // Registro de cartones en uso (Para evitar duplicados)
 let takenCards = new Set();
 
@@ -122,6 +125,9 @@ function checkWin(card, called, patternType, customGrid) {
 
 io.on('connection', (socket) => {
     socket.emit('sync_state', gameState);
+    // Si es admin, enviar listas de jugadores
+    socket.emit('update_pending_players', getPendingPlayers());
+    socket.emit('update_players', getActivePlayers());
 
     socket.on('join_game', (data) => {
         let ids = [];
@@ -146,13 +152,26 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Si pasa la validación, registrar los cartones
-        ids.forEach(id => takenCards.add(id));
-        socket.data = { username: data.username, cardIds: ids };
+        // Poner al jugador en lista de pendientes para aprobación
+        pendingPlayers.set(socket.id, {
+            username: data.username,
+            cardIds: ids,
+            socket: socket,
+            timestamp: Date.now()
+        });
 
-        const cards = ids.map(id => generateCard(id));
-        socket.emit('init_cards', { cards });
-        io.emit('update_players', getActivePlayers());
+        // Notificar al admin sobre el nuevo jugador pendiente
+        io.emit('update_pending_players', getPendingPlayers());
+        io.emit('new_player_pending', {
+            id: socket.id,
+            name: data.username,
+            cardCount: ids.length
+        });
+
+        // Informar al jugador que está esperando aprobación
+        socket.emit('waiting_approval', {
+            message: 'Esperando aprobación del administrador...'
+        });
     });
 
     socket.on('admin_call_number', (num) => {
@@ -185,6 +204,53 @@ io.on('connection', (socket) => {
             target.emit('kicked');
             target.disconnect();
             io.emit('update_players', getActivePlayers());
+        }
+    });
+
+    socket.on('admin_accept_player', (socketId) => {
+        const pendingPlayer = pendingPlayers.get(socketId);
+        if (pendingPlayer) {
+            // Verificar duplicados antes de aceptar
+            const duplicates = pendingPlayer.cardIds.filter(id => takenCards.has(id));
+            if (duplicates.length > 0) {
+                pendingPlayer.socket.emit('join_error', {
+                    message: `Los cartones #${duplicates.join(', #')} ya están en uso.`
+                });
+                pendingPlayers.delete(socketId);
+                io.emit('update_pending_players', getPendingPlayers());
+                return;
+            }
+
+            // Aceptar al jugador: registrar cartones y inicializar
+            pendingPlayer.cardIds.forEach(id => takenCards.add(id));
+            pendingPlayer.socket.data = {
+                username: pendingPlayer.username,
+                cardIds: pendingPlayer.cardIds
+            };
+
+            // Generar y enviar cartones
+            const cards = pendingPlayer.cardIds.map(id => generateCard(id));
+            pendingPlayer.socket.emit('init_cards', { cards });
+
+            // Remover de pendientes y actualizar listas
+            pendingPlayers.delete(socketId);
+            io.emit('update_pending_players', getPendingPlayers());
+            io.emit('update_players', getActivePlayers());
+
+            // Notificar aceptación
+            pendingPlayer.socket.emit('player_accepted');
+        }
+    });
+
+    socket.on('admin_reject_player', (socketId) => {
+        const pendingPlayer = pendingPlayers.get(socketId);
+        if (pendingPlayer) {
+            // Rechazar al jugador
+            pendingPlayer.socket.emit('player_rejected', {
+                message: 'Tu solicitud ha sido rechazada por el administrador.'
+            });
+            pendingPlayers.delete(socketId);
+            io.emit('update_pending_players', getPendingPlayers());
         }
     });
 
@@ -230,9 +296,17 @@ io.on('connection', (socket) => {
 
     // --- AL DESCONECTARSE, LIBERAR CARTONES ---
     socket.on('disconnect', () => {
+        // Limpiar de jugadores activos
         if (socket.data.cardIds) {
             socket.data.cardIds.forEach(id => takenCards.delete(id));
         }
+
+        // Limpiar de jugadores pendientes
+        if (pendingPlayers.has(socket.id)) {
+            pendingPlayers.delete(socket.id);
+            io.emit('update_pending_players', getPendingPlayers());
+        }
+
         io.emit('update_players', getActivePlayers());
     });
 });
@@ -245,6 +319,15 @@ function getActivePlayers() {
             name: s.data.username,
             cardCount: s.data.cardIds ? s.data.cardIds.length : 0
         }));
+}
+
+function getPendingPlayers() {
+    return Array.from(pendingPlayers.entries()).map(([socketId, player]) => ({
+        id: socketId,
+        name: player.username,
+        cardCount: player.cardIds.length,
+        timestamp: player.timestamp
+    }));
 }
 
 const PORT = process.env.PORT || 3000;

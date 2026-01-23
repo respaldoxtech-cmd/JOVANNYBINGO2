@@ -99,7 +99,16 @@
                     
                     <div class="card info-card">
                         <div class="card-header">
-                            <h3>JUGADORES CONECTADOS</h3>
+                            <h3>⏳ JUGADORES PENDIENTES</h3>
+                            <span class="badge-count" id="pending-count">0</span>
+                        </div>
+                        <ul id="pending-list" class="scroll-list">
+                            </ul>
+                    </div>
+
+                    <div class="card info-card">
+                        <div class="card-header">
+                            <h3>JUGADORES ACTIVOS</h3>
                             <span class="badge-count" id="player-count">0</span>
                         </div>
                         <ul id="player-list" class="scroll-list">
@@ -227,6 +236,30 @@
             `).join('');
         });
 
+        // Lista de Jugadores Pendientes
+        socket.on('update_pending_players', (p) => {
+            document.getElementById('pending-count').innerText = p.length;
+            const list = document.getElementById('pending-list');
+            list.innerHTML = p.map(u => `
+                <li style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <div style="display:flex; flex-direction:column; line-height:1.2; flex:1;">
+                        <span style="font-weight:800; color:#856404">${u.name}</span>
+                        <span style="font-size:0.75rem; color:#856404;">Cartones: ${u.cardCount}</span>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="acceptPlayer('${u.id}')" class="btn-accept" title="Aceptar">✓</button>
+                        <button onclick="rejectPlayer('${u.id}')" class="btn-reject" title="Rechazar">✕</button>
+                    </div>
+                </li>
+            `).join('');
+        });
+
+        // Notificación de nuevo jugador pendiente
+        socket.on('new_player_pending', (data) => {
+            // Podríamos mostrar una notificación aquí si queremos
+            console.log(`Nuevo jugador esperando aprobación: ${data.name}`);
+        });
+
         // Historial de Ganadores
         socket.on('update_history', (w) => updateWinners(w));
 
@@ -348,6 +381,16 @@
         function resetGame() {
             if(confirm("⚠️ ¿REINICIAR PARTIDA? \nSe borrará todo el progreso del tablero actual.")) {
                 socket.emit('admin_reset');
+            }
+        }
+
+        function acceptPlayer(socketId) {
+            socket.emit('admin_accept_player', socketId);
+        }
+
+        function rejectPlayer(socketId) {
+            if(confirm("¿Rechazar a este jugador?")) {
+                socket.emit('admin_reject_player', socketId);
             }
         }
 

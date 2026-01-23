@@ -450,6 +450,20 @@ body { margin: 0; padding: 0; font-family: var(--font); background: var(--bg-app
     display: flex; justify-content: center; align-items: center; font-weight: bold;
 }
 
+.btn-accept {
+    background: #d1fae5; color: #16a34a; border: 1px solid #86efac;
+    width: 24px; height: 24px; border-radius: 4px; cursor: pointer;
+    display: flex; justify-content: center; align-items: center; font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.btn-reject {
+    background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5;
+    width: 24px; height: 24px; border-radius: 4px; cursor: pointer;
+    display: flex; justify-content: center; align-items: center; font-weight: bold;
+    font-size: 1.2rem;
+}
+
 .gold-text li {
     background: #fffbeb; color: #b45309; border-left: 4px solid var(--stream-highlight);
 }

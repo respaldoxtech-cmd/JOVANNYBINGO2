@@ -203,6 +203,26 @@
             errorDiv.style.display = 'none';
             // Enviamos el array selectedIds directamente
             socket.emit('join_game', { username: user, cardIds: selectedIds });
+
+            // Mostrar pantalla de espera de aprobación
+            document.getElementById('login-screen').classList.remove('active');
+            setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 300);
+
+            // Crear pantalla de espera
+            const waitingScreen = document.createElement('div');
+            waitingScreen.id = 'waiting-screen';
+            waitingScreen.className = 'login-wrapper active';
+            waitingScreen.innerHTML = `
+                <div class="login-container glass-effect" style="text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">⏳</div>
+                    <h2>Esperando Aprobación</h2>
+                    <p>El administrador está revisando tu solicitud...</p>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 20px;">
+                        Por favor espera mientras el admin aprueba tu ingreso.
+                    </p>
+                </div>
+            `;
+            document.body.appendChild(waitingScreen);
         }
 
         // --- MANEJO DE ERROR: CARTÓN OCUPADO ---
@@ -217,6 +237,46 @@
                 { transform: 'translateX(10px)' },
                 { transform: 'translateX(0)' }
             ], { duration: 300 });
+
+            // Si hay error, remover pantalla de espera y mostrar login nuevamente
+            const waitingScreen = document.getElementById('waiting-screen');
+            if(waitingScreen) {
+                waitingScreen.remove();
+                document.getElementById('login-screen').classList.add('active');
+                document.getElementById('login-screen').classList.remove('hidden');
+            }
+        });
+
+        // Mensaje de espera de aprobación
+        socket.on('waiting_approval', (data) => {
+            // La pantalla de espera ya se creó en joinGame()
+            console.log(data.message);
+        });
+
+        // Jugador aceptado
+        socket.on('player_accepted', () => {
+            // Remover pantalla de espera
+            const waitingScreen = document.getElementById('waiting-screen');
+            if(waitingScreen) {
+                waitingScreen.remove();
+            }
+            // El init_cards se manejará normalmente
+        });
+
+        // Jugador rechazado
+        socket.on('player_rejected', (data) => {
+            // Remover pantalla de espera y mostrar mensaje de rechazo
+            const waitingScreen = document.getElementById('waiting-screen');
+            if(waitingScreen) {
+                waitingScreen.innerHTML = `
+                    <div class="login-container glass-effect" style="text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 20px; color: #ef4444;">❌</div>
+                        <h2>Solicitud Rechazada</h2>
+                        <p>${data.message}</p>
+                        <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Intentar de Nuevo</button>
+                    </div>
+                `;
+            }
         });
 
         // Si entra con éxito, inicializamos la UI
