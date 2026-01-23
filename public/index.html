@@ -14,6 +14,11 @@
 
     <div class="watermark-layer"></div>
 
+    <!-- Botón de Admin en esquina superior derecha -->
+    <button onclick="goToAdmin()" class="admin-access-btn" title="Panel de Administrador">
+        🔧
+    </button>
+
     <div id="login-screen" class="login-wrapper active">
         <div class="login-container glass-effect">
             <div class="brand-area">
@@ -91,9 +96,9 @@
             <div class="fab-container">
                 <button onclick="shoutBingo()" class="btn-fab pulse">BINGO</button>
             </div>
-            <button onclick="downloadAllCards()" class="nav-item">
-                <span class="icon">📥</span>
-                <span class="label">Descargar</span>
+            <button onclick="logoutUser()" class="nav-item">
+                <span class="icon">🚪</span>
+                <span class="label">Salir</span>
             </button>
         </nav>
 
@@ -382,6 +387,21 @@
         function toggleHistory() { document.getElementById('history-modal').classList.toggle('hidden'); }
         function shoutBingo() { socket.emit('bingo_shout'); }
         function closeOverlay() { document.getElementById('winner-overlay').classList.add('hidden'); }
+
+        // Función para salir del juego
+        function logoutUser() {
+            if(confirm("¿Estás seguro de que quieres salir del juego? Perderás tu progreso actual.")) {
+                // Desconectar del socket
+                socket.disconnect();
+                // Recargar la página para volver al login
+                location.reload();
+            }
+        }
+
+        // Función para ir al panel de admin
+        function goToAdmin() {
+            window.location.href = '/admin-login.html';
+        }
 
         // --- VERIFICACIÓN AUTOMÁTICA DE BINGO ---
         function checkAutomaticBingo() {
