@@ -7,6 +7,128 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Audio System -->
+    <script>
+        // Audio System for Bingo Sounds
+        class BingoAudio {
+            constructor() {
+                this.audioContext = null;
+                this.sounds = {};
+                this.enabled = true;
+                this.init();
+            }
+
+            init() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.createSounds();
+                } catch (e) {
+                    console.warn('Web Audio API not supported');
+                    this.enabled = false;
+                }
+            }
+
+            createSounds() {
+                // Bingo Celebration Sound
+                this.sounds.bingo = () => this.createBingoSound();
+
+                // New Player Join Sound
+                this.sounds.playerJoin = () => this.createPlayerJoinSound();
+
+                // Button Click Sound
+                this.sounds.buttonClick = () => this.createButtonClickSound();
+
+                // Number Draw Sound
+                this.sounds.numberDraw = () => this.createNumberDrawSound();
+
+                // Success Sound for admin actions
+                this.sounds.success = () => this.createSuccessSound();
+            }
+
+            createTone(frequency, duration, type = 'sine', volume = 0.3) {
+                if (!this.enabled) return;
+
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                oscillator.type = type;
+
+                gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(volume, this.audioContext.currentTime + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
+
+                oscillator.start();
+                oscillator.stop(this.audioContext.currentTime + duration);
+            }
+
+            createBingoSound() {
+                // Triumphant fanfare-like sound
+                const now = this.audioContext.currentTime;
+
+                // C4, E4, G4 chord
+                this.createTone(261.63, 0.8, 'triangle', 0.4); // C4
+                setTimeout(() => this.createTone(329.63, 0.8, 'triangle', 0.4), 100); // E4
+                setTimeout(() => this.createTone(392.00, 1.0, 'triangle', 0.4), 200); // G4
+
+                // Higher celebration notes
+                setTimeout(() => this.createTone(523.25, 0.3, 'sine', 0.3), 800); // C5
+                setTimeout(() => this.createTone(659.25, 0.3, 'sine', 0.3), 900); // E5
+                setTimeout(() => this.createTone(783.99, 0.5, 'sine', 0.3), 1000); // G5
+            }
+
+            createPlayerJoinSound() {
+                // Pleasant notification sound
+                this.createTone(440, 0.15, 'sine', 0.2); // A4
+                setTimeout(() => this.createTone(554.37, 0.15, 'sine', 0.2), 150); // C#5
+                setTimeout(() => this.createTone(659.25, 0.2, 'sine', 0.2), 300); // E5
+            }
+
+            createButtonClickSound() {
+                // Short click sound
+                this.createTone(800, 0.05, 'square', 0.1);
+            }
+
+            createNumberDrawSound() {
+                // Ball rolling/dropping sound
+                const now = this.audioContext.currentTime;
+
+                // Quick descending tones
+                this.createTone(600, 0.1, 'sawtooth', 0.2);
+                setTimeout(() => this.createTone(500, 0.1, 'sawtooth', 0.2), 50);
+                setTimeout(() => this.createTone(400, 0.15, 'sawtooth', 0.25), 100);
+            }
+
+            createSuccessSound() {
+                // Pleasant success confirmation
+                this.createTone(523.25, 0.1, 'sine', 0.2); // C5
+                setTimeout(() => this.createTone(659.25, 0.1, 'sine', 0.2), 100); // E5
+                setTimeout(() => this.createTone(783.99, 0.15, 'sine', 0.2), 200); // G5
+            }
+
+            play(soundName) {
+                if (this.enabled && this.sounds[soundName]) {
+                    // Resume audio context if suspended (required by browsers)
+                    if (this.audioContext.state === 'suspended') {
+                        this.audioContext.resume();
+                    }
+                    this.sounds[soundName]();
+                }
+            }
+
+            toggle() {
+                this.enabled = !this.enabled;
+                return this.enabled;
+            }
+        }
+
+        // Initialize audio system
+        const bingoAudio = new BingoAudio();
+    </script>
     
     <script>
         if (!sessionStorage.getItem('yovanny_admin_auth')) {
@@ -384,7 +506,10 @@
             const modal = document.getElementById('admin-winner-modal');
             modal.classList.remove('hidden');
 
-            // Sonido de alerta (opcional)
+            // 🎵 Sonido de bingo en admin
+            bingoAudio.play('bingo');
+
+            // Vibración si está disponible
             if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
             // El modal permanece abierto hasta que el admin haga clic en "CONFIRMAR VICTORIA"
@@ -637,6 +762,9 @@
         });
 
         socket.on('admin_success', (data) => {
+            // 🎵 Sonido de éxito al agregar jugador
+            bingoAudio.play('success');
+
             alert(data.message);
             // Refresh card availability after adding player
             socket.emit('get_card_availability');
