@@ -358,12 +358,13 @@ io.on('connection', (socket) => {
         });
     });
 
-    // Get card availability for admin modal
+    // Get card availability for admin modal and status
     socket.on('get_card_availability', () => {
         const takenCardsArray = Array.from(takenCards);
         socket.emit('card_availability', {
             takenCards: takenCardsArray,
-            availableCount: 300 - takenCards.size
+            availableCount: 300 - takenCards.size,
+            usedCount: takenCards.size
         });
     });
 

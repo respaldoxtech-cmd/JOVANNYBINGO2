@@ -197,12 +197,12 @@
     </div>
 
     <div id="add-player-modal" class="modal-backdrop hidden">
-        <div class="modal-card slide-up" style="max-width: 500px;">
+        <div class="modal-card slide-up" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
             <div class="modal-header">
                 <h3>➕ AGREGAR JUGADOR MANUALMENTE</h3>
                 <button onclick="closeAddPlayerModal()" class="btn-close">✕</button>
             </div>
-            <div class="modal-content" style="padding: 20px;">
+            <div class="modal-content" style="padding: 20px; max-height: calc(80vh - 80px); overflow-y: auto;">
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 600;">Nombre del Jugador:</label>
                     <input type="text" id="new-player-name" placeholder="Ingresa el nombre..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;">
@@ -387,10 +387,7 @@
             // Sonido de alerta (opcional)
             if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
-            // Auto-cerrar el modal después de 5 segundos
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 5000);
+            // El modal permanece abierto hasta que el admin haga clic en "CONFIRMAR VICTORIA"
         });
 
         // Reinicio
@@ -620,13 +617,23 @@
         });
 
         // Initialize cards status on load
-        document.addEventListener('DOMContentLoaded', updateCardsStatus);
+        document.addEventListener('DOMContentLoaded', () => {
+            updateCardsStatus();
+            // Request initial card status
+            socket.emit('get_card_availability');
+        });
 
         // Handle card availability response
         socket.on('card_availability', (data) => {
             takenCardsData = new Set(data.takenCards);
-            updateCardAvailabilityDisplay(data.availableCount);
-            renderCardAvailabilityGrid();
+            updateCardAvailabilityDisplay(data.availableCount, data.usedCount);
+            renderCardsStatusGrid();
+        });
+
+        // Update card status when players change
+        socket.on('update_players', (p) => {
+            // Request fresh card data when players change
+            socket.emit('get_card_availability');
         });
 
         socket.on('admin_success', (data) => {
@@ -731,9 +738,35 @@
             adminSelectedCards = [];
         }
 
-        function updateCardAvailabilityDisplay(availableCount) {
+        function updateCardAvailabilityDisplay(availableCount, usedCount) {
+            // Update the main cards status display
+            document.getElementById('used-cards-count').innerText = usedCount;
+            document.getElementById('available-cards-count').innerText = availableCount;
+
+            // Update the modal hint
             const hintElement = document.getElementById('card-availability-hint');
             hintElement.innerText = `Cartones disponibles: ${availableCount}/300`;
+        }
+
+        function renderCardsStatusGrid() {
+            const gridElement = document.getElementById('cards-status-grid');
+            gridElement.innerHTML = '';
+
+            for (let i = 1; i <= 300; i++) {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card-status-item';
+                cardDiv.innerText = i;
+
+                if (takenCardsData.has(i)) {
+                    cardDiv.classList.add('used');
+                    cardDiv.title = 'Cartón en uso';
+                } else {
+                    cardDiv.classList.add('available');
+                    cardDiv.title = 'Cartón disponible';
+                }
+
+                gridElement.appendChild(cardDiv);
+            }
         }
 
         function renderCardAvailabilityGrid() {
