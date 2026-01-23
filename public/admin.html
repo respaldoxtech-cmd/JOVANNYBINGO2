@@ -581,6 +581,9 @@
 
             const explanations = {
                 'line': 'Cualquier línea horizontal, vertical o diagonal',
+                'line_horizontal': 'Cualquier línea horizontal (filas)',
+                'line_vertical': 'Cualquier línea vertical (columnas)',
+                'line_diagonal': 'Cualquier línea diagonal',
                 'full': 'Todo el cartón marcado (Blackout)',
                 'corners': 'Las 4 esquinas del cartón',
                 'x': 'Ambas diagonales cruzadas (X)',
@@ -608,7 +611,17 @@
                 'letter_t': [true,true,true,true,true, false,false,true,false,false, false,false,true,false,false, false,false,true,false,false, false,false,true,false,false],
                 'small_square': [true,true,false,false,false, true,true,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
                 'diamond': [false,false,true,false,false, false,true,false,true,false, true,false,false,false,true, false,true,false,true,false, false,false,true,false,false],
+                'star': [false,true,false,true,false, true,true,true,true,true, false,true,true,true,false, true,true,true,true,true, false,true,false,true,false],
+                'heart': [false,true,false,true,false, true,true,true,true,true, true,true,true,true,true, true,true,true,true,true, false,true,true,true,false],
+                'airplane': [false,false,true,false,false, true,true,true,true,true, false,true,true,true,false, false,true,false,true,false, false,false,false,false,false],
+                'arrow': [false,false,true,false,false, false,true,true,true,false, true,true,true,true,true, false,false,true,false,false, false,false,true,false,false],
+                'crazy': [true,false,false,false,false, false,false,true,false,false, false,false,false,false,true, false,true,false,false,false, false,false,false,true,false],
+                'pyramid': [false,false,true,false,false, false,true,true,true,false, true,true,true,true,true, false,false,false,false,false, false,false,false,false,false],
+                'cross': [false,true,false,false,false, true,true,true,false,false, false,true,false,false,false, false,true,false,false,false, false,true,false,false,false],
                 'line': [false,false,false,false,false, true,true,true,true,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
+                'line_horizontal': [false,false,false,false,false, true,true,true,true,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
+                'line_vertical': [true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false],
+                'line_diagonal': [true,false,false,false,false, false,true,false,false,false, false,false,true,false,false, false,false,false,true,false, false,false,false,false,true],
                 'custom': customGrid
             };
 
