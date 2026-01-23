@@ -181,7 +181,7 @@ body { margin: 0; padding: 0; font-family: var(--font); background: var(--bg-app
 .ball-value { font-size: 2rem; font-weight: 800; color: var(--gold); line-height: 1; }
 
 .header-right { text-align: right; }
-.mode-badge { background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 8px; }
+.mode-badge { background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 8px; cursor: pointer; }
 .mode-label { font-size: 0.55rem; color: var(--text-muted); display: block; }
 #mode-display { color: var(--secondary); font-size: 0.75rem; }
 
@@ -301,6 +301,56 @@ body { margin: 0; padding: 0; font-family: var(--font); background: var(--bg-app
 .winner-box { text-align: center; width: 90%; max-width: 350px; }
 .icon-trophy { font-size: 5rem; margin-bottom: 10px; animation: bounce 1s infinite; }
 @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
+
+/* Mini Bingo Card for Pattern Modal */
+.mini-bingo-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+}
+.mini-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: 20px repeat(5, 30px);
+    gap: 2px;
+    width: 150px;
+    height: 170px;
+}
+.mini-header {
+    background: var(--primary);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+.mini-cell {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+.mini-cell.winning {
+    background: var(--accent);
+    color: white;
+}
+.mini-cell.free {
+    background: var(--gold);
+    color: black;
+}
+.pattern-display {
+    text-align: center;
+}
+.pattern-explanation {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: var(--text);
+}
 
 /* =========================================
    SECCIÓN ADMIN (BROADCAST / TV READY)

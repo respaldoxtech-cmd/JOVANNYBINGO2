@@ -71,7 +71,7 @@
                 </div>
             </div>
             <div class="header-right">
-                <div class="mode-badge">
+                <div class="mode-badge" onclick="showPatternModal()">
                     <span class="mode-label">MODO</span>
                     <strong id="mode-display">FULL</strong>
                 </div>
@@ -111,6 +111,18 @@
                 <button onclick="toggleHistory()" class="btn-close">✕</button>
             </div>
             <ul id="history-list" class="data-list"></ul>
+        </div>
+    </div>
+
+    <div id="pattern-modal" class="modal-backdrop hidden">
+        <div class="modal-card slide-up">
+            <div class="modal-header">
+                <h3>Figura Actual: <span id="pattern-title"></span></h3>
+                <button onclick="hidePatternModal()" class="btn-close">✕</button>
+            </div>
+            <div id="pattern-display" class="pattern-display">
+                <!-- Mini bingo card will be inserted here -->
+            </div>
         </div>
     </div>
 
@@ -453,6 +465,68 @@
         function toggleHistory() { document.getElementById('history-modal').classList.toggle('hidden'); }
         function shoutBingo() { socket.emit('bingo_shout'); }
         function closeOverlay() { document.getElementById('winner-overlay').classList.add('hidden'); }
+
+        // Función para mostrar el modal de patrón
+        function showPatternModal() {
+            const modal = document.getElementById('pattern-modal');
+            const title = document.getElementById('pattern-title');
+            const display = document.getElementById('pattern-display');
+
+            // Set title
+            const map = {
+                'line': 'NORMAL (LÍNEA)',
+                'full': 'CARTÓN LLENO',
+                'corners': '4 ESQUINAS',
+                'custom': 'FIGURA MANUAL'
+            };
+            title.textContent = map[currentPattern] || currentPattern;
+
+            // Generate mini card
+            let html = '<div class="mini-bingo-card">';
+            html += '<div class="mini-grid">';
+            // Headers B I N G O
+            ['B','I','N','G','O'].forEach(l => {
+                html += `<div class="mini-header">${l}</div>`;
+            });
+            // 5x5 grid
+            for(let row=0; row<5; row++) {
+                for(let col=0; col<5; col++) {
+                    const idx = row + col*5;
+                    let classes = 'mini-cell';
+                    if(isWinningCell(idx, currentPattern)) classes += ' winning';
+                    if(idx === 12) classes += ' free';
+                    html += `<div class="${classes}">${idx === 12 ? '★' : ''}</div>`;
+                }
+            }
+            html += '</div></div>';
+
+            // For line, add explanation
+            if(currentPattern === 'line') {
+                html += '<p class="pattern-explanation">Gana cualquier línea: horizontal, vertical o diagonal.</p>';
+            } else if(currentPattern === 'custom') {
+                html += '<p class="pattern-explanation">El administrador define la figura manualmente.</p>';
+            }
+
+            display.innerHTML = html;
+            modal.classList.remove('hidden');
+        }
+
+        function isWinningCell(idx, pattern) {
+            if(pattern === 'full') return true;
+            if(pattern === 'corners') {
+                const corners = [0, 4, 20, 24];
+                return corners.includes(idx);
+            }
+            if(pattern === 'line') {
+                // Highlight an example horizontal line (middle row)
+                return idx >= 10 && idx <= 14;
+            }
+            return false;
+        }
+
+        function hidePatternModal() {
+            document.getElementById('pattern-modal').classList.add('hidden');
+        }
 
         // Función para salir del juego
         function logoutUser() {
