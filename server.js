@@ -214,8 +214,15 @@ io.on('connection', (socket) => {
                 gameState.last5Winners.unshift(winData);
                 if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
             }
+            // Anuncio automático inmediato
             io.emit('winner_announced', winData);
             io.emit('update_history', gameState.last5Winners);
+
+            // También emitimos un evento especial para celebración automática
+            io.emit('bingo_celebration', {
+                message: `¡BINGO! ${username} ha ganado con el cartón #${winnerCardId}!`,
+                winner: winData
+            });
         } else {
             socket.emit('invalid_bingo');
         }

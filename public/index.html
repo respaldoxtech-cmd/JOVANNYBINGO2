@@ -124,6 +124,7 @@
         const socket = io();
         let myCards = []; // Cartones descargados
         let selectedIds = []; // Cartones seleccionados en el login
+        let currentPattern = 'line'; // Patrón actual del juego
 
         // --- LÓGICA DEL SELECTOR DE CARTONES ---
 
@@ -288,10 +289,15 @@
                 ball.innerText = num;
                 ball.style.transform = "scale(1)";
             }, 150);
-            
+
             markNumberInAllCards(num);
             updateLast5(last5);
             if(navigator.vibrate) navigator.vibrate(50);
+
+            // Verificar victoria automática después de marcar el número
+            setTimeout(() => {
+                checkAutomaticBingo();
+            }, 500); // Pequeño delay para que se vea la animación
         });
 
         socket.on('message_updated', (msg) => document.getElementById('announcement-text').innerText = msg);
@@ -302,6 +308,31 @@
             document.getElementById('winner-card-announce').innerText = `#${data.card}`;
             document.getElementById('winner-overlay').classList.remove('hidden');
             confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+
+            // Auto-cerrar el overlay después de 8 segundos para continuar el juego
+            setTimeout(() => {
+                document.getElementById('winner-overlay').classList.add('hidden');
+            }, 8000);
+        });
+
+        // Celebración automática cuando alguien gana
+        socket.on('bingo_celebration', (data) => {
+            // Mostrar mensaje de celebración en el anuncio
+            const originalMessage = document.getElementById('announcement-text').innerText;
+            document.getElementById('announcement-text').innerText = data.message;
+
+            // Efectos de celebración para todos los jugadores
+            if(navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+
+            // Confetti más moderado para otros jugadores
+            setTimeout(() => {
+                confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+            }, 500);
+
+            // Restaurar mensaje original después de 10 segundos
+            setTimeout(() => {
+                document.getElementById('announcement-text').innerText = originalMessage;
+            }, 10000);
         });
 
         socket.on('update_history', (h) => updateHistory(h));
@@ -334,6 +365,7 @@
             document.getElementById('player-last-5').innerHTML = arr.map(n => `<div class="hist-ball">${n}</div>`).join('');
         }
         function updateMode(p) {
+            currentPattern = p; // Actualizar patrón actual para bingo automático
             // Mapeo actualizado de nombres para el usuario
             const map = {
                 'line': 'NORMAL (LÍNEA)',
@@ -350,6 +382,74 @@
         function toggleHistory() { document.getElementById('history-modal').classList.toggle('hidden'); }
         function shoutBingo() { socket.emit('bingo_shout'); }
         function closeOverlay() { document.getElementById('winner-overlay').classList.add('hidden'); }
+
+        // --- VERIFICACIÓN AUTOMÁTICA DE BINGO ---
+        function checkAutomaticBingo() {
+            // Solo verificar si tenemos cartones y estamos conectados
+            if(!myCards || myCards.length === 0) return;
+
+            // Obtener números llamados actuales (de los elementos marcados)
+            const calledNumbers = [];
+            document.querySelectorAll('.grid-cell.marked').forEach(cell => {
+                if(cell.innerText && cell.innerText !== '★') {
+                    calledNumbers.push(parseInt(cell.innerText));
+                }
+            });
+
+            // Usar el patrón actual sincronizado desde el servidor
+            for(let card of myCards) {
+                if(checkCardWin(card, calledNumbers, currentPattern)) {
+                    // ¡BINGO AUTOMÁTICO! Emitir el grito automáticamente
+                    console.log(`¡BINGO AUTOMÁTICO! Cartón ${card.id} completado con patrón ${currentPattern}`);
+                    socket.emit('bingo_shout');
+                    return; // Solo el primer cartón que gane
+                }
+            }
+        }
+
+        // Función auxiliar para verificar victoria (misma lógica que en el servidor)
+        function checkCardWin(card, calledNumbers, pattern) {
+            // Aplanar el cartón por columnas: índices 0-4(B), 5-9(I), 10-14(N), etc.
+            // Índice 12 es el centro (FREE)
+            let flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
+
+            // Función auxiliar para ver si una celda está marcada
+            const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
+
+            // MODO NORMAL (Cualquier Línea: Horizontal, Vertical o Diagonal)
+            if (pattern === 'line') {
+                const winningLines = [
+                    // Columnas (B, I, N, G, O)
+                    [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
+                    // Filas
+                    [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
+                    // Diagonales
+                    [0,6,12,18,24], [4,8,12,16,20]
+                ];
+                // Si CUALQUIERA de estas combinaciones está completa
+                return winningLines.some(line => line.every(idx => isMarked(flatCard[idx])));
+            }
+
+            // MODO CARTÓN LLENO (Full House)
+            if (pattern === 'full') {
+                return flatCard.every(val => isMarked(val));
+            }
+
+            // MODO 4 ESQUINAS
+            if (pattern === 'corners') {
+                const corners = [0, 4, 20, 24];
+                return corners.every(idx => isMarked(flatCard[idx]));
+            }
+
+            // MODO PERSONALIZADO (Figura manual) - No implementado en cliente por simplicidad
+            if (pattern === 'custom') {
+                // Para custom necesitaríamos sincronizar el patrón desde el servidor
+                // Por ahora, asumimos que no hay victoria automática en modo custom
+                return false;
+            }
+
+            return false;
+        }
         
         // --- FUNCIÓN DE DESCARGA INTELIGENTE ---
         

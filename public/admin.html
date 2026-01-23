@@ -236,9 +236,14 @@
             document.getElementById('modal-winner-card').innerText = `#${data.card}`;
             const modal = document.getElementById('admin-winner-modal');
             modal.classList.remove('hidden');
-            
+
             // Sonido de alerta (opcional)
             if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
+            // Auto-cerrar el modal después de 5 segundos
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 5000);
         });
 
         // Reinicio
