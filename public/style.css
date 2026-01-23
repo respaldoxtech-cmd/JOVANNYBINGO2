@@ -453,7 +453,7 @@ body { margin: 0; padding: 0; font-family: var(--font); background: var(--bg-app
 }
 
 .board-card {
-    background: rgb(255, 197, 231); border-radius: 16px; padding: 15px;
+    background: rgb(93, 81, 255); border-radius: 16px; padding: 15px;
     box-shadow: 0 8px 25px rgba(0,0,0,0.1); border: 2px solid #e2e8f0;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
     position: relative;
