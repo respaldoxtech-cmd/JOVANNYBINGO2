@@ -747,12 +747,35 @@ io.on('connection', (socket) => {
     });
 
     // --- AL DESCONECTARSE ---
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         // Verificar si este socket era un jugador activo
         if (socket.data && socket.data.cardIds) {
-            // Liberar los cartones de este jugador
+            // Liberar los cartones de este jugador de la memoria
             socket.data.cardIds.forEach(id => takenCards.delete(id));
             console.log(`Cartones liberados por desconexión: ${socket.data.cardIds.join(', ')}`);
+            
+            // Actualizar la base de datos para marcar al jugador como inactivo
+            try {
+                const player = await Player.findOne({ 
+                    username: socket.data.username,
+                    cardIds: { $in: socket.data.cardIds }
+                });
+                
+                if (player) {
+                    // Verificar si este jugador tiene otros cartones activos
+                    const activeCards = player.cardIds.filter(cardId => takenCards.has(cardId));
+                    
+                    if (activeCards.length === 0) {
+                        // No tiene más cartones activos, marcar como inactivo
+                        await Player.findByIdAndUpdate(player._id, { isActive: false });
+                        console.log(`Jugador ${socket.data.username} marcado como inactivo en la base de datos`);
+                    } else {
+                        console.log(`Jugador ${socket.data.username} aún tiene cartones activos: ${activeCards.join(', ')}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error actualizando jugador en base de datos:', error);
+            }
         }
 
         // Limpiar de jugadores pendientes (solo si estaban esperando aprobación)
