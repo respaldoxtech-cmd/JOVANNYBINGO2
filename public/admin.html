@@ -214,6 +214,8 @@
 
             <div class="sidebar-footer">
                 <button onclick="openAddPlayerModal()" class="btn-danger-outline" style="margin-bottom: 8px;">➕ AGREGAR JUGADOR</button>
+                <button id="startAutoCall" class="btn-primary" style="margin-bottom: 8px;" onclick="startAutoCall()">▶️ INICIAR TIRO AUTOMÁTICO</button>
+                <button id="stopAutoCall" class="btn-warning" style="margin-bottom: 8px; display: none;" onclick="stopAutoCall()">⏹️ DETENER TIRO AUTOMÁTICO</button>
                 <button onclick="resetGame()" class="btn-danger-outline">NUEVA RONDA</button>
                 <button onclick="fullReset()" class="btn-danger-outline" style="margin-top: 8px;">REINICIAR TODO</button>
                 <button onclick="logout()" class="btn-link" style="margin-top: 8px;">Cerrar Sesión</button>
@@ -1024,6 +1026,67 @@
                     card.classList.remove('selected');
                 }
             });
+        }
+
+        // --- ANIMACIÓN DE RULETA ---
+        // --- TIRO AUTOMÁTICO (CADA 5 SEGUNDOS) ---
+        let autoCallInterval = null;
+        let isAutoCalling = false;
+
+        function startAutoCall() {
+            if (isAutoCalling) return;
+
+            const startBtn = document.getElementById('startAutoCall');
+            const stopBtn = document.getElementById('stopAutoCall');
+
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'block';
+            isAutoCalling = true;
+
+            // 🎵 Sonido de inicio de tiro automático
+            bingoAudio.play('buttonClick');
+
+            autoCallInterval = setInterval(() => {
+                // Encontrar números disponibles
+                let pool = [];
+                for(let i=1; i<=75; i++) {
+                    if(!calledNumbers.has(i)) pool.push(i);
+                }
+
+                if(pool.length === 0) {
+                    stopAutoCall();
+                    alert("¡Juego Terminado! Ya salieron todas las bolas.");
+                    return;
+                }
+
+                // Elegir número aleatorio y llamarlo
+                const randomIndex = Math.floor(Math.random() * pool.length);
+                const numberToCall = pool[randomIndex];
+                callNumber(numberToCall);
+
+                // 🎵 Sonido de número llamado
+                bingoAudio.play('numberDraw');
+            }, 5000); // Cada 5 segundos
+
+            console.log('🎯 Tiro automático iniciado (cada 5 segundos)');
+        }
+
+        function stopAutoCall() {
+            if (!isAutoCalling) return;
+
+            const startBtn = document.getElementById('startAutoCall');
+            const stopBtn = document.getElementById('stopAutoCall');
+
+            startBtn.style.display = 'block';
+            stopBtn.style.display = 'none';
+            isAutoCalling = false;
+
+            if (autoCallInterval) {
+                clearInterval(autoCallInterval);
+                autoCallInterval = null;
+            }
+
+            console.log('🛑 Tiro automático detenido');
         }
 
         // --- ANIMACIÓN DE RULETA ---
