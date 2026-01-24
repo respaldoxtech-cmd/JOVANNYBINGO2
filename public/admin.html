@@ -208,6 +208,7 @@
                     <div class="cards-grid" id="cards-status-grid">
                         <!-- Cards will be populated here -->
                     </div>
+                    <button onclick="openCardAvailabilityModal()" class="btn-link" style="margin-top: 8px; font-size: 0.8rem;">Ver todos los cartones</button>
                 </div>
             </div>
 
@@ -360,6 +361,28 @@
                     <button onclick="closeAddPlayerModal()" class="btn-secondary">CANCELAR</button>
                     <button onclick="addPlayerManually()" class="btn-primary">AGREGAR JUGADOR</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="card-availability-modal" class="modal-backdrop hidden">
+        <div class="modal-card slide-up" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3>🎫 ESTADO DE CARTONES</h3>
+                <button onclick="closeCardAvailabilityModal()" class="btn-close">✕</button>
+            </div>
+            <div class="modal-content" style="padding: 20px;">
+                <div class="cards-summary" style="margin-bottom: 20px;">
+                    <div class="status-item">
+                        <span class="status-label">EN USO:</span>
+                        <span class="status-count used" id="modal-used-cards-count">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">DISPONIBLES:</span>
+                        <span class="status-count available" id="modal-available-cards-count">300</span>
+                    </div>
+                </div>
+                <div id="modal-cards-grid" class="mini-card-grid" style="display: grid; grid-template-columns: repeat(15, 1fr); gap: 2px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;"></div>
             </div>
         </div>
     </div>
@@ -820,6 +843,36 @@
 
         function closeAddPlayerModal() {
             document.getElementById('add-player-modal').classList.add('hidden');
+        }
+
+        function openCardAvailabilityModal() {
+            document.getElementById('card-availability-modal').classList.remove('hidden');
+            renderModalCardsGrid();
+        }
+
+        function closeCardAvailabilityModal() {
+            document.getElementById('card-availability-modal').classList.add('hidden');
+        }
+
+        function renderModalCardsGrid() {
+            const gridElement = document.getElementById('modal-cards-grid');
+            gridElement.innerHTML = '';
+
+            for (let i = 1; i <= 300; i++) {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'availability-card';
+                cardDiv.innerText = i;
+
+                if (takenCardsData.has(i)) {
+                    cardDiv.classList.add('taken');
+                    cardDiv.title = 'Cartón ocupado';
+                } else {
+                    cardDiv.classList.add('available');
+                    cardDiv.title = 'Cartón disponible';
+                }
+
+                gridElement.appendChild(cardDiv);
+            }
         }
 
         function renderAdminSelectedCards() {

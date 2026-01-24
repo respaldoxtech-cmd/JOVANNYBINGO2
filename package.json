@@ -1,13 +1,16 @@
 {
   "name": "yopani-bingo",
   "version": "1.0.0",
-  "description": "Bingo Online Realtime",
+  "description": "Bingo Online Realtime con MongoDB",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node --max-old-space-size=450 server.js",
+    "dev": "node server.js"
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "express": "^4.18.2",
+    "mongoose": "^8.21.1",
     "socket.io": "^4.7.2"
   }
 }

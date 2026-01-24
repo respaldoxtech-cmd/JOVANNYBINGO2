@@ -376,6 +376,97 @@
             }
         }
 
+        // Manejar reconexión exitosa
+        socket.on('reconnection_success', (data) => {
+            // Remover pantalla de reconexión
+            const reconnectScreen = document.getElementById('reconnect-screen');
+            if(reconnectScreen) {
+                reconnectScreen.remove();
+            }
+
+            myCards = data.cards;
+            const user = playerSession.username;
+
+            // Ocultar login y mostrar juego
+            document.getElementById('login-screen').classList.remove('active');
+            setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 300);
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            document.getElementById('player-name-display').innerText = user;
+            document.getElementById('user-initial').innerText = user.charAt(0).toUpperCase();
+
+            // 🎵 Sonido de entrada al juego
+            bingoAudio.play('playerJoin');
+
+            // Renderizar cartones
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+            data.cards.forEach(card => {
+                const cardEl = document.createElement('div');
+                cardEl.className = 'bingo-card';
+                cardEl.id = `card-visual-${card.id}`;
+
+                const head = document.createElement('div');
+                head.className = 'card-head';
+                head.innerHTML = `<span><b>Yovanny Bingo #${card.id}</b></span> <button class='btn-mini-dl' onclick='downloadSingleCard(${card.id})'>⬇</button>`;
+                cardEl.appendChild(head);
+
+                const grid = document.createElement('div');
+                grid.className = 'card-grid disable-clicks';
+
+                ['B','I','N','G','O'].forEach(l => {
+                    const cell = document.createElement('div');
+                    cell.className = `grid-header col-${l}`;
+                    cell.innerText = l;
+                    grid.appendChild(cell);
+                });
+
+                for(let i=0; i<5; i++) {
+                    const row = [card.B[i], card.I[i], card.N[i], card.G[i], card.O[i]];
+                    row.forEach(n => {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell';
+                        if(n === "FREE") {
+                            cell.classList.add('marked', 'free');
+                            cell.innerHTML = "★";
+                        } else {
+                            cell.innerText = n;
+                            cell.id = `c${card.id}-n${n}`;
+                        }
+                        grid.appendChild(cell);
+                    });
+                }
+                cardEl.appendChild(grid);
+                container.appendChild(cardEl);
+            });
+
+            console.log(`Jugador ${user} reconectado exitosamente con ${data.cards.length} cartones`);
+        });
+
+        socket.on('reconnection_failed', (data) => {
+            // Remover pantalla de reconexión
+            const reconnectScreen = document.getElementById('reconnect-screen');
+            if(reconnectScreen) {
+                reconnectScreen.remove();
+            }
+
+            // Mostrar error y volver al login
+            document.getElementById('login-screen').classList.add('active');
+            document.getElementById('login-screen').classList.remove('hidden');
+            clearSession();
+            alert(data.message);
+        });
+
+        // Intentar reconexión automática al cargar la página
+        window.addEventListener('load', () => {
+            attemptAutoReconnect();
+        });
+
+        // Intentar reconexión cuando el socket se reconecta
+        socket.on('connect', () => {
+            attemptAutoReconnect();
+        });
+
         // --- LÓGICA DEL SELECTOR DE CARTONES ---
 
         function renderChips() {
@@ -511,6 +602,16 @@
             if(waitingScreen) {
                 waitingScreen.remove();
             }
+            
+            // Guardar sesión exitosa
+            const user = document.getElementById('username').value;
+            saveSession({
+                username: user,
+                cardIds: selectedIds,
+                status: 'approved',
+                sessionId: Date.now().toString()
+            });
+            
             // El init_cards se manejará normalmente
         });
 

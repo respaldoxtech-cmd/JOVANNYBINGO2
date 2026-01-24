@@ -1,6 +1,11 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+
+// Load environment variables from .env file
+dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
@@ -10,6 +15,149 @@ app.use(express.json());
 app.use(express.static('public'));
 
 const ADMIN_PASS = "admin123";
+
+// MongoDB Connection with Atlas support and proper error handling
+const connectDB = async () => {
+    try {
+        // Ensure MONGO_URI environment variable is set for production
+        if (!process.env.MONGO_URI) {
+            console.error('❌ Error: MONGO_URI environment variable is not set');
+            console.error('Please set MONGO_URI in your environment variables or .env file');
+            process.exit(1);
+        }
+
+        console.log('🔗 Intentando conectar a MongoDB Atlas...');
+        console.log(`📍 URI: ${process.env.MONGO_URI.replace(/\/\/[^@]+@/, '//***:***@')}`); // Hide credentials in logs
+
+        const conn = await mongoose.connect(process.env.MONGO_URI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 30000, // 30 seconds timeout
+            socketTimeoutMS: 45000, // 45 seconds timeout
+        });
+
+        console.log(`✅ Conexión exitosa a MongoDB Atlas: ${conn.connection.host}`);
+        console.log(`📊 Base de datos: ${conn.connection.name}`);
+        console.log(`🔗 Estado: Conectado`);
+
+        // Handle connection events
+        mongoose.connection.on('error', (err) => {
+            console.error('❌ Error de conexión a MongoDB:', err.message);
+        });
+
+        mongoose.connection.on('disconnected', () => {
+            console.warn('⚠️  Conexión a MongoDB perdida. Intentando reconectar...');
+        });
+
+        mongoose.connection.on('reconnected', () => {
+            console.log('✅ Conexión a MongoDB restaurada');
+        });
+
+        // Graceful shutdown handling
+        process.on('SIGINT', async () => {
+            console.log('\n🛑 Cerrando servidor...');
+            await mongoose.connection.close();
+            console.log('🔌 Conexión a MongoDB cerrada');
+            process.exit(0);
+        });
+
+    } catch (error) {
+        console.error('❌ Error de conexión a MongoDB Atlas:', error.message);
+        console.error('💡 Verifica que tu MONGO_URI sea correcta y que tu IP esté permitida en MongoDB Atlas');
+        process.exit(1);
+    }
+};
+
+// Initialize database connection
+connectDB();
+
+// Mongoose Schema for Players
+const playerSchema = new mongoose.Schema({
+    username: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 50
+    },
+    cardIds: [{
+        type: Number,
+        min: 1,
+        max: 300
+    }],
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    }
+});
+
+// Index for faster queries
+playerSchema.index({ username: 1 });
+playerSchema.index({ cardIds: 1 });
+
+const Player = mongoose.model('Player', playerSchema);
+
+// Optimized functions to use database instead of in-memory arrays
+async function getActivePlayersFromDB() {
+    try {
+        const players = await Player.find({ isActive: true }).lean();
+        return players;
+    } catch (error) {
+        console.error('❌ Error getting active players from database:', error);
+        return [];
+    }
+}
+
+async function getPendingPlayersFromDB() {
+    return Array.from(pendingPlayers.entries()).map(([socketId, player]) => ({
+        id: socketId,
+        name: player.username,
+        cardCount: player.cardIds.length,
+        cardIds: player.cardIds,
+        timestamp: player.timestamp
+    }));
+}
+
+async function addPlayerToDB(username, cardIds) {
+    try {
+        const player = new Player({
+            username: username,
+            cardIds: cardIds
+        });
+        await player.save();
+        console.log(`✅ Jugador agregado a MongoDB: ${username} con cartones ${cardIds.join(', ')}`);
+        return player;
+    } catch (error) {
+        console.error('❌ Error agregando jugador a MongoDB:', error);
+        throw error;
+    }
+}
+
+async function removePlayerFromDB(playerId) {
+    try {
+        await Player.findByIdAndUpdate(playerId, { isActive: false });
+        console.log(`✅ Jugador eliminado de MongoDB: ${playerId}`);
+    } catch (error) {
+        console.error('❌ Error eliminando jugador de MongoDB:', error);
+    }
+}
+
+async function getTakenCardsFromDB() {
+    try {
+        const players = await Player.find({ isActive: true }).lean();
+        const takenCards = new Set();
+        players.forEach(player => {
+            player.cardIds.forEach(cardId => takenCards.add(cardId));
+        });
+        return takenCards;
+    } catch (error) {
+        console.error('❌ Error obteniendo cartones ocupados de MongoDB:', error);
+        return new Set();
+    }
+}
 
 app.post('/admin-login', (req, res) => {
     res.json({ success: req.body.password === ADMIN_PASS });
@@ -30,6 +178,21 @@ let virtualPlayers = new Map(); // virtualId -> {username, cardIds} - Jugadores 
 
 // Registro de cartones en uso (Para evitar duplicados)
 let takenCards = new Set();
+
+// Initialize taken cards from database on startup
+async function initializeTakenCards() {
+    try {
+        console.log('🔄 Inicializando cartones ocupados desde MongoDB...');
+        const takenCardsFromDB = await getTakenCardsFromDB();
+        takenCards = takenCardsFromDB;
+        console.log(`✅ Cartones ocupados inicializados: ${takenCards.size} cartones`);
+    } catch (error) {
+        console.error('❌ Error inicializando cartones ocupados:', error);
+    }
+}
+
+// Initialize on startup
+initializeTakenCards();
 
 function mulberry32(a) {
     return function() {
@@ -261,57 +424,66 @@ function checkWin(card, called, patternType, customGrid) {
 
 io.on('connection', (socket) => {
     socket.emit('sync_state', gameState);
+    
     // Si es admin, enviar listas de jugadores
     socket.emit('update_pending_players', getPendingPlayers());
     socket.emit('update_players', getActivePlayers());
 
-    socket.on('join_game', (data) => {
-        let ids = [];
-        // Normalizar entrada (puede ser string "1, 2" o numero 1)
-        if (Array.isArray(data.cardIds)) ids = data.cardIds;
-        else if (typeof data.cardIds === 'string') {
-            ids = data.cardIds.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
-        } else if (typeof data.cardIds === 'number') {
-            ids = [data.cardIds];
-        }
+    socket.on('join_game', async (data) => {
+        try {
+            let ids = [];
+            // Normalizar entrada (puede ser string "1, 2" o numero 1)
+            if (Array.isArray(data.cardIds)) ids = data.cardIds;
+            else if (typeof data.cardIds === 'string') {
+                ids = data.cardIds.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+            } else if (typeof data.cardIds === 'number') {
+                ids = [data.cardIds];
+            }
 
-        // Validar que los IDs estén en el rango válido (1-300)
-        ids = ids.filter(id => id >= 1 && id <= 300);
+            // Validar que los IDs estén en el rango válido (1-300)
+            ids = ids.filter(id => id >= 1 && id <= 300);
 
-        if(ids.length === 0) return;
+            if(ids.length === 0) return;
 
-        // --- VALIDACIÓN DE DUPLICADOS ---
-        const duplicates = ids.filter(id => takenCards.has(id));
+            // --- VALIDACIÓN DE DUPLICADOS ---
+            const takenCardsFromDB = await getTakenCardsFromDB();
+            const duplicates = ids.filter(id => takenCards.has(id) || takenCardsFromDB.has(id));
 
-        if (duplicates.length > 0) {
-            // Rechazar conexión si algún cartón está ocupado
-            socket.emit('join_error', {
-                message: `El cartón #${duplicates.join(', #')} ya está en uso por otro jugador.`
+            if (duplicates.length > 0) {
+                // Rechazar conexión si algún cartón está ocupado
+                socket.emit('join_error', {
+                    message: `El cartón #${duplicates.join(', #')} ya está en uso por otro jugador.`
+                });
+                return;
+            }
+
+            // Permitir cualquier cantidad de cartones (sin límite)
+            // Poner al jugador en lista de pendientes para aprobación
+            pendingPlayers.set(socket.id, {
+                username: data.username,
+                cardIds: ids,
+                socket: socket,
+                timestamp: Date.now()
             });
-            return;
+
+            // Notificar al admin sobre el nuevo jugador pendiente
+            io.emit('update_pending_players', getPendingPlayers());
+            io.emit('new_player_pending', {
+                id: socket.id,
+                name: data.username,
+                cardCount: ids.length
+            });
+
+            // Informar al jugador que está esperando aprobación
+            socket.emit('waiting_approval', {
+                message: `Esperando aprobación del administrador... (${ids.length} cartones solicitados)`
+            });
+        } catch (error) {
+            console.error('Error en join_game:', error);
+            socket.emit('join_error', {
+                message: 'Error al procesar tu solicitud. Por favor intenta de nuevo.'
+            });
         }
-
-        // Permitir cualquier cantidad de cartones (sin límite)
-        // Poner al jugador en lista de pendientes para aprobación
-        pendingPlayers.set(socket.id, {
-            username: data.username,
-            cardIds: ids,
-            socket: socket,
-            timestamp: Date.now()
-        });
-
-        // Notificar al admin sobre el nuevo jugador pendiente
-        io.emit('update_pending_players', getPendingPlayers());
-        io.emit('new_player_pending', {
-            id: socket.id,
-            name: data.username,
-            cardCount: ids.length
-        });
-
-        // Informar al jugador que está esperando aprobación
-        socket.emit('waiting_approval', {
-            message: `Esperando aprobación del administrador... (${ids.length} cartones solicitados)`
-        });
     });
 
     socket.on('admin_call_number', (num) => {
@@ -405,59 +577,51 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('admin_add_player', (data) => {
-        const { name, cardIds } = data;
+    socket.on('admin_add_player', async (data) => {
+        try {
+            const { name, cardIds } = data;
 
-        // Validate card IDs
-        const validCardIds = cardIds.filter(id => id >= 1 && id <= 300);
+            // Validate card IDs
+            const validCardIds = cardIds.filter(id => id >= 1 && id <= 300);
 
-        if (validCardIds.length === 0) {
-            socket.emit('admin_error', { message: 'No hay cartones válidos para asignar.' });
-            return;
-        }
+            if (validCardIds.length === 0) {
+                socket.emit('admin_error', { message: 'No hay cartones válidos para asignar.' });
+                return;
+            }
 
-        // Check for duplicates
-        const duplicates = validCardIds.filter(id => takenCards.has(id));
-        if (duplicates.length > 0) {
-            socket.emit('admin_error', {
-                message: `Los cartones #${duplicates.join(', #')} ya están en uso.`
+            // Check for duplicates in both memory and database
+            const takenCardsFromDB = await getTakenCardsFromDB();
+            const duplicates = validCardIds.filter(id => takenCards.has(id) || takenCardsFromDB.has(id));
+            
+            if (duplicates.length > 0) {
+                socket.emit('admin_error', {
+                    message: `Los cartones #${duplicates.join(', #')} ya están en uso.`
+                });
+                return;
+            }
+
+            // Add player to database
+            const player = await addPlayerToDB(name, validCardIds);
+
+            // Mark cards as taken immediately (no verification needed)
+            validCardIds.forEach(id => takenCards.add(id));
+
+            console.log(`Jugador agregado manualmente: ${name} con cartones ${validCardIds.join(', ')}`);
+
+            // Update admin interface
+            io.emit('update_players', getActivePlayers());
+            io.emit('update_pending_players', getPendingPlayers());
+
+            // Notify admin of success
+            socket.emit('admin_success', {
+                message: `Jugador "${name}" agregado exitosamente con ${validCardIds.length} cartones.`
             });
-            return;
+        } catch (error) {
+            console.error('Error en admin_add_player:', error);
+            socket.emit('admin_error', {
+                message: 'Error al agregar jugador. Por favor intenta de nuevo.'
+            });
         }
-
-        // Create a virtual socket for this player (they won't be connected)
-        const virtualSocket = {
-            id: `virtual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            data: {}
-        };
-
-        // Set up the player data
-        virtualSocket.data = {
-            username: name,
-            cardIds: validCardIds
-        };
-
-        // Mark cards as taken
-        validCardIds.forEach(id => takenCards.add(id));
-
-        // Create and store virtual player
-        const virtualId = `virtual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        virtualPlayers.set(virtualId, {
-            username: name,
-            cardIds: validCardIds,
-            addedAt: Date.now()
-        });
-
-        console.log(`Jugador agregado manualmente: ${name} con cartones ${validCardIds.join(', ')}`);
-
-        // Update admin interface
-        io.emit('update_players', getActivePlayers());
-        io.emit('update_pending_players', getPendingPlayers());
-
-        // Notify admin of success
-        socket.emit('admin_success', {
-            message: `Jugador "${name}" agregado exitosamente con ${validCardIds.length} cartones.`
-        });
     });
 
     // Get card availability for admin modal and status
