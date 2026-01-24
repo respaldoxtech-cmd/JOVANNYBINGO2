@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require("socket.io");
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const moment = require('moment');
 
 // Load environment variables from .env file
 dotenv.config();
@@ -91,7 +92,53 @@ const playerSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
-    }
+    },
+    // Estadísticas personales
+    stats: {
+        totalGames: { type: Number, default: 0 },
+        wins: { type: Number, default: 0 },
+        winRate: { type: Number, default: 0 },
+        lastWinDate: { type: Date, default: null },
+        totalCards: { type: Number, default: 0 },
+        maxConsecutiveWins: { type: Number, default: 0 },
+        currentStreak: { type: Number, default: 0 },
+        totalPoints: { type: Number, default: 0 }
+    },
+    // Logros
+    achievements: [{
+        type: String,
+        earnedAt: { type: Date, default: Date.now }
+    }],
+    // Nivel y experiencia
+    level: {
+        current: { type: Number, default: 1 },
+        exp: { type: Number, default: 0 },
+        expToNext: { type: Number, default: 100 }
+    },
+    // Personalización
+    settings: {
+        theme: { type: String, default: 'default' },
+        soundVolume: { type: Number, default: 100 },
+        autoMark: { type: Boolean, default: true },
+        notifications: { type: Boolean, default: true },
+        language: { type: String, default: 'es' }
+    },
+    // Asistente inteligente
+    assistant: {
+        enabled: { type: Boolean, default: true },
+        proximityAlerts: { type: Boolean, default: true },
+        patternAnalysis: { type: Boolean, default: true },
+        autoCall: { type: Boolean, default: false }
+    },
+    // Historial de juego
+    gameHistory: [{
+        gameId: String,
+        date: { type: Date, default: Date.now },
+        cardsUsed: [Number],
+        wins: Number,
+        points: Number,
+        patternsWon: [String]
+    }]
 });
 
 // Index for faster queries
@@ -156,6 +203,298 @@ async function getTakenCardsFromDB() {
     } catch (error) {
         console.error('❌ Error obteniendo cartones ocupados de MongoDB:', error);
         return new Set();
+    }
+}
+
+// Sistema de estadísticas personales
+async function updatePlayerStats(username, winData) {
+    try {
+        const player = await Player.findOne({ username: username });
+        if (!player) return;
+
+        // Actualizar estadísticas básicas
+        player.stats.totalGames++;
+        if (winData) {
+            player.stats.wins++;
+            player.stats.lastWinDate = new Date();
+            
+            // Actualizar racha de victorias
+            player.stats.currentStreak++;
+            if (player.stats.currentStreak > player.stats.maxConsecutiveWins) {
+                player.stats.maxConsecutiveWins = player.stats.currentStreak;
+            }
+            
+            // Calcular win rate
+            player.stats.winRate = (player.stats.wins / player.stats.totalGames) * 100;
+            
+            // Asignar puntos según el patrón ganado
+            const points = calculateWinPoints(winData.pattern, gameState.calledNumbers.length);
+            player.stats.totalPoints += points;
+            
+            // Verificar logros
+            await checkAchievements(player, winData);
+            
+            // Actualizar nivel y experiencia
+            await updatePlayerLevel(player, points);
+        } else {
+            // Si no ganó, resetear racha
+            player.stats.currentStreak = 0;
+        }
+
+        // Actualizar historial de juego
+        player.gameHistory.push({
+            gameId: gameSession.id,
+            date: new Date(),
+            cardsUsed: player.cardIds,
+            wins: winData ? 1 : 0,
+            points: winData ? calculateWinPoints(winData.pattern, gameState.calledNumbers.length) : 0,
+            patternsWon: winData ? [winData.pattern] : []
+        });
+
+        await player.save();
+        console.log(`📊 Estadísticas actualizadas para ${username}`);
+    } catch (error) {
+        console.error('❌ Error actualizando estadísticas del jugador:', error);
+    }
+}
+
+function calculateWinPoints(pattern, numbersCalled) {
+    const basePoints = 100;
+    const patternMultipliers = {
+        'line': 1.0,
+        'corners': 1.5,
+        'x': 1.8,
+        'plus': 2.0,
+        'corners_center': 2.2,
+        'frame': 2.5,
+        'inner_frame': 2.8,
+        'letter_h': 3.0,
+        'letter_t': 3.2,
+        'small_square': 3.5,
+        'diamond': 3.8,
+        'star': 4.0,
+        'heart': 4.2,
+        'airplane': 4.5,
+        'arrow': 4.8,
+        'crazy': 5.0,
+        'pyramid': 5.2,
+        'cross': 5.5,
+        'full': 10.0
+    };
+    
+    const multiplier = patternMultipliers[pattern] || 1.0;
+    const speedBonus = Math.max(1.0, (75 - numbersCalled) / 25); // Bonus por velocidad
+    
+    return Math.round(basePoints * multiplier * speedBonus);
+}
+
+async function checkAchievements(player, winData) {
+    const achievements = [];
+    
+    // Logros por victorias
+    if (player.stats.wins === 1) achievements.push('Primer Triunfo');
+    if (player.stats.wins === 10) achievements.push('Veterano del Bingo');
+    if (player.stats.wins === 50) achievements.push('Maestro del Cartón');
+    if (player.stats.wins === 100) achievements.push('Leyenda del Bingo');
+    
+    // Logros por racha
+    if (player.stats.currentStreak === 3) achievements.push('Racha de Suerte');
+    if (player.stats.currentStreak === 5) achievements.push('Insuperable');
+    if (player.stats.currentStreak === 10) achievements.push('Invencible');
+    
+    // Logros por patrones
+    if (winData.pattern === 'full') achievements.push('Cartón Lleno');
+    if (winData.pattern === 'corners') achievements.push('Esquinas Perfectas');
+    if (winData.pattern === 'x') achievements.push('Cruzada');
+    if (winData.pattern === 'heart') achievements.push('Corazón de Bingo');
+    if (winData.pattern === 'star') achievements.push('Estrella Brillante');
+    
+    // Logros por velocidad
+    if (gameState.calledNumbers.length <= 15) achievements.push('Velocista');
+    if (gameState.calledNumbers.length <= 10) achievements.push('Rayo');
+    if (gameState.calledNumbers.length <= 5) achievements.push('Instantáneo');
+    
+    // Añadir logros nuevos al jugador
+    for (const achievement of achievements) {
+        if (!player.achievements.some(a => a.type === achievement)) {
+            player.achievements.push({
+                type: achievement,
+                earnedAt: new Date()
+            });
+            console.log(`🏆 Logro desbloqueado para ${player.username}: ${achievement}`);
+        }
+    }
+}
+
+async function updatePlayerLevel(player, points) {
+    player.stats.totalPoints += points;
+    
+    // Experiencia ganada por puntos
+    const expGained = Math.floor(points / 10);
+    player.level.exp += expGained;
+    
+    // Verificar si sube de nivel
+    while (player.level.exp >= player.level.expToNext) {
+        player.level.exp -= player.level.expToNext;
+        player.level.current++;
+        player.level.expToNext = Math.floor(player.level.expToNext * 1.2); // Escalado exponencial
+        
+        console.log(`🎉 ${player.username} subió al nivel ${player.level.current}!`);
+        
+        // Beneficios por nivel
+        if (player.level.current % 5 === 0) {
+            // Bonus cada 5 niveles
+            player.stats.totalPoints += 100 * player.level.current;
+        }
+    }
+    
+    await player.save();
+}
+
+// Sistema de asistente inteligente
+function analyzeGameProgress(player, calledNumbers, pattern) {
+    const card = generateCard(player.cardIds[0]); // Analizar primer cartón
+    const flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
+    
+    const analysis = {
+        proximity: 0,
+        missingNumbers: [],
+        patternProgress: 0,
+        winProbability: 0
+    };
+    
+    // Calcular proximidad al bingo
+    const markedPositions = flatCard.map((num, idx) => 
+        num === "FREE" || calledNumbers.includes(num) ? idx : -1
+    ).filter(idx => idx !== -1);
+    
+    analysis.proximity = Math.round((markedPositions.length / 25) * 100);
+    
+    // Encontrar números faltantes
+    flatCard.forEach((num, idx) => {
+        if (num !== "FREE" && !calledNumbers.includes(num)) {
+            analysis.missingNumbers.push(num);
+        }
+    });
+    
+    // Calcular progreso del patrón actual
+    const patternLines = getPatternLines(pattern);
+    let maxPatternProgress = 0;
+    
+    for (const line of patternLines) {
+        const markedInLine = line.filter(idx => markedPositions.includes(idx)).length;
+        const progress = (markedInLine / line.length) * 100;
+        if (progress > maxPatternProgress) {
+            maxPatternProgress = progress;
+        }
+    }
+    
+    analysis.patternProgress = Math.round(maxPatternProgress);
+    
+    // Calcular probabilidad de victoria (simplificada)
+    const remainingNumbers = 75 - calledNumbers.length;
+    const neededNumbers = analysis.missingNumbers.length;
+    analysis.winProbability = Math.max(0, Math.round((1 - (neededNumbers / remainingNumbers)) * 100));
+    
+    return analysis;
+}
+
+function getPatternLines(pattern) {
+    const patterns = {
+        'line': [
+            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
+            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
+            [0,6,12,18,24], [4,8,12,16,20]
+        ],
+        'full': [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
+        'corners': [[0,4,20,24]],
+        'x': [[0,6,12,18,24], [4,8,12,16,20]],
+        'plus': [[7,11,12,13,17]],
+        'corners_center': [[0,4,12,20,24]],
+        'frame': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
+        'inner_frame': [[6,7,8,11,13,16,17,18]],
+        'letter_h': [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]],
+        'letter_t': [[0,1,2,3,4,7,12,17]],
+        'small_square': [[0,1,5,6]],
+        'diamond': [[2,6,10,14,18,22]],
+        'star': [[2,6,8,10,12,14,16,18,7,11,12,13,17]],
+        'heart': [[1,3,6,7,8,9,11,12,13,16,18]],
+        'airplane': [[1,3,5,7,9,11,13,15,17,19,21,23]],
+        'arrow': [[2,7,10,11,12,13,14,17]],
+        'crazy': [[0,2,4,6,8,10,12,14,16,18,20,22,24]],
+        'pyramid': [[2,6,7,8,10,11,12,13,14,16,17,18]],
+        'cross': [[2,7,11,12,13,17,22]]
+    };
+    
+    return patterns[pattern] || patterns.line;
+}
+
+// Sistema de personalización avanzada
+async function getPlayerSettings(username) {
+    try {
+        const player = await Player.findOne({ username: username });
+        return player ? player.settings : {
+            theme: 'default',
+            soundVolume: 100,
+            autoMark: true,
+            notifications: true,
+            language: 'es'
+        };
+    } catch (error) {
+        console.error('❌ Error obteniendo configuración del jugador:', error);
+        return {
+            theme: 'default',
+            soundVolume: 100,
+            autoMark: true,
+            notifications: true,
+            language: 'es'
+        };
+    }
+}
+
+async function updatePlayerSettings(username, settings) {
+    try {
+        const player = await Player.findOne({ username: username });
+        if (player) {
+            player.settings = { ...player.settings, ...settings };
+            await player.save();
+            console.log(`⚙️ Configuración actualizada para ${username}`);
+        }
+    } catch (error) {
+        console.error('❌ Error actualizando configuración del jugador:', error);
+    }
+}
+
+async function getPlayerAssistantSettings(username) {
+    try {
+        const player = await Player.findOne({ username: username });
+        return player ? player.assistant : {
+            enabled: true,
+            proximityAlerts: true,
+            patternAnalysis: true,
+            autoCall: false
+        };
+    } catch (error) {
+        console.error('❌ Error obteniendo configuración del asistente:', error);
+        return {
+            enabled: true,
+            proximityAlerts: true,
+            patternAnalysis: true,
+            autoCall: false
+        };
+    }
+}
+
+async function updatePlayerAssistantSettings(username, settings) {
+    try {
+        const player = await Player.findOne({ username: username });
+        if (player) {
+            player.assistant = { ...player.assistant, ...settings };
+            await player.save();
+            console.log(`🤖 Configuración del asistente actualizada para ${username}`);
+        }
+    } catch (error) {
+        console.error('❌ Error actualizando configuración del asistente:', error);
     }
 }
 
@@ -838,7 +1177,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('bingo_shout', () => {
+    socket.on('bingo_shout', async () => {
         const { username, cardIds } = socket.data;
         if(!cardIds || cardIds.length === 0) return;
 
@@ -852,12 +1191,21 @@ io.on('connection', (socket) => {
         }
 
         if (winnerCardId) {
-            const winData = { user: username, card: winnerCardId, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) };
+            const winData = { 
+                user: username, 
+                card: winnerCardId, 
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                pattern: gameState.pattern
+            };
             const isDup = gameState.last5Winners.some(w => w.user === username && w.card === winnerCardId);
             if (!isDup) {
                 gameState.last5Winners.unshift(winData);
                 if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
             }
+            
+            // Actualizar estadísticas del jugador
+            await updatePlayerStats(username, winData);
+            
             // Anuncio automático inmediato
             io.emit('winner_announced', winData);
             io.emit('update_history', gameState.last5Winners);
@@ -867,8 +1215,92 @@ io.on('connection', (socket) => {
                 message: `¡BINGO! ${username} ha ganado con el cartón #${winnerCardId}!`,
                 winner: winData
             });
+            
+            // Enviar detalles del cartón ganador
+            io.emit('winner_card_details', {
+                username: username,
+                cardId: winnerCardId,
+                card: generateCard(winnerCardId),
+                calledNumbers: gameState.calledNumbers,
+                pattern: gameState.pattern
+            });
         } else {
             socket.emit('invalid_bingo');
+        }
+    });
+
+    // Nuevos eventos para el sistema de estadísticas y personalización
+    socket.on('get_player_stats', async (username) => {
+        try {
+            const player = await Player.findOne({ username: username });
+            if (player) {
+                socket.emit('player_stats', {
+                    stats: player.stats,
+                    level: player.level,
+                    achievements: player.achievements,
+                    totalPoints: player.stats.totalPoints
+                });
+            }
+        } catch (error) {
+            console.error('Error obteniendo estadísticas del jugador:', error);
+        }
+    });
+
+    socket.on('get_player_settings', async (username) => {
+        try {
+            const settings = await getPlayerSettings(username);
+            const assistantSettings = await getPlayerAssistantSettings(username);
+            socket.emit('player_settings', {
+                settings: settings,
+                assistant: assistantSettings
+            });
+        } catch (error) {
+            console.error('Error obteniendo configuración del jugador:', error);
+        }
+    });
+
+    socket.on('update_player_settings', async (data) => {
+        try {
+            await updatePlayerSettings(data.username, data.settings);
+            await updatePlayerAssistantSettings(data.username, data.assistant);
+            socket.emit('settings_updated', { success: true });
+        } catch (error) {
+            console.error('Error actualizando configuración del jugador:', error);
+            socket.emit('settings_updated', { success: false, error: error.message });
+        }
+    });
+
+    socket.on('get_game_analysis', async (data) => {
+        try {
+            const { username, calledNumbers, pattern } = data;
+            const player = await Player.findOne({ username: username });
+            if (player) {
+                const analysis = analyzeGameProgress(player, calledNumbers, pattern);
+                socket.emit('game_analysis', analysis);
+            }
+        } catch (error) {
+            console.error('Error analizando progreso del juego:', error);
+        }
+    });
+
+    socket.on('get_leaderboard', async () => {
+        try {
+            const players = await Player.find({ isActive: true })
+                .sort({ 'stats.totalPoints': -1 })
+                .limit(10)
+                .select('username stats.level stats.totalPoints stats.wins stats.winRate');
+            
+            const leaderboard = players.map(player => ({
+                username: player.username,
+                level: player.stats.level,
+                points: player.stats.totalPoints,
+                wins: player.stats.wins,
+                winRate: player.stats.winRate
+            }));
+            
+            socket.emit('leaderboard_data', leaderboard);
+        } catch (error) {
+            console.error('Error obteniendo leaderboard:', error);
         }
     });
 
