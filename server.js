@@ -725,7 +725,7 @@ io.on('connection', (socket) => {
         io.emit('game_reset');
     });
 
-    socket.on('admin_full_reset', () => {
+    socket.on('admin_full_reset', async () => {
         // Full reset - disconnect all players and reset everything
         gameState.calledNumbers = [];
         gameState.last5Numbers = [];
@@ -749,6 +749,14 @@ io.on('connection', (socket) => {
 
         // Clear virtual players (manually added players)
         virtualPlayers.clear();
+
+        // Clear database players - Mark all players as inactive
+        try {
+            const result = await Player.updateMany({}, { isActive: false });
+            console.log(`🧹 Full reset: ${result.modifiedCount} jugadores marcados como inactivos en base de datos`);
+        } catch (error) {
+            console.error('❌ Error limpiando jugadores de base de datos:', error);
+        }
 
         // Emit game reset (though players are disconnected, admin will receive it)
         io.emit('game_reset');
