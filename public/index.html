@@ -933,9 +933,13 @@
 
         // Función para salir del juego
         function logoutUser() {
-            if(confirm("¿Estás seguro de que quieres salir del juego? Perderás tu progreso actual.")) {
+            if(confirm("¿Estás seguro de que quieres salir del juego? Perderás tu progreso actual y tus cartones serán liberados.")) {
+                // Limpiar sesión guardada
+                clearSession();
+                
                 // Desconectar del socket
                 socket.disconnect();
+                
                 // Recargar la página para volver al login
                 location.reload();
             }

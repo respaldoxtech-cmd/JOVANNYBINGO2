@@ -748,8 +748,12 @@ io.on('connection', (socket) => {
 
     // --- AL DESCONECTARSE ---
     socket.on('disconnect', () => {
-        // NO liberar cartones - los jugadores permanecen activos incluso si cierran la ventana
-        // Solo se liberan cartones al hacer "REINICIAR TODO"
+        // Verificar si este socket era un jugador activo
+        if (socket.data && socket.data.cardIds) {
+            // Liberar los cartones de este jugador
+            socket.data.cardIds.forEach(id => takenCards.delete(id));
+            console.log(`Cartones liberados por desconexión: ${socket.data.cardIds.join(', ')}`);
+        }
 
         // Limpiar de jugadores pendientes (solo si estaban esperando aprobación)
         if (pendingPlayers.has(socket.id)) {
@@ -757,8 +761,7 @@ io.on('connection', (socket) => {
             io.emit('update_pending_players', getPendingPlayers());
         }
 
-        // Los jugadores activos permanecen en la lista incluso desconectados
-        // Solo se actualiza la lista visual, pero mantienen sus cartones asignados
+        // Actualizar listas de jugadores
         io.emit('update_players', getActivePlayers());
     });
 });
@@ -783,8 +786,16 @@ function getActivePlayers() {
             status: 'virtual'
         }));
 
-    // Combine both lists
-    return [...connectedPlayers, ...virtualPlayersList];
+    // Get database players (persisted in MongoDB)
+    const dbPlayers = Array.from(getActivePlayersFromDB()).map(player => ({
+        id: player._id.toString(),
+        name: player.username,
+        cardCount: player.cardIds.length,
+        status: 'database'
+    }));
+
+    // Combine all lists
+    return [...connectedPlayers, ...virtualPlayersList, ...dbPlayers];
 }
 
 function getPendingPlayers() {
