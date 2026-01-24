@@ -578,13 +578,14 @@
             // El modal permanece abierto hasta que el admin haga clic en "CONFIRMAR VICTORIA"
         });
 
-        // Función para mostrar detalles del ganador
+        // Función para mostrar detalles del ganador (MEJORADA)
         function showWinnerDetails(winnerData) {
             // Generar el cartón del ganador
             const winnerCard = generateCard(winnerData.card);
             
-            // Mostrar estadísticas del ganador
-            document.getElementById('modal-winner-time').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            // Mostrar estadísticas del ganador con datos reales
+            const currentTime = new Date();
+            document.getElementById('modal-winner-time').innerText = currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
             document.getElementById('modal-winner-numbers').innerText = calledNumbers.size;
             document.getElementById('modal-winner-pattern').innerText = getPatternName(gameState.pattern);
             document.getElementById('modal-winner-calls').innerText = Array.from(calledNumbers).join(', ');
@@ -594,6 +595,108 @@
 
             // Mostrar el patrón completado
             renderWinnerPattern(winnerCard);
+
+            // Mostrar información adicional del ganador
+            showWinnerAdditionalInfo(winnerData, winnerCard);
+        }
+
+        // Función para mostrar información adicional del ganador
+        function showWinnerAdditionalInfo(winnerData, winnerCard) {
+            // Calcular estadísticas avanzadas
+            const totalNumbersCalled = calledNumbers.size;
+            const cardNumbers = extractCardNumbers(winnerCard);
+            const matchedNumbers = cardNumbers.filter(num => calledNumbers.has(num));
+            const winPercentage = ((matchedNumbers.length / cardNumbers.length) * 100).toFixed(1);
+            const freeSpaces = cardNumbers.filter(num => num === "FREE").length;
+            const actualMatches = matchedNumbers.filter(num => num !== "FREE").length;
+
+            // Mostrar estadísticas detalladas
+            const statsContainer = document.querySelector('.winner-stats');
+            statsContainer.innerHTML = `
+                <span class="stat-item">⏱️ <span id="modal-winner-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span></span>
+                <span class="stat-item">🔢 <span id="modal-winner-numbers">${totalNumbersCalled}</span> números llamados</span>
+                <span class="stat-item">🎯 <span id="modal-winner-pattern">${getPatternName(gameState.pattern)}</span></span>
+                <span class="stat-item">✅ <span>${actualMatches}</span> coincidencias</span>
+                <span class="stat-item">📊 <span>${winPercentage}%</span> completado</span>
+            `;
+
+            // Mostrar números ganadores específicos
+            const patternNumbers = getWinningNumbersForPattern(winnerCard, gameState.pattern);
+            const winningNumbersText = patternNumbers.length > 0 ? patternNumbers.join(', ') : Array.from(calledNumbers).slice(0, 10).join(', ') + '...';
+            document.getElementById('modal-winner-calls').innerText = winningNumbersText;
+
+            // Resaltar celdas ganadoras en el cartón
+            highlightWinningCells(winnerCard, gameState.pattern);
+        }
+
+        // Función para extraer todos los números del cartón
+        function extractCardNumbers(card) {
+            const numbers = [];
+            const columns = ['B', 'I', 'N', 'G', 'O'];
+            columns.forEach(col => {
+                card[col].forEach(num => {
+                    if (num !== "FREE") {
+                        numbers.push(num);
+                    } else {
+                        numbers.push("FREE");
+                    }
+                });
+            });
+            return numbers;
+        }
+
+        // Función para obtener los números ganadores según el patrón
+        function getWinningNumbersForPattern(card, patternType) {
+            const winningNumbers = [];
+            const columns = ['B', 'I', 'N', 'G', 'O'];
+            
+            // Definir patrones para obtener números ganadores
+            const patterns = {
+                'full': Array(25).fill(true),
+                'corners': [true,false,false,false,true, false,false,false,false,false, false,false,true,false,false, false,false,false,false,false, false,false,false,false,true],
+                'x': [true,false,false,false,true, false,true,false,true,false, false,false,true,false,false, false,true,false,true,false, true,false,false,false,true],
+                'plus': [false,false,true,false,false, false,false,true,false,false, true,true,true,true,true, false,false,true,false,false, false,false,true,false,false],
+                'corners_center': [true,false,false,false,true, false,false,false,false,false, false,false,true,false,false, false,false,false,false,false, false,false,false,false,true],
+                'frame': [true,true,true,true,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,true,true,true,true],
+                'inner_frame': [false,false,false,false,false, false,true,true,true,false, false,true,false,true,false, false,true,true,true,false, false,false,false,false,false],
+                'line_horizontal': [false,false,false,false,false, true,true,true,true,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
+                'line_vertical': [true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false],
+                'line_diagonal': [true,false,false,false,false, false,true,false,false,false, false,false,true,false,false, false,false,false,true,false, false,false,false,false,true],
+                'custom': customGrid
+            };
+
+            const pattern = patterns[patternType] || patterns['line_horizontal'];
+            
+            // Mapear el patrón a los números del cartón
+            let index = 0;
+            columns.forEach(col => {
+                card[col].forEach((num, row) => {
+                    if (pattern[index] && num !== "FREE") {
+                        winningNumbers.push(num);
+                    }
+                    index++;
+                });
+            });
+
+            return winningNumbers;
+        }
+
+        // Función para resaltar celdas ganadoras
+        function highlightWinningCells(card, patternType) {
+            const winningNumbers = getWinningNumbersForPattern(card, patternType);
+            const cardContainer = document.getElementById('winner-card-display');
+            const cells = cardContainer.querySelectorAll('.winner-card-cell');
+            
+            cells.forEach((cell, index) => {
+                const cellNumber = parseInt(cell.innerText);
+                if (winningNumbers.includes(cellNumber)) {
+                    cell.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    cell.style.color = 'white';
+                    cell.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.8)';
+                    cell.style.transform = 'scale(1.1)';
+                    cell.style.fontWeight = '900';
+                }
+            });
         }
 
         // Función para generar un cartón (copiada de la lógica del cliente)
