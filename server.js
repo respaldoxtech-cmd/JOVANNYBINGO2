@@ -159,6 +159,41 @@ async function getTakenCardsFromDB() {
     }
 }
 
+// Function to sync memory with database
+async function syncTakenCardsWithDB() {
+    try {
+        console.log('🔄 Sincronizando cartones ocupados con base de datos...');
+        const takenCardsFromDB = await getTakenCardsFromDB();
+        takenCards = takenCardsFromDB;
+        console.log(`✅ Cartones sincronizados: ${takenCards.size} cartones ocupados`);
+    } catch (error) {
+        console.error('❌ Error sincronizando cartones con base de datos:', error);
+    }
+}
+
+// Function to refresh player lists from database
+async function refreshPlayerLists() {
+    try {
+        // Sync memory with database
+        await syncTakenCardsWithDB();
+        
+        // Refresh virtual players from database
+        const dbPlayers = await getActivePlayersFromDB();
+        virtualPlayers.clear();
+        dbPlayers.forEach(player => {
+            const virtualId = `db_${player._id.toString()}`;
+            virtualPlayers.set(virtualId, {
+                username: player.username,
+                cardIds: player.cardIds
+            });
+        });
+        
+        console.log(`✅ Listas de jugadores actualizadas: ${dbPlayers.length} jugadores de base de datos`);
+    } catch (error) {
+        console.error('❌ Error actualizando listas de jugadores:', error);
+    }
+}
+
 app.post('/admin-login', (req, res) => {
     res.json({ success: req.body.password === ADMIN_PASS });
 });
@@ -625,13 +660,24 @@ io.on('connection', (socket) => {
     });
 
     // Get card availability for admin modal and status
-    socket.on('get_card_availability', () => {
+    socket.on('get_card_availability', async () => {
+        // Sync memory with database before showing availability
+        await syncTakenCardsWithDB();
+        await refreshPlayerLists();
+        
         const takenCardsArray = Array.from(takenCards);
         socket.emit('card_availability', {
             takenCards: takenCardsArray,
             availableCount: 300 - takenCards.size,
             usedCount: takenCards.size
         });
+    });
+
+    // Admin refresh player lists
+    socket.on('admin_refresh_players', async () => {
+        await refreshPlayerLists();
+        io.emit('update_players', getActivePlayers());
+        io.emit('update_pending_players', getPendingPlayers());
     });
 
     socket.on('admin_reset', () => {
