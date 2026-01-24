@@ -226,8 +226,37 @@ async function initializeTakenCards() {
     }
 }
 
+// Function to clean up inactive players from database on startup
+async function cleanupInactivePlayers() {
+    try {
+        console.log('🧹 Limpiando jugadores inactivos de la base de datos...');
+        
+        // Get all active players from database
+        const activePlayers = await Player.find({ isActive: true }).lean();
+        console.log(`📊 Jugadores activos encontrados: ${activePlayers.length}`);
+        
+        let cleanedCount = 0;
+        for (const player of activePlayers) {
+            // Check if any of this player's cards are actually in use in memory
+            const hasActiveCards = player.cardIds.some(cardId => takenCards.has(cardId));
+            
+            if (!hasActiveCards) {
+                // Mark player as inactive since none of their cards are in use
+                await Player.findByIdAndUpdate(player._id, { isActive: false });
+                cleanedCount++;
+                console.log(`🧹 Jugador ${player.username} marcado como inactivo (cartones no en uso)`);
+            }
+        }
+        
+        console.log(`✅ Limpieza completada: ${cleanedCount} jugadores marcados como inactivos`);
+    } catch (error) {
+        console.error('❌ Error limpiando jugadores inactivos:', error);
+    }
+}
+
 // Initialize on startup
 initializeTakenCards();
+cleanupInactivePlayers();
 
 function mulberry32(a) {
     return function() {
