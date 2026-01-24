@@ -207,6 +207,15 @@ let gameState = {
     message: "¡BIENVENIDOS AL BINGO YOVANNY!"
 };
 
+// Sistema de gestión de victorias definitivo
+let gameSession = {
+    id: null,
+    winners: new Set(), // Conjunto para evitar duplicados de usuarios
+    winningCards: new Set(), // Conjunto para evitar duplicados de cartones
+    lastWinnerTime: 0, // Timestamp del último ganador
+    winnerCooldown: 2000 // 2 segundos de cooldown entre ganadores
+};
+
 // Sistema de moderación de jugadores
 let pendingPlayers = new Map(); // socketId -> {username, cardIds, socket}
 let virtualPlayers = new Map(); // virtualId -> {username, cardIds} - Jugadores agregados manualmente
@@ -743,6 +752,9 @@ io.on('connection', (socket) => {
         gameState.last5Numbers = [];
         gameState.last5Winners = [];
 
+        // Reiniciar el sistema de gestión de victorias
+        resetWinnerManagement();
+
         // Keep players connected and their cards assigned
         // Do NOT clear takenCards - players keep their cartons
         // Do NOT disconnect players - they remain in the game
@@ -758,6 +770,9 @@ io.on('connection', (socket) => {
         gameState.calledNumbers = [];
         gameState.last5Numbers = [];
         gameState.last5Winners = [];
+
+        // Reiniciar el sistema de gestión de victorias
+        resetWinnerManagement();
 
         // Disconnect all active players and clear their sessions
         io.sockets.sockets.forEach(s => {
@@ -957,6 +972,15 @@ function getPendingPlayers() {
 
 // Función para verificar automáticamente ganadores después de cada número
 function checkForAutomaticWinners() {
+    const currentTime = Date.now();
+    const timeSinceLastWinner = currentTime - gameSession.lastWinnerTime;
+    
+    // Verificar cooldown para evitar múltiples ganadores simultáneos
+    if (timeSinceLastWinner < gameSession.winnerCooldown) {
+        console.log(`⏳ Cooldown activo: ${gameSession.winnerCooldown - timeSinceLastWinner}ms restantes`);
+        return;
+    }
+
     // Obtener todos los jugadores activos (conectados + virtuales)
     const connectedPlayers = Array.from(io.sockets.sockets.values())
         .filter(s => s.data.username && s.data.cardIds && s.data.cardIds.length > 0)
@@ -982,11 +1006,19 @@ function checkForAutomaticWinners() {
         const { username, cardIds } = player;
 
         // Verificar si este jugador ya ganó en esta partida (para evitar duplicados)
-        const alreadyWon = gameState.last5Winners.some(w => w.user === username);
-        if (alreadyWon) continue;
+        if (gameSession.winners.has(username)) {
+            console.log(`⏭️  ${username} ya ganó en esta partida, omitiendo...`);
+            continue;
+        }
 
         // Verificar cada cartón del jugador
         for (let cardId of cardIds) {
+            // Verificar si este cartón ya ganó (para evitar duplicados de cartón)
+            if (gameSession.winningCards.has(cardId)) {
+                console.log(`⏭️  Cartón #${cardId} ya ganó en esta partida, omitiendo...`);
+                continue;
+            }
+
             const card = generateCard(cardId);
 
             // Verificar si este cartón gana con el patrón actual
@@ -995,31 +1027,52 @@ function checkForAutomaticWinners() {
                 const winData = {
                     user: username,
                     card: cardId,
-                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    numbersCalled: gameState.calledNumbers.length
                 };
 
-                // Evitar duplicados (aunque ya verificamos por usuario)
-                const isDuplicate = gameState.last5Winners.some(w => w.user === username && w.card === cardId);
-                if (!isDuplicate) {
-                    gameState.last5Winners.unshift(winData);
-                    if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
+                // Registrar ganador en el sistema de gestión
+                gameSession.winners.add(username);
+                gameSession.winningCards.add(cardId);
+                gameSession.lastWinnerTime = currentTime;
 
-                    // Anuncio automático inmediato
-                    io.emit('winner_announced', winData);
-                    io.emit('update_history', gameState.last5Winners);
+                // Agregar a la lista de últimos ganadores
+                gameState.last5Winners.unshift(winData);
+                if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
 
-                    // Celebración automática
-                    io.emit('bingo_celebration', {
-                        message: `¡BINGO AUTOMÁTICO! ${username} ha ganó con el cartón #${cardId}!`,
-                        winner: winData
-                    });
+                // Anuncio automático inmediato
+                io.emit('winner_announced', winData);
+                io.emit('update_history', gameState.last5Winners);
 
-                    console.log(`🏆 GANADOR AUTOMÁTICO: ${username} con cartón #${cardId} (${gameState.pattern})`);
-                }
+                // Celebración automática
+                io.emit('bingo_celebration', {
+                    message: `¡BINGO AUTOMÁTICO! ${username} ha ganado con el cartón #${cardId}!`,
+                    winner: winData
+                });
+
+                // Enviar detalles del cartón ganador
+                io.emit('winner_card_details', {
+                    username: username,
+                    cardId: cardId,
+                    card: card,
+                    calledNumbers: gameState.calledNumbers,
+                    pattern: gameState.pattern
+                });
+
+                console.log(`🏆 GANADOR AUTOMÁTICO: ${username} con cartón #${cardId} (${gameState.pattern}) - Números llamados: ${gameState.calledNumbers.length}`);
                 break; // Solo anunciar el primer cartón ganador de este jugador
             }
         }
     }
+}
+
+// Función para reiniciar el sistema de gestión de victorias
+function resetWinnerManagement() {
+    gameSession.winners.clear();
+    gameSession.winningCards.clear();
+    gameSession.lastWinnerTime = 0;
+    gameSession.id = Date.now().toString();
+    console.log(`🔄 Sistema de gestión de victorias reiniciado - Nueva sesión: ${gameSession.id}`);
 }
 
 const PORT = process.env.PORT || 3000;
