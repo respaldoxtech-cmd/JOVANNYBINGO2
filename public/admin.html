@@ -322,13 +322,34 @@
     <div id="admin-winner-modal" class="modal-backdrop hidden">
         <div class="winner-alert-box bounce-in">
             <div class="alert-icon">🚨</div>
-            <h2>¡BINGO CANTADO!</h2>
+            <h2>🎉 ¡BINGO GANADO!</h2>
             <div class="winner-details">
                 <h3 id="modal-winner-name">Nombre del Jugador</h3>
-                <p>Ganó con el Cartón <span id="modal-winner-card" class="highlight-card">#000</span></p>
+                <p class="winner-card-info">Cartón <span id="modal-winner-card" class="highlight-card">#000</span></p>
+                <div class="winner-stats">
+                    <span class="stat-item">⏱️ <span id="modal-winner-time">--:--</span></span>
+                    <span class="stat-item">🔢 <span id="modal-winner-numbers">0</span> números llamados</span>
+                    <span class="stat-item">🎯 <span id="modal-winner-pattern">Patrón</span></span>
+                </div>
+            </div>
+            <div class="winner-card-preview">
+                <h4>Cartón Ganador</h4>
+                <div id="winner-card-display" class="winner-card-grid">
+                    <!-- Cartón del ganador se mostrará aquí -->
+                </div>
+            </div>
+            <div class="winner-pattern-info">
+                <h4>Patrón Completado</h4>
+                <div id="winner-pattern-display" class="winner-pattern-grid">
+                    <!-- Patrón completado se mostrará aquí -->
+                </div>
+                <div class="pattern-numbers-called">
+                    <span>Números llamados: <span id="modal-winner-calls">--</span></span>
+                </div>
             </div>
             <div class="modal-actions">
                 <button onclick="closeAdminModal()" class="btn-confirm">CONFIRMAR VICTORIA</button>
+                <button onclick="shareWinner()" class="btn-share">📤 COMPARTIR</button>
             </div>
         </div>
     </div>
@@ -551,8 +572,180 @@
             // Vibración si está disponible
             if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
+            // Mostrar información detallada del ganador
+            showWinnerDetails(data);
+
             // El modal permanece abierto hasta que el admin haga clic en "CONFIRMAR VICTORIA"
         });
+
+        // Función para mostrar detalles del ganador
+        function showWinnerDetails(winnerData) {
+            // Generar el cartón del ganador
+            const winnerCard = generateCard(winnerData.card);
+            
+            // Mostrar estadísticas del ganador
+            document.getElementById('modal-winner-time').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            document.getElementById('modal-winner-numbers').innerText = calledNumbers.size;
+            document.getElementById('modal-winner-pattern').innerText = getPatternName(gameState.pattern);
+            document.getElementById('modal-winner-calls').innerText = Array.from(calledNumbers).join(', ');
+
+            // Mostrar el cartón ganador
+            renderWinnerCard(winnerCard);
+
+            // Mostrar el patrón completado
+            renderWinnerPattern(winnerCard);
+        }
+
+        // Función para generar un cartón (copiada de la lógica del cliente)
+        function generateCard(cardId) {
+            const rng = mulberry32(cardId);
+            const fillCol = (min, max, count) => {
+                let nums = new Set();
+                let safety = 0;
+                while(nums.size < count && safety < 500) {
+                    let n = Math.floor(rng() * (max - min + 1)) + min;
+                    nums.add(n);
+                    safety++;
+                }
+                return Array.from(nums);
+            };
+
+            const colN = fillCol(31, 45, 4);
+            const N = [colN[0], colN[1], "FREE", colN[2], colN[3]];
+
+            return {
+                id: cardId,
+                B: fillCol(1, 15, 5),
+                I: fillCol(16, 30, 5),
+                N: N,
+                G: fillCol(46, 60, 5),
+                O: fillCol(61, 75, 5)
+            };
+        }
+
+        // Función para renderizar el cartón ganador
+        function renderWinnerCard(card) {
+            const container = document.getElementById('winner-card-display');
+            container.innerHTML = '';
+
+            const columns = ['B', 'I', 'N', 'G', 'O'];
+            const colors = ['#e3f2fd', '#e8f5e8', '#fff3e0', '#fce4ec', '#f3e5f5'];
+
+            columns.forEach((col, colIndex) => {
+                const colDiv = document.createElement('div');
+                colDiv.className = 'winner-card-column';
+                colDiv.style.backgroundColor = colors[colIndex];
+
+                // Header de columna
+                const header = document.createElement('div');
+                header.className = 'winner-card-header';
+                header.innerText = col;
+                colDiv.appendChild(header);
+
+                // Números de la columna
+                card[col].forEach(num => {
+                    const cell = document.createElement('div');
+                    cell.className = 'winner-card-cell';
+                    cell.innerText = num;
+                    
+                    // Marcar como llamado si el número fue llamado
+                    if (calledNumbers.has(num)) {
+                        cell.classList.add('called');
+                    }
+                    
+                    colDiv.appendChild(cell);
+                });
+
+                container.appendChild(colDiv);
+            });
+        }
+
+        // Función para renderizar el patrón completado
+        function renderWinnerPattern(card) {
+            const container = document.getElementById('winner-pattern-display');
+            container.innerHTML = '';
+
+            // Crear una cuadrícula 5x5 para el patrón
+            for (let row = 0; row < 5; row++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'winner-pattern-row';
+
+                for (let col = 0; col < 5; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'winner-pattern-cell';
+
+                    // Obtener el número en esta posición
+                    const columns = ['B', 'I', 'N', 'G', 'O'];
+                    const num = card[columns[col]][row];
+
+                    // Verificar si este número fue llamado
+                    const isCalled = calledNumbers.has(num);
+                    const isFree = num === "FREE";
+
+                    if (isFree) {
+                        cell.classList.add('free-cell');
+                        cell.innerText = "FREE";
+                    } else {
+                        cell.innerText = num;
+                        if (isCalled) {
+                            cell.classList.add('pattern-completed');
+                        }
+                    }
+
+                    rowDiv.appendChild(cell);
+                }
+
+                container.appendChild(rowDiv);
+            }
+        }
+
+        // Función para obtener el nombre del patrón
+        function getPatternName(patternType) {
+            const patternNames = {
+                'line_horizontal': 'Línea Horizontal',
+                'line_vertical': 'Línea Vertical', 
+                'line_diagonal': 'Línea Diagonal',
+                'full': 'Cartón Lleno (Blackout)',
+                'corners': '4 Esquinas',
+                'x': 'X (Diagonales Cruzadas)',
+                'plus': 'Plus (Centro + Brazos)',
+                'corners_center': 'Esquinas + Centro',
+                'frame': 'Marco Exterior',
+                'inner_frame': 'Marco Interior',
+                'letter_h': 'Letra H',
+                'letter_t': 'Letra T',
+                'small_square': 'Cuadrado Pequeño',
+                'diamond': 'Diamante',
+                'star': 'Estrella',
+                'heart': 'Corazón',
+                'airplane': 'Avión',
+                'arrow': 'Flecha',
+                'crazy': 'Crazy (Zigzag)',
+                'pyramid': 'Pirámide',
+                'cross': 'Cruz',
+                'custom': 'Figura Personalizada'
+            };
+
+            return patternNames[patternType] || 'Patrón Desconocido';
+        }
+
+        // Función para compartir el ganador (copiar al portapapeles)
+        function shareWinner() {
+            const winnerName = document.getElementById('modal-winner-name').innerText;
+            const winnerCard = document.getElementById('modal-winner-card').innerText;
+            const winnerTime = document.getElementById('modal-winner-time').innerText;
+            const winnerNumbers = document.getElementById('modal-winner-numbers').innerText;
+            const winnerPattern = document.getElementById('modal-winner-pattern').innerText;
+
+            const shareText = `🎉 ¡${winnerName} ha ganado el Bingo! 🎉\nCartón: ${winnerCard}\nHora: ${winnerTime}\nNúmeros llamados: ${winnerNumbers}\nPatrón: ${winnerPattern}\n\n¡Felicidades!`;
+
+            navigator.clipboard.writeText(shareText).then(() => {
+                alert('¡Información del ganador copiada al portapapeles!\n' + shareText);
+            }).catch(err => {
+                console.error('Error al copiar:', err);
+                alert('No se pudo copiar al portapapeles. Por favor, comparte manualmente:\n\n' + shareText);
+            });
+        }
 
         // Reinicio
         socket.on('game_reset', () => {
