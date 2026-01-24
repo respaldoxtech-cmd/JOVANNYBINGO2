@@ -476,22 +476,14 @@ io.on('connection', (socket) => {
         gameState.last5Numbers = [];
         gameState.last5Winners = [];
 
-        // Keep players connected but reset their game state
-        io.sockets.sockets.forEach(s => {
-            if (s.data.cardIds) {
-                // This is a player, keep them connected but reset their game
-                s.emit('game_reset');
-            }
-        });
-
-        // Clear taken cards (players will need to request new cards)
-        takenCards.clear();
-
-        // Keep pending players list as is
+        // Keep players connected and their cards assigned
+        // Do NOT clear takenCards - players keep their cartons
+        // Do NOT disconnect players - they remain in the game
 
         // Emit game reset to admin interface
         io.emit('update_pending_players', getPendingPlayers());
         io.emit('update_players', getActivePlayers());
+        io.emit('game_reset');
     });
 
     socket.on('admin_full_reset', () => {
