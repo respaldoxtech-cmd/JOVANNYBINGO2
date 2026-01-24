@@ -790,7 +790,7 @@ io.on('connection', (socket) => {
 });
 
 function getActivePlayers() {
-    // Get connected players
+    // Get connected players (real socket connections)
     const connectedPlayers = Array.from(io.sockets.sockets.values())
         .filter(s => s.data.username)
         .map(s => ({
@@ -800,25 +800,38 @@ function getActivePlayers() {
             status: 'connected'
         }));
 
-    // Get virtual players (manually added)
+    // Get virtual players (manually added by admin) - Show as online
     const virtualPlayersList = Array.from(virtualPlayers.entries())
         .map(([virtualId, player]) => ({
             id: virtualId,
             name: player.username,
             cardCount: player.cardIds.length,
-            status: 'virtual'
+            status: 'online' // Changed from 'virtual' to 'online'
         }));
 
-    // Get database players (persisted in MongoDB)
+    // Get database players (persisted in MongoDB) - Only show if they have active cards
     const dbPlayers = Array.from(getActivePlayersFromDB()).map(player => ({
         id: player._id.toString(),
         name: player.username,
         cardCount: player.cardIds.length,
-        status: 'database'
+        status: 'online' // Changed from 'database' to 'online'
     }));
 
-    // Combine all lists
-    return [...connectedPlayers, ...virtualPlayersList, ...dbPlayers];
+    // Combine all lists and remove duplicates (prioritize connected players)
+    const allPlayers = [...connectedPlayers, ...virtualPlayersList, ...dbPlayers];
+    
+    // Remove duplicates by username, keeping connected players first
+    const uniquePlayers = [];
+    const seenUsernames = new Set();
+    
+    for (const player of allPlayers) {
+        if (!seenUsernames.has(player.name)) {
+            seenUsernames.add(player.name);
+            uniquePlayers.push(player);
+        }
+    }
+    
+    return uniquePlayers;
 }
 
 function getPendingPlayers() {
