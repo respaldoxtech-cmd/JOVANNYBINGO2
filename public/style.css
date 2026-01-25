@@ -252,6 +252,30 @@ body { margin: 0; padding: 0; font-family: var(--font); background: var(--bg-app
     100% { transform: scale(0.9); box-shadow: 0 0 15px rgba(251, 191, 36, 0.8); }
 }
 .grid-cell.free { color: var(--gold); font-size: 1.4rem; }
+.grid-cell.manually-unmarked {
+    background: linear-gradient(135deg, #6b7280, #9ca3af);
+    color: #f9fafb;
+    border: 2px solid #374151;
+    opacity: 0.7;
+    font-weight: 500;
+    position: relative;
+}
+.grid-cell.manually-unmarked::after {
+    content: '✗';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    font-size: 0.6rem;
+    color: #ef4444;
+    background: rgba(0,0,0,0.8);
+    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
 .disable-clicks { pointer-events: none; }
 
 /* Dock (Barra Inferior) */

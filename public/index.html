@@ -943,24 +943,33 @@
             document.getElementById('pattern-modal').classList.add('hidden');
         }
 
-        // Función para alternar marca/desmarca de una celda
+        // Función para alternar marca/desmarca de una celda MANUALMENTE
         function toggleCellMark(cell, number) {
-            // No permitir desmarcar el centro FREE
+            // No permitir modificar el centro FREE
             if(cell.classList.contains('free')) return;
 
+            // Verificar si este número ya fue llamado oficialmente
+            const isNumberCalled = gameState.calledNumbers && gameState.calledNumbers.includes(parseInt(number));
+
             if(cell.classList.contains('marked')) {
-                // Desmarcar: remover la clase marked
+                // Desmarcar: remover la clase marked (solo para corrección)
                 cell.classList.remove('marked');
+                // Añadir clase visual para indicar que fue desmarcado manualmente
+                cell.classList.add('manually-unmarked');
+                console.log(`🔄 Número ${number} desmarcado manualmente para corrección`);
                 // 🎵 Sonido de desmarcado
                 bingoAudio.play('buttonClick');
             } else {
-                // Marcar: añadir la clase marked
+                // Marcar: añadir la clase marked (permitir marcar preventivamente)
                 cell.classList.add('marked');
+                // Remover clase de desmarcado manual si existía
+                cell.classList.remove('manually-unmarked');
+                console.log(`✏️ Número ${number} marcado manualmente ${isNumberCalled ? '(ya llamado)' : '(preventivo)'}`);
                 // 🎵 Sonido de marcado
                 bingoAudio.play('buttonClick');
             }
 
-            // Verificar victoria automática después de alternar
+            // Verificar victoria automática después de alternar (solo si es válido)
             setTimeout(() => {
                 checkAutomaticBingo();
             }, 100);
