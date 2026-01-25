@@ -1575,6 +1575,7 @@ async function checkForAutomaticWinners() {
     console.log(`✅ Verificación automática completada - No hay ganadores aún`);
 }
 
+
 // Función para reiniciar el sistema de gestión de victorias
 function resetWinnerManagement() {
     gameSession.winners.clear();
