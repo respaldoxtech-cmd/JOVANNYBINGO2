@@ -725,7 +725,30 @@ function checkWin(card, called, patternType, customGrid) {
         return true;
     };
 
-    // MODO LÍNEA HORIZONTAL - CADA FILA ES UNA FIGURA INDIVIDUAL
+    // MODO LÍNEA HORIZONTAL ESPECÍFICA - SOLO UNA FILA ESPECÍFICA
+    if (patternType.startsWith('line_horizontal_')) {
+        const rowNum = parseInt(patternType.replace('line_horizontal_', ''));
+        const horizontalLines = [
+            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24]
+        ];
+        if (rowNum >= 1 && rowNum <= 5) {
+            return horizontalLines[rowNum - 1].every(idx => isMarked(flatCard[idx]));
+        }
+    }
+
+    // MODO LÍNEA VERTICAL ESPECÍFICA - SOLO UNA COLUMNA ESPECÍFICA
+    if (patternType.startsWith('line_vertical_')) {
+        const colLetter = patternType.replace('line_vertical_', '').toUpperCase();
+        const verticalLines = {
+            'B': [0,1,2,3,4], 'I': [5,6,7,8,9], 'N': [10,11,12,13,14],
+            'G': [15,16,17,18,19], 'O': [20,21,22,23,24]
+        };
+        if (verticalLines[colLetter]) {
+            return verticalLines[colLetter].every(idx => isMarked(flatCard[idx]));
+        }
+    }
+
+    // MODO LÍNEA HORIZONTAL - CUALQUIER FILA COMPLETA
     if (patternType === 'line_horizontal') {
         const horizontalLines = [
             [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24]
@@ -733,7 +756,7 @@ function checkWin(card, called, patternType, customGrid) {
         return horizontalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
     }
 
-    // MODO LÍNEA VERTICAL - CADA COLUMNA ES UNA FIGURA INDIVIDUAL
+    // MODO LÍNEA VERTICAL - CUALQUIER COLUMNA COMPLETA
     if (patternType === 'line_vertical') {
         const verticalLines = [
             [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24]
@@ -741,7 +764,18 @@ function checkWin(card, called, patternType, customGrid) {
         return verticalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
     }
 
-    // MODO LÍNEA DIAGONAL - CADA DIAGONAL ES UNA FIGURA INDIVIDUAL
+    // MODO LÍNEA DIAGONAL ESPECÍFICA
+    if (patternType === 'line_diagonal_main') {
+        const diagonal = [0,6,12,18,24];
+        return diagonal.every(idx => isMarked(flatCard[idx]));
+    }
+
+    if (patternType === 'line_diagonal_secondary') {
+        const diagonal = [4,8,12,16,20];
+        return diagonal.every(idx => isMarked(flatCard[idx]));
+    }
+
+    // MODO LÍNEA DIAGONAL - CUALQUIER DIAGONAL COMPLETA
     if (patternType === 'line_diagonal') {
         const diagonalLines = [
             [0,6,12,18,24], [4,8,12,16,20]
@@ -970,23 +1004,49 @@ io.on('connection', (socket) => {
     });
 
     socket.on('admin_call_number', (num) => {
-        if (!gameState.calledNumbers.includes(num)) {
-            gameState.calledNumbers.push(num);
-            gameState.last5Numbers.unshift(num);
-            if (gameState.last5Numbers.length > 5) gameState.last5Numbers.pop();
-
-            console.log(`🎯 Número llamado: ${num}`);
-            console.log(`📊 Patrón actual: ${gameState.pattern}`);
-            console.log(`🔢 Números llamados hasta ahora: ${gameState.calledNumbers.length}`);
-
-            // Emitir el número llamado
-            io.emit('number_called', { num, last5: gameState.last5Numbers });
-
-            // Verificar automáticamente si algún jugador ha ganado
-            setTimeout(() => {
-                checkForAutomaticWinners();
-            }, 100); // Pequeño delay para asegurar que todos los clientes procesen el número
+        // Validar que el número sea válido (1-75)
+        if (num < 1 || num > 75) {
+            socket.emit('admin_error', { message: `Número inválido: ${num}. Debe estar entre 1 y 75.` });
+            return;
         }
+
+        // Validar que el número no haya sido llamado ya
+        if (gameState.calledNumbers.includes(num)) {
+            socket.emit('admin_error', { message: `El número ${num} ya fue llamado anteriormente.` });
+            return;
+        }
+
+        // Agregar el número a la lista de llamados
+        gameState.calledNumbers.push(num);
+        gameState.last5Numbers.unshift(num);
+        if (gameState.last5Numbers.length > 5) gameState.last5Numbers.pop();
+
+        console.log(`🎯 Número llamado: ${num}`);
+        console.log(`📊 Patrón actual: ${gameState.pattern}`);
+        console.log(`🔢 Números llamados hasta ahora: ${gameState.calledNumbers.length}`);
+
+        // Emitir el número llamado a todos los clientes
+        io.emit('number_called', {
+            num,
+            last5: gameState.last5Numbers,
+            totalCalled: gameState.calledNumbers.length,
+            pattern: gameState.pattern
+        });
+
+        // Pequeño delay para asegurar que todos los clientes procesen el número
+        setTimeout(() => {
+            // Verificar automáticamente si algún jugador ha ganado
+            checkForAutomaticWinners();
+
+            // Actualizar estado del juego para todos los clientes
+            io.emit('game_state_update', {
+                calledNumbers: gameState.calledNumbers,
+                last5Numbers: gameState.last5Numbers,
+                pattern: gameState.pattern,
+                winners: Array.from(gameSession.winners),
+                winningCards: Array.from(gameSession.winningCards)
+            });
+        }, 200); // Aumentado el delay para mejor sincronización
     });
 
     socket.on('admin_set_pattern', (data) => {
@@ -1445,23 +1505,26 @@ function getPendingPlayers() {
     }));
 }
 
-// Función para verificar automáticamente ganadores después de cada número
+// Función mejorada para verificar automáticamente ganadores después de cada número
 function checkForAutomaticWinners() {
     const currentTime = Date.now();
     const timeSinceLastWinner = currentTime - gameSession.lastWinnerTime;
-    
+
     // Verificar cooldown para evitar múltiples ganadores simultáneos
     if (timeSinceLastWinner < gameSession.winnerCooldown) {
         console.log(`⏳ Cooldown activo: ${gameSession.winnerCooldown - timeSinceLastWinner}ms restantes`);
         return;
     }
 
-    // Obtener todos los jugadores activos (conectados + virtuales)
+    console.log(`🔍 Verificando ganadores automáticos - Patrón: ${gameState.pattern}, Números llamados: ${gameState.calledNumbers.length}`);
+
+    // Obtener todos los jugadores activos (conectados + virtuales + de base de datos)
     const connectedPlayers = Array.from(io.sockets.sockets.values())
         .filter(s => s.data.username && s.data.cardIds && s.data.cardIds.length > 0)
         .map(s => ({
             username: s.data.username,
             cardIds: s.data.cardIds,
+            socketId: s.id,
             type: 'connected'
         }));
 
@@ -1473,18 +1536,31 @@ function checkForAutomaticWinners() {
             type: 'virtual'
         }));
 
+    // Agregar jugadores de base de datos activos
+    const dbPlayers = getActivePlayersFromDB()
+        .filter(player => player.cardIds.some(cardId => takenCards.has(cardId)))
+        .map(player => ({
+            username: player.username,
+            cardIds: player.cardIds,
+            type: 'database'
+        }));
+
     // Combinar todas las listas de jugadores
-    const allActivePlayers = [...connectedPlayers, ...virtualPlayersList];
+    const allActivePlayers = [...connectedPlayers, ...virtualPlayersList, ...dbPlayers];
+
+    console.log(`👥 Jugadores activos para verificar: ${allActivePlayers.length}`);
 
     // Verificar cada jugador activo
     for (const player of allActivePlayers) {
-        const { username, cardIds } = player;
+        const { username, cardIds, type } = player;
 
         // Verificar si este jugador ya ganó en esta partida (para evitar duplicados)
         if (gameSession.winners.has(username)) {
-            console.log(`⏭️  ${username} ya ganó en esta partida, omitiendo...`);
+            console.log(`⏭️  ${username} (${type}) ya ganó en esta partida, omitiendo...`);
             continue;
         }
+
+        console.log(`🔍 Verificando jugador: ${username} (${type}) - Cartones: ${cardIds.join(', ')}`);
 
         // Verificar cada cartón del jugador
         for (let cardId of cardIds) {
@@ -1494,16 +1570,30 @@ function checkForAutomaticWinners() {
                 continue;
             }
 
+            // Verificar que el cartón esté disponible (no liberado)
+            if (!takenCards.has(cardId)) {
+                console.log(`⚠️  Cartón #${cardId} no está disponible, omitiendo...`);
+                continue;
+            }
+
             const card = generateCard(cardId);
 
+            console.log(`🎯 Verificando cartón #${cardId} de ${username} con patrón ${gameState.pattern}`);
+
             // Verificar si este cartón gana con el patrón actual
-            if (checkWin(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern)) {
+            const isWinner = checkWin(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern);
+
+            if (isWinner) {
+                console.log(`🏆 ¡GANADOR DETECTADO! ${username} con cartón #${cardId} (${gameState.pattern})`);
+
                 // ¡HAY UN GANADOR! Anunciar automáticamente
                 const winData = {
                     user: username,
                     card: cardId,
                     time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                    numbersCalled: gameState.calledNumbers.length
+                    numbersCalled: gameState.calledNumbers.length,
+                    pattern: gameState.pattern,
+                    playerType: type
                 };
 
                 // Registrar ganador en el sistema de gestión
@@ -1514,6 +1604,9 @@ function checkForAutomaticWinners() {
                 // Agregar a la lista de últimos ganadores
                 gameState.last5Winners.unshift(winData);
                 if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
+
+                // Actualizar estadísticas del jugador
+                updatePlayerStats(username, winData).catch(err => console.error('Error updating stats:', err));
 
                 // Anuncio automático inmediato
                 io.emit('winner_announced', winData);
@@ -1534,11 +1627,13 @@ function checkForAutomaticWinners() {
                     pattern: gameState.pattern
                 });
 
-                console.log(`🏆 GANADOR AUTOMÁTICO: ${username} con cartón #${cardId} (${gameState.pattern}) - Números llamados: ${gameState.calledNumbers.length}`);
-                break; // Solo anunciar el primer cartón ganador de este jugador
+                console.log(`🏆 GANADOR AUTOMÁTICO CONFIRMADO: ${username} (${type}) con cartón #${cardId} (${gameState.pattern}) - Números llamados: ${gameState.calledNumbers.length}`);
+                return; // Solo anunciar el primer ganador encontrado
             }
         }
     }
+
+    console.log(`✅ Verificación automática completada - No hay ganadores aún`);
 }
 
 // Función para reiniciar el sistema de gestión de victorias

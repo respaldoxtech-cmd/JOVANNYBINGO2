@@ -269,6 +269,18 @@
             'line_d2': [false,false,false,false,true, false,false,false,true,false, false,false,true,false,false, false,true,false,false,false, true,false,false,false,false],  // Top-right to bottom-left
 
             // Combined lines (for admin dropdown options)
+            'line_horizontal_1': [0,5,10,15,20],
+            'line_horizontal_2': [1,6,11,16,21],
+            'line_horizontal_3': [2,7,12,17,22],
+            'line_horizontal_4': [3,8,13,18,23],
+            'line_horizontal_5': [4,9,14,19,24],
+            'line_vertical_B': [0,1,2,3,4],
+            'line_vertical_I': [5,6,7,8,9],
+            'line_vertical_N': [10,11,12,13,14],
+            'line_vertical_G': [15,16,17,18,19],
+            'line_vertical_O': [20,21,22,23,24],
+            'line_diagonal_main': [0,6,12,18,24],
+            'line_diagonal_secondary': [4,8,12,16,20],
             'line_horizontal': [ /* will check all line_hX */ ],
             'line_vertical': [ /* will check all line_vX */ ],
             'line_diagonal': [ /* will check all line_dX */ ],
@@ -301,6 +313,8 @@
         let currentPattern = 'line'; // Patrón actual del juego
         let currentCustomPatternGrid = null; // Para figuras personalizadas
         let playerSession = null; // Datos de sesión persistente
+
+
 
         // Cargar sesión guardada al iniciar
         function loadSavedSession() {
@@ -432,8 +446,8 @@
                         } else {
                             cell.innerText = n;
                             cell.id = `c${card.id}-n${n}`;
-                            // Añadir evento de clic para alternar marca/desmarca
-                            cell.addEventListener('click', () => toggleCellMark(cell, n));
+                            // Los jugadores NO pueden marcar/desmarcar manualmente
+                            // Solo el administrador puede llamar números
                         }
                         grid.appendChild(cell);
                     });
@@ -683,8 +697,7 @@
                         } else {
                             cell.innerText = n;
                             cell.id = `c${card.id}-n${n}`;
-                            // Añadir evento de clic para alternar marca/desmarca
-                            cell.addEventListener('click', () => toggleCellMark(cell, n));
+
                         }
                         grid.appendChild(cell);
                     });
@@ -706,7 +719,15 @@
 
 
 
-        socket.on('number_called', ({ num, last5 }) => {
+        socket.on('number_called', (data) => {
+            const { num, last5, totalCalled, pattern } = data;
+
+            // Actualizar patrón si cambió
+            if (pattern && pattern !== currentPattern) {
+                currentPattern = pattern;
+                updateMode(pattern);
+            }
+
             // 🎵 Sonido al sacar número
             bingoAudio.play('numberDraw');
 
@@ -721,11 +742,16 @@
             updateLast5(last5);
             if(navigator.vibrate) navigator.vibrate(50);
 
+            // Mostrar progreso en consola
+            console.log(`🎯 Número llamado: ${num} | Total: ${totalCalled} | Patrón: ${currentPattern}`);
+
             // Verificar victoria automática después de marcar el número
             setTimeout(() => {
                 checkAutomaticBingo();
-            }, 500); // Pequeño delay para que se vea la animación
+            }, 300); // Delay reducido para mejor responsividad
         });
+
+
 
         socket.on('message_updated', (msg) => document.getElementById('announcement-text').innerText = msg);
         socket.on('pattern_changed', (data) => {
@@ -804,8 +830,39 @@
             // Mapeo actualizado de nombres para el usuario
             const map = {
                 'line': 'NORMAL (LÍNEA)',
+                'line_horizontal': 'LÍNEA HORIZONTAL',
+                'line_vertical': 'LÍNEA VERTICAL',
+                'line_diagonal': 'LÍNEA DIAGONAL',
+                'line_horizontal_1': 'FILA 1',
+                'line_horizontal_2': 'FILA 2',
+                'line_horizontal_3': 'FILA 3',
+                'line_horizontal_4': 'FILA 4',
+                'line_horizontal_5': 'FILA 5',
+                'line_vertical_B': 'COLUMNA B',
+                'line_vertical_I': 'COLUMNA I',
+                'line_vertical_N': 'COLUMNA N',
+                'line_vertical_G': 'COLUMNA G',
+                'line_vertical_O': 'COLUMNA O',
+                'line_diagonal_main': 'DIAGONAL PRINCIPAL',
+                'line_diagonal_secondary': 'DIAGONAL SECUNDARIA',
                 'full': 'CARTÓN LLENO',
                 'corners': '4 ESQUINAS',
+                'x': 'X (DIAGONALES)',
+                'plus': 'PLUS (CENTRO)',
+                'corners_center': 'ESQUINAS + CENTRO',
+                'frame': 'MARCO EXTERIOR',
+                'inner_frame': 'MARCO INTERIOR',
+                'letter_h': 'LETRA H',
+                'letter_t': 'LETRA T',
+                'small_square': 'CUADRADO PEQUEÑO',
+                'diamond': 'DIAMANTE',
+                'star': 'ESTRELLA',
+                'heart': 'CORAZÓN',
+                'airplane': 'AVIÓN',
+                'arrow': 'FLECHA',
+                'crazy': 'CRAZY (ZIGZAG)',
+                'pyramid': 'PIRÁMIDE',
+                'cross': 'CRUZ',
                 'custom': 'FIGURA MANUAL'
             };
             document.getElementById('mode-display').innerText = map[p] || p;
@@ -874,6 +931,18 @@
             // Add explanations for each pattern
             const explanations = {
                 'line': 'Gana cualquier línea: horizontal, vertical o diagonal',
+                'line_horizontal_1': 'Gana cuando se completa la fila 1',
+                'line_horizontal_2': 'Gana cuando se completa la fila 2',
+                'line_horizontal_3': 'Gana cuando se completa la fila 3',
+                'line_horizontal_4': 'Gana cuando se completa la fila 4',
+                'line_horizontal_5': 'Gana cuando se completa la fila 5',
+                'line_vertical_B': 'Gana cuando se completa la columna B',
+                'line_vertical_I': 'Gana cuando se completa la columna I',
+                'line_vertical_N': 'Gana cuando se completa la columna N',
+                'line_vertical_G': 'Gana cuando se completa la columna G',
+                'line_vertical_O': 'Gana cuando se completa la columna O',
+                'line_diagonal_main': 'Gana cuando se completa la diagonal principal',
+                'line_diagonal_secondary': 'Gana cuando se completa la diagonal secundaria',
                 'line_horizontal': 'Gana cualquier línea horizontal (filas)',
                 'line_vertical': 'Gana cualquier línea vertical (columnas)',
                 'line_diagonal': 'Gana cualquier línea diagonal',
@@ -943,37 +1012,7 @@
             document.getElementById('pattern-modal').classList.add('hidden');
         }
 
-        // Función para alternar marca/desmarca de una celda MANUALMENTE
-        function toggleCellMark(cell, number) {
-            // No permitir modificar el centro FREE
-            if(cell.classList.contains('free')) return;
 
-            // Verificar si este número ya fue llamado oficialmente
-            const isNumberCalled = gameState.calledNumbers && gameState.calledNumbers.includes(parseInt(number));
-
-            if(cell.classList.contains('marked')) {
-                // Desmarcar: remover la clase marked (solo para corrección)
-                cell.classList.remove('marked');
-                // Añadir clase visual para indicar que fue desmarcado manualmente
-                cell.classList.add('manually-unmarked');
-                console.log(`🔄 Número ${number} desmarcado manualmente para corrección`);
-                // 🎵 Sonido de desmarcado
-                bingoAudio.play('buttonClick');
-            } else {
-                // Marcar: añadir la clase marked (permitir marcar preventivamente)
-                cell.classList.add('marked');
-                // Remover clase de desmarcado manual si existía
-                cell.classList.remove('manually-unmarked');
-                console.log(`✏️ Número ${number} marcado manualmente ${isNumberCalled ? '(ya llamado)' : '(preventivo)'}`);
-                // 🎵 Sonido de marcado
-                bingoAudio.play('buttonClick');
-            }
-
-            // Verificar victoria automática después de alternar (solo si es válido)
-            setTimeout(() => {
-                checkAutomaticBingo();
-            }, 100);
-        }
 
         // Función para salir del juego
         function logoutUser() {

@@ -252,28 +252,47 @@
                         </div>
                         <div class="game-config-content">
                             <select id="game-mode" onchange="changeMode()" class="select-dark" style="margin-bottom: 15px;">
-                                <option value="line_horizontal">Línea Horizontal</option>
-                                <option value="line_vertical">Línea Vertical</option>
-                                <option value="line_diagonal">Línea Diagonal</option>
-                                <option value="full">Cartón Lleno (Blackout)</option>
-                                <option value="corners">4 Esquinas</option>
-                                <option value="x">X (Diagonales Cruzadas)</option>
-                                <option value="plus">Plus (Centro + Brazos)</option>
-                                <option value="corners_center">Esquinas + Centro</option>
-                                <option value="frame">Marco Exterior</option>
-                                <option value="inner_frame">Marco Interior</option>
-                                <option value="letter_h">Letra H</option>
-                                <option value="letter_t">Letra T</option>
-                                <option value="small_square">Cuadrado Pequeño</option>
-                                <option value="diamond">Diamante</option>
-                                <option value="star">Estrella</option>
-                                <option value="heart">Corazón</option>
-                                <option value="airplane">Avión</option>
-                                <option value="arrow">Flecha</option>
-                                <option value="crazy">Crazy (Zigzag)</option>
-                                <option value="pyramid">Pirámide</option>
-                                <option value="cross">Cruz</option>
-                                <option value="custom">Figura Manual (Personalizada)</option>
+                                <optgroup label="Líneas Específicas">
+                                    <option value="line_horizontal_1">Línea Horizontal 1</option>
+                                    <option value="line_horizontal_2">Línea Horizontal 2</option>
+                                    <option value="line_horizontal_3">Línea Horizontal 3</option>
+                                    <option value="line_horizontal_4">Línea Horizontal 4</option>
+                                    <option value="line_horizontal_5">Línea Horizontal 5</option>
+                                    <option value="line_vertical_B">Línea Vertical B</option>
+                                    <option value="line_vertical_I">Línea Vertical I</option>
+                                    <option value="line_vertical_N">Línea Vertical N</option>
+                                    <option value="line_vertical_G">Línea Vertical G</option>
+                                    <option value="line_vertical_O">Línea Vertical O</option>
+                                    <option value="line_diagonal_main">Línea Diagonal Principal</option>
+                                    <option value="line_diagonal_secondary">Línea Diagonal Secundaria</option>
+                                </optgroup>
+                                <optgroup label="Líneas Generales">
+                                    <option value="line_horizontal">Cualquier Línea Horizontal</option>
+                                    <option value="line_vertical">Cualquier Línea Vertical</option>
+                                    <option value="line_diagonal">Cualquier Línea Diagonal</option>
+                                    <option value="line">Cualquier Línea (H,V,D)</option>
+                                </optgroup>
+                                <optgroup label="Figuras Especiales">
+                                    <option value="full">Cartón Lleno (Blackout)</option>
+                                    <option value="corners">4 Esquinas</option>
+                                    <option value="x">X (Diagonales Cruzadas)</option>
+                                    <option value="plus">Plus (Centro + Brazos)</option>
+                                    <option value="corners_center">Esquinas + Centro</option>
+                                    <option value="frame">Marco Exterior</option>
+                                    <option value="inner_frame">Marco Interior</option>
+                                    <option value="letter_h">Letra H</option>
+                                    <option value="letter_t">Letra T</option>
+                                    <option value="small_square">Cuadrado Pequeño</option>
+                                    <option value="diamond">Diamante</option>
+                                    <option value="star">Estrella</option>
+                                    <option value="heart">Corazón</option>
+                                    <option value="airplane">Avión</option>
+                                    <option value="arrow">Flecha</option>
+                                    <option value="crazy">Crazy (Zigzag)</option>
+                                    <option value="pyramid">Pirámide</option>
+                                    <option value="cross">Cruz</option>
+                                    <option value="custom">Figura Manual (Personalizada)</option>
+                                </optgroup>
                             </select>
 
                             <div class="pattern-container">
