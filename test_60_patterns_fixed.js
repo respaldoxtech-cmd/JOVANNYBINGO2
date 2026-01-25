@@ -141,6 +141,15 @@ function testPatternValidation(patternName, calledNumbers) {
     const pattern = BINGO_PATTERNS[patternName];
     if (!pattern) return false;
 
+    // Debug logging for cross_center pattern
+    if (patternName === 'line_cross_center' || patternName === 'line_plus_pattern') {
+        console.log(`DEBUG ${patternName}:`);
+        console.log(`Pattern: ${JSON.stringify(pattern[0])}`);
+        console.log(`Called numbers: ${calledNumbers}`);
+        console.log(`Flat card positions: ${pattern[0].map(idx => `${idx}: ${flatCard[idx]}`).join(', ')}`);
+        console.log(`Marked status: ${pattern[0].map(idx => `${idx}: ${isMarked(flatCard[idx])}`).join(', ')}`);
+    }
+
     // For patterns that are arrays of arrays (multiple lines possible)
     if (Array.isArray(pattern) && Array.isArray(pattern[0])) {
         // Verify if any of the lines of the pattern is complete
