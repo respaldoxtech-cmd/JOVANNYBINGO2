@@ -531,45 +531,298 @@ let gameSession = {
     winnerCooldown: 2000 // 2 segundos de cooldown entre ganadores
 };
 
-// --- NUEVO SISTEMA DE FIGURAS SIMPLIFICADO Y ROBUSTO ---
-// Sistema completamente reescrito desde cero para máxima fiabilidad
-// Cada patrón es un array de arrays donde cada sub-array es una línea ganadora
+// --- SISTEMA DE FIGURAS COMPLETAMENTE NUEVO Y MEJORADO ---
+// Sistema reescrito desde cero con visualización correcta y validación robusta
+// Cada patrón incluye: nombre, descripción, posiciones requeridas, y representación visual
 const BINGO_PATTERNS = {
     // Patrón básico: cualquier línea completa
-    'line': [
-        // Filas horizontales (visuales)
-        [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-        // Columnas verticales
-        [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-        // Diagonales
-        [0,6,12,18,24], [4,8,12,16,20]
-    ],
+    'line': {
+        name: 'LÍNEA NORMAL',
+        description: 'Gana con cualquier línea horizontal, vertical o diagonal completa',
+        positions: [
+            // Filas horizontales (índices visuales)
+            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
+            // Columnas verticales
+            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
+            // Diagonales
+            [0,6,12,18,24], [4,8,12,16,20]
+        ],
+        visual: [
+            'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX',
+            'X    ', 'X    ', 'X    ', 'X    ', 'X    ',
+            '  X  ', '  X  ', '  X  ', '  X  ', '  X  ',
+            '    X', '    X', '    X', '    X', '    X',
+            'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
+        ]
+    },
 
     // Cartón completo
-    'full': [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
+    'full': {
+        name: 'CARTÓN LLENO',
+        description: 'Todo el cartón debe estar marcado (Blackout completo)',
+        positions: [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
+        visual: [
+            'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX'
+        ]
+    },
 
-    // Figuras geométricas simples
-    'corners': [[0,4,20,24]], // 4 esquinas
-    'x': [[0,6,12,18,24], [4,8,12,16,20]], // Diagonales cruzadas
-    'plus': [[2,7,12,17,22]], // Cruz central
-    'corners_center': [[0,4,12,20,24]], // Esquinas + centro
-    'frame': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]], // Marco exterior
-    'inner_frame': [[6,7,8,11,13,16,17,18]], // Marco interior
+    // Figuras geométricas básicas
+    'corners': {
+        name: '4 ESQUINAS',
+        description: 'Las cuatro esquinas del cartón',
+        positions: [[0,4,20,24]],
+        visual: [
+            'X   X', '     ', '     ', '     ', 'X   X'
+        ]
+    },
 
-    // Figuras de letras simples
-    'letter_h': [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]],
-    'letter_t': [[0,1,2,3,4,7,12,17]],
-    'letter_x': [[0,6,12,18,24,4,8,12,16,20]],
-    'letter_o': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
+    'center': {
+        name: 'CENTRO',
+        description: 'Solo la casilla central del cartón',
+        positions: [[12]],
+        visual: [
+            '     ', '     ', '  X  ', '     ', '     '
+        ]
+    },
+
+    'cross': {
+        name: 'CRUZ',
+        description: 'Centro más los cuatro brazos (forma de cruz)',
+        positions: [[2,7,12,17,22]],
+        visual: [
+            '  X  ', '  X  ', 'XXXXX', '  X  ', '  X  '
+        ]
+    },
+
+    'plus': {
+        name: 'PLUS',
+        description: 'Centro más los cuatro brazos (símbolo +)',
+        positions: [[7,11,12,13,17]],
+        visual: [
+            '     ', ' XXX ', ' XXX ', ' XXX ', '     '
+        ]
+    },
+
+    'x_shape': {
+        name: 'EQUIS (X)',
+        description: 'Ambas diagonales cruzadas',
+        positions: [[0,6,12,18,24], [4,8,12,16,20]],
+        visual: [
+            'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
+        ]
+    },
+
+    // Marcos y bordes
+    'frame': {
+        name: 'MARCO EXTERIOR',
+        description: 'Todo el borde exterior del cartón',
+        positions: [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
+        visual: [
+            'XXXXX', 'X   X', 'X   X', 'X   X', 'XXXXX'
+        ]
+    },
+
+    'inner_square': {
+        name: 'CUADRADO INTERIOR',
+        description: 'Cuadrado central de 3x3 casillas',
+        positions: [[6,7,8,11,13,16,17,18]],
+        visual: [
+            '     ', ' XXX ', ' XXX ', ' XXX ', '     '
+        ]
+    },
+
+    // Figuras de letras mejoradas
+    'letter_l': {
+        name: 'LETRA L',
+        description: 'Forma de L mayúscula',
+        positions: [[0,5,10,15,20,21,22,23,24]],
+        visual: [
+            'X    ', 'X    ', 'X    ', 'X    ', 'XXXXX'
+        ]
+    },
+
+    'letter_t': {
+        name: 'LETRA T',
+        description: 'Forma de T mayúscula',
+        positions: [[0,1,2,3,4,7,12,17]],
+        visual: [
+            'XXXXX', '  X  ', '  X  ', '  X  ', '  X  '
+        ]
+    },
+
+    'letter_h': {
+        name: 'LETRA H',
+        description: 'Forma de H mayúscula',
+        positions: [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]],
+        visual: [
+            'X   X', 'X   X', 'XXXXX', 'X   X', 'X   X'
+        ]
+    },
+
+    'letter_o': {
+        name: 'LETRA O',
+        description: 'Forma de O mayúscula',
+        positions: [[1,2,3,5,9,10,14,15,19,21,22,23]],
+        visual: [
+            ' XXX ', 'X   X', 'X   X', 'X   X', ' XXX '
+        ]
+    },
+
+    'letter_x': {
+        name: 'LETRA X',
+        description: 'Forma de X mayúscula',
+        positions: [[0,4,6,8,12,16,18,20,24]],
+        visual: [
+            'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
+        ]
+    },
 
     // Figuras especiales
-    'diamond': [[2,6,10,14,18,22]],
-    'star': [[2,6,8,10,12,14,16,18,7,11,12,13,17]],
-    'heart': [[1,3,6,7,8,9,11,12,13,16,18]],
-    'arrow': [[2,7,10,11,12,13,14,17]]
+    'diamond': {
+        name: 'DIAMANTE',
+        description: 'Forma de diamante',
+        positions: [[2,6,10,14,18,22]],
+        visual: [
+            '  X  ', ' X X ', 'X   X', ' X X ', '  X  '
+        ]
+    },
+
+    'star': {
+        name: 'ESTRELLA',
+        description: 'Forma de estrella de 5 puntas',
+        positions: [[2,6,7,8,10,12,14,16,17,18]],
+        visual: [
+            '  X  ', ' X X ', 'XXXXX', ' X X ', '  X  '
+        ]
+    },
+
+    'heart': {
+        name: 'CORAZÓN',
+        description: 'Forma de corazón',
+        positions: [[1,3,5,7,8,9,11,12,13,15,17]],
+        visual: [
+            ' X X ', 'XXXXX', 'XXXXX', ' XXX ', '  X  '
+        ]
+    },
+
+    'arrow': {
+        name: 'FLECHA',
+        description: 'Forma de flecha apuntando hacia arriba',
+        positions: [[2,6,7,8,10,11,12,13,14]],
+        visual: [
+            '  X  ', ' XXX ', 'XXXXX', '  X  ', '  X  '
+        ]
+    },
+
+    'pyramid': {
+        name: 'PIRÁMIDE',
+        description: 'Forma triangular de pirámide',
+        positions: [[2,6,7,8,10,11,12,13,14,16,17,18]],
+        visual: [
+            '  X  ', ' XXX ', 'XXXXX', '     ', '     '
+        ]
+    },
+
+    'small_square': {
+        name: 'CUADRADO PEQUEÑO',
+        description: 'Cuadrado 2x2 en esquina superior izquierda',
+        positions: [[0,1,5,6]],
+        visual: [
+            'XX   ', 'XX   ', '     ', '     ', '     '
+        ]
+    },
+
+    'corner_square': {
+        name: 'ESQUINA CUADRADA',
+        description: 'Cuadrado 3x3 en esquina superior izquierda',
+        positions: [[0,1,2,5,6,7,10,11,12]],
+        visual: [
+            'XXX  ', 'XXX  ', 'XXX  ', '     ', '     '
+        ]
+    },
+
+    'zigzag': {
+        name: 'ZIGZAG',
+        description: 'Patrón en zigzag a través del cartón',
+        positions: [[0,6,8,10,12,14,16,18,20,24]],
+        visual: [
+            'X    ', ' XXX ', 'X   X', ' XXX ', 'X   X'
+        ]
+    },
+
+    'checkerboard': {
+        name: 'AJEDREZ',
+        description: 'Patrón de ajedrez (casillas alternas)',
+        positions: [[0,2,4,6,8,10,12,14,16,18,20,22,24]],
+        visual: [
+            'X X X', ' X X ', 'X X X', ' X X ', 'X X X'
+        ]
+    },
+
+    'hourglass': {
+        name: 'RELOJ DE ARENA',
+        description: 'Forma de reloj de arena',
+        positions: [[0,4,6,8,12,16,18,20,24]],
+        visual: [
+            'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
+        ]
+    },
+
+    'butterfly': {
+        name: 'MARIPOSA',
+        description: 'Forma de mariposa',
+        positions: [[2,6,7,8,10,12,14,16,17,18]],
+        visual: [
+            '  X  ', ' X X ', 'XXXXX', ' X X ', '  X  '
+        ]
+    },
+
+    'crown': {
+        name: 'CORONA',
+        description: 'Forma de corona real',
+        positions: [[0,1,2,3,4,6,8,12,16,18]],
+        visual: [
+            'XXXXX', ' X X ', '  X  ', '     ', '     '
+        ]
+    },
+
+    'lightning': {
+        name: 'RAYO',
+        description: 'Forma de rayo o relámpago',
+        positions: [[0,5,6,7,8,13,18,23]],
+        visual: [
+            'X    ', 'XX   ', 'XXX  ', '  X  ', '   X '
+        ]
+    },
+
+    'snake': {
+        name: 'SERPIENTE',
+        description: 'Patrón serpenteante',
+        positions: [[0,1,2,7,12,17,22,21,20,15,10,5]],
+        visual: [
+            'XXX  ', '   X ', '  X  ', ' X   ', 'X    '
+        ]
+    },
+
+    'spiral': {
+        name: 'ESPIRAL',
+        description: 'Patrón en espiral',
+        positions: [[0,1,2,3,8,13,18,23,22,21,20,15,10,5]],
+        visual: [
+            'XXXX ', '    X', 'XXXX ', 'X    ', 'XXXX '
+        ]
+    },
+
+    // Figuras personalizadas (admin puede definir)
+    'custom': {
+        name: 'FIGURA PERSONALIZADA',
+        description: 'Figura definida manualmente por el administrador',
+        positions: null, // Se define dinámicamente
+        visual: ['     ', '     ', '     ', '     ', '     ']
+    }
 };
 
-// --- FUNCIONES DE VALIDACIÓN DE PATRONES ---
+// --- FUNCIONES DE VALIDACIÓN DE PATRONES NUEVAS ---
 function validatePattern(patternType, flatCard, calledNumbers) {
     const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
 
@@ -577,15 +830,17 @@ function validatePattern(patternType, flatCard, calledNumbers) {
     const pattern = BINGO_PATTERNS[patternType];
     if (!pattern) return false;
 
-    // Para patrones que son arrays de arrays (múltiples líneas posibles)
-    if (Array.isArray(pattern) && Array.isArray(pattern[0])) {
+    // Para patrones que tienen posiciones definidas
+    if (pattern.positions) {
         // Verificar si alguna de las líneas del patrón está completa
-        return pattern.some(line => line.every(idx => isMarked(flatCard[idx])));
-    }
-
-    // Para patrones que son arrays simples (patrones estrictos)
-    if (Array.isArray(pattern)) {
-        return validateStrictPattern(pattern, flatCard, calledNumbers, isMarked);
+        return pattern.positions.some(line => {
+            // Si es un array de arrays (múltiples líneas posibles)
+            if (Array.isArray(line)) {
+                return line.every(idx => isMarked(flatCard[idx]));
+            }
+            // Si es un array simple (una sola línea)
+            return line.every ? line.every(idx => isMarked(flatCard[idx])) : isMarked(flatCard[line]);
+        });
     }
 
     return false;
@@ -597,17 +852,18 @@ function validateStrictPattern(requiredPositions, flatCard, calledNumbers, isMar
 
     if (!allRequiredMarked) return false;
 
-    // Verificar que NO haya marcado en posiciones que NO son parte del patrón
-    // Esto es para patrones específicos que deben ser exactos
+    // Para patrones estrictos, verificar que NO haya marcado en posiciones no requeridas
     const strictPatterns = [
-        'corners', 'corners_center', 'plus', 'frame', 'inner_frame',
-        'letter_h', 'letter_t', 'small_square', 'diamond', 'star',
-        'heart', 'airplane', 'arrow', 'crazy', 'pyramid', 'cross'
+        'corners', 'center', 'cross', 'plus', 'frame', 'inner_square',
+        'letter_l', 'letter_t', 'letter_h', 'letter_o', 'letter_x',
+        'diamond', 'star', 'heart', 'arrow', 'pyramid', 'small_square',
+        'corner_square', 'zigzag', 'checkerboard', 'hourglass', 'butterfly',
+        'crown', 'lightning', 'snake', 'spiral'
     ];
 
     if (strictPatterns.includes(patternType)) {
         const allPositions = Array.from({length: 25}, (_, i) => i);
-        const nonRequiredPositions = allPositions.filter(idx => !requiredPositions.includes(idx));
+        const nonRequiredPositions = allPositions.filter(idx => !requiredPositions.flat().includes(idx));
 
         // Verificar que NO haya marcado en posiciones no requeridas
         const hasUnwantedMarks = nonRequiredPositions.some(idx => isMarked(flatCard[idx]));

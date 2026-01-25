@@ -266,43 +266,294 @@
     </div>
 
     <script>
-        // --- NUEVO SISTEMA DE FIGURAS SIMPLIFICADO ---
-        // Sistema completamente reescrito desde cero para máxima fiabilidad
+        // --- SISTEMA DE FIGURAS COMPLETAMENTE NUEVO Y MEJORADO ---
+        // Sistema reescrito desde cero con visualización correcta y validación robusta
         const BINGO_PATTERNS = {
             // Patrón básico: cualquier línea completa
-            'line': [
-                // Filas horizontales (visuales)
-                [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-                // Columnas verticales
-                [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-                // Diagonales
-                [0,6,12,18,24], [4,8,12,16,20]
-            ],
+            'line': {
+                name: 'LÍNEA NORMAL',
+                description: 'Gana con cualquier línea horizontal, vertical o diagonal completa',
+                positions: [
+                    // Filas horizontales (índices visuales)
+                    [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
+                    // Columnas verticales
+                    [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
+                    // Diagonales
+                    [0,6,12,18,24], [4,8,12,16,20]
+                ],
+                visual: [
+                    'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX',
+                    'X    ', 'X    ', 'X    ', 'X    ', 'X    ',
+                    '  X  ', '  X  ', '  X  ', '  X  ', '  X  ',
+                    '    X', '    X', '    X', '    X', '    X',
+                    'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
+                ]
+            },
 
             // Cartón completo
-            'full': [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
+            'full': {
+                name: 'CARTÓN LLENO',
+                description: 'Todo el cartón debe estar marcado (Blackout completo)',
+                positions: [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
+                visual: [
+                    'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX'
+                ]
+            },
 
-            // Figuras geométricas simples
-            'corners': [[0,4,20,24]], // 4 esquinas
-            'x': [[0,6,12,18,24], [4,8,12,16,20]], // Diagonales cruzadas
-            'plus': [[2,7,12,17,22]], // Cruz central
-            'corners_center': [[0,4,12,20,24]], // Esquinas + centro
-            'frame': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]], // Marco exterior
-            'inner_frame': [[6,7,8,11,13,16,17,18]], // Marco interior
+            // Figuras geométricas básicas
+            'corners': {
+                name: '4 ESQUINAS',
+                description: 'Las cuatro esquinas del cartón',
+                positions: [[0,4,20,24]],
+                visual: [
+                    'X   X', '     ', '     ', '     ', 'X   X'
+                ]
+            },
 
-            // Figuras de letras simples
-            'letter_h': [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]],
-            'letter_t': [[0,1,2,3,4,7,12,17]],
-            'letter_x': [[0,6,12,18,24,4,8,12,16,20]],
-            'letter_o': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
+            'center': {
+                name: 'CENTRO',
+                description: 'Solo la casilla central del cartón',
+                positions: [[12]],
+                visual: [
+                    '     ', '     ', '  X  ', '     ', '     '
+                ]
+            },
+
+            'cross': {
+                name: 'CRUZ',
+                description: 'Centro más los cuatro brazos (forma de cruz)',
+                positions: [[2,7,12,17,22]],
+                visual: [
+                    '  X  ', '  X  ', 'XXXXX', '  X  ', '  X  '
+                ]
+            },
+
+            'plus': {
+                name: 'PLUS',
+                description: 'Centro más los cuatro brazos (símbolo +)',
+                positions: [[7,11,12,13,17]],
+                visual: [
+                    '     ', ' XXX ', ' XXX ', ' XXX ', '     '
+                ]
+            },
+
+            'x_shape': {
+                name: 'EQUIS (X)',
+                description: 'Ambas diagonales cruzadas',
+                positions: [[0,6,12,18,24], [4,8,12,16,20]],
+                visual: [
+                    'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
+                ]
+            },
+
+            // Marcos y bordes
+            'frame': {
+                name: 'MARCO EXTERIOR',
+                description: 'Todo el borde exterior del cartón',
+                positions: [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
+                visual: [
+                    'XXXXX', 'X   X', 'X   X', 'X   X', 'XXXXX'
+                ]
+            },
+
+            'inner_square': {
+                name: 'CUADRADO INTERIOR',
+                description: 'Cuadrado central de 3x3 casillas',
+                positions: [[6,7,8,11,13,16,17,18]],
+                visual: [
+                    '     ', ' XXX ', ' XXX ', ' XXX ', '     '
+                ]
+            },
+
+            // Figuras de letras mejoradas
+            'letter_l': {
+                name: 'LETRA L',
+                description: 'Forma de L mayúscula',
+                positions: [[0,5,10,15,20,21,22,23,24]],
+                visual: [
+                    'X    ', 'X    ', 'X    ', 'X    ', 'XXXXX'
+                ]
+            },
+
+            'letter_t': {
+                name: 'LETRA T',
+                description: 'Forma de T mayúscula',
+                positions: [[0,1,2,3,4,7,12,17]],
+                visual: [
+                    'XXXXX', '  X  ', '  X  ', '  X  ', '  X  '
+                ]
+            },
+
+            'letter_h': {
+                name: 'LETRA H',
+                description: 'Forma de H mayúscula',
+                positions: [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]],
+                visual: [
+                    'X   X', 'X   X', 'XXXXX', 'X   X', 'X   X'
+                ]
+            },
+
+            'letter_o': {
+                name: 'LETRA O',
+                description: 'Forma de O mayúscula',
+                positions: [[1,2,3,5,9,10,14,15,19,21,22,23]],
+                visual: [
+                    ' XXX ', 'X   X', 'X   X', 'X   X', ' XXX '
+                ]
+            },
+
+            'letter_x': {
+                name: 'LETRA X',
+                description: 'Forma de X mayúscula',
+                positions: [[0,4,6,8,12,16,18,20,24]],
+                visual: [
+                    'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
+                ]
+            },
 
             // Figuras especiales
-            'diamond': [[2,6,10,14,18,22]],
-            'star': [[2,6,8,10,12,14,16,18,7,11,12,13,17]],
-            'heart': [[1,3,6,7,8,9,11,12,13,16,18]],
-            'arrow': [[2,7,10,11,12,13,14,17]],
+            'diamond': {
+                name: 'DIAMANTE',
+                description: 'Forma de diamante',
+                positions: [[2,6,10,14,18,22]],
+                visual: [
+                    '  X  ', ' X X ', 'X   X', ' X X ', '  X  '
+                ]
+            },
 
-            'custom': null // Figuras personalizadas definidas por admin
+            'star': {
+                name: 'ESTRELLA',
+                description: 'Forma de estrella de 5 puntas',
+                positions: [[2,6,7,8,10,12,14,16,17,18]],
+                visual: [
+                    '  X  ', ' X X ', 'XXXXX', ' X X ', '  X  '
+                ]
+            },
+
+            'heart': {
+                name: 'CORAZÓN',
+                description: 'Forma de corazón',
+                positions: [[1,3,5,7,8,9,11,12,13,15,17]],
+                visual: [
+                    ' X X ', 'XXXXX', 'XXXXX', ' XXX ', '  X  '
+                ]
+            },
+
+            'arrow': {
+                name: 'FLECHA',
+                description: 'Forma de flecha apuntando hacia arriba',
+                positions: [[2,6,7,8,10,11,12,13,14]],
+                visual: [
+                    '  X  ', ' XXX ', 'XXXXX', '  X  ', '  X  '
+                ]
+            },
+
+            'pyramid': {
+                name: 'PIRÁMIDE',
+                description: 'Forma triangular de pirámide',
+                positions: [[2,6,7,8,10,11,12,13,14,16,17,18]],
+                visual: [
+                    '  X  ', ' XXX ', 'XXXXX', '     ', '     '
+                ]
+            },
+
+            'small_square': {
+                name: 'CUADRADO PEQUEÑO',
+                description: 'Cuadrado 2x2 en esquina superior izquierda',
+                positions: [[0,1,5,6]],
+                visual: [
+                    'XX   ', 'XX   ', '     ', '     ', '     '
+                ]
+            },
+
+            'corner_square': {
+                name: 'ESQUINA CUADRADA',
+                description: 'Cuadrado 3x3 en esquina superior izquierda',
+                positions: [[0,1,2,5,6,7,10,11,12]],
+                visual: [
+                    'XXX  ', 'XXX  ', 'XXX  ', '     ', '     '
+                ]
+            },
+
+            'zigzag': {
+                name: 'ZIGZAG',
+                description: 'Patrón en zigzag a través del cartón',
+                positions: [[0,6,8,10,12,14,16,18,20,24]],
+                visual: [
+                    'X    ', ' XXX ', 'X   X', ' XXX ', 'X   X'
+                ]
+            },
+
+            'checkerboard': {
+                name: 'AJEDREZ',
+                description: 'Patrón de ajedrez (casillas alternas)',
+                positions: [[0,2,4,6,8,10,12,14,16,18,20,22,24]],
+                visual: [
+                    'X X X', ' X X ', 'X X X', ' X X ', 'X X X'
+                ]
+            },
+
+            'hourglass': {
+                name: 'RELOJ DE ARENA',
+                description: 'Forma de reloj de arena',
+                positions: [[0,4,6,8,12,16,18,20,24]],
+                visual: [
+                    'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
+                ]
+            },
+
+            'butterfly': {
+                name: 'MARIPOSA',
+                description: 'Forma de mariposa',
+                positions: [[2,6,7,8,10,12,14,16,17,18]],
+                visual: [
+                    '  X  ', ' X X ', 'XXXXX', ' X X ', '  X  '
+                ]
+            },
+
+            'crown': {
+                name: 'CORONA',
+                description: 'Forma de corona real',
+                positions: [[0,1,2,3,4,6,8,12,16,18]],
+                visual: [
+                    'XXXXX', ' X X ', '  X  ', '     ', '     '
+                ]
+            },
+
+            'lightning': {
+                name: 'RAYO',
+                description: 'Forma de rayo o relámpago',
+                positions: [[0,5,6,7,8,13,18,23]],
+                visual: [
+                    'X    ', 'XX   ', 'XXX  ', '  X  ', '   X '
+                ]
+            },
+
+            'snake': {
+                name: 'SERPIENTE',
+                description: 'Patrón serpenteante',
+                positions: [[0,1,2,7,12,17,22,21,20,15,10,5]],
+                visual: [
+                    'XXX  ', '   X ', '  X  ', ' X   ', 'X    '
+                ]
+            },
+
+            'spiral': {
+                name: 'ESPIRAL',
+                description: 'Patrón en espiral',
+                positions: [[0,1,2,3,8,13,18,23,22,21,20,15,10,5]],
+                visual: [
+                    'XXXX ', '    X', 'XXXX ', 'X    ', 'XXXX '
+                ]
+            },
+
+            // Figuras personalizadas (admin puede definir)
+            'custom': {
+                name: 'FIGURA PERSONALIZADA',
+                description: 'Figura definida manualmente por el administrador',
+                positions: null, // Se define dinámicamente
+                visual: ['     ', '     ', '     ', '     ', '     ']
+            }
         };
 
         const socket = io();
@@ -963,113 +1214,14 @@
         }
         function updateMode(p) {
             currentPattern = p; // Actualizar patrón actual para bingo automático
-            // Mapeo actualizado de nombres para el usuario
-            const map = {
-                'line': 'NORMAL (LÍNEA)',
-                'line_horizontal': 'LÍNEA HORIZONTAL',
-                'line_vertical': 'LÍNEA VERTICAL',
-                'line_diagonal': 'LÍNEA DIAGONAL',
-                'line_horizontal_1': 'FILA 1',
-                'line_horizontal_2': 'FILA 2',
-                'line_horizontal_3': 'FILA 3',
-                'line_horizontal_4': 'FILA 4',
-                'line_horizontal_5': 'FILA 5',
-                'line_vertical_B': 'COLUMNA B',
-                'line_vertical_I': 'COLUMNA I',
-                'line_vertical_N': 'COLUMNA N',
-                'line_vertical_G': 'COLUMNA G',
-                'line_vertical_O': 'COLUMNA O',
-                'line_diagonal_main': 'DIAGONAL PRINCIPAL',
-                'line_diagonal_secondary': 'DIAGONAL SECUNDARIA',
-                'full': 'CARTÓN LLENO',
-                'corners': '4 ESQUINAS',
-                'x': 'X (DIAGONALES)',
-                'plus': 'PLUS (CENTRO)',
-                'corners_center': 'ESQUINAS + CENTRO',
-                'frame': 'MARCO EXTERIOR',
-                'inner_frame': 'MARCO INTERIOR',
-                'letter_h': 'LETRA H',
-                'letter_t': 'LETRA T',
-                'small_square': 'CUADRADO PEQUEÑO',
-                'diamond': 'DIAMANTE',
-                'star': 'ESTRELLA',
-                'heart': 'CORAZÓN',
-                'airplane': 'AVIÓN',
-                'arrow': 'FLECHA',
-                'crazy': 'CRAZY (ZIGZAG)',
-                'pyramid': 'PIRÁMIDE',
-                'cross': 'CRUZ',
-                'custom': 'FIGURA MANUAL',
-                // Nuevos patrones añadidos
-                'line_top_row': 'FILA SUPERIOR',
-                'line_middle_row': 'FILA CENTRAL',
-                'line_bottom_row': 'FILA INFERIOR',
-                'line_left_col': 'COLUMNA IZQUIERDA',
-                'line_right_col': 'COLUMNA DERECHA',
-                'line_main_diagonal': 'DIAGONAL PRINCIPAL',
-                'line_secondary_diagonal': 'DIAGONAL SECUNDARIA',
-                'line_perimeter': 'PERÍMETRO',
-                'line_inner_perimeter': 'PERÍMETRO INTERIOR',
-                'line_cross_center': 'CRUZ CENTRAL',
-                'line_x_pattern': 'PATRÓN X',
-                'line_plus_pattern': 'PATRÓN PLUS',
-                'line_corners': '4 ESQUINAS',
-                'line_corners_center': 'ESQUINAS + CENTRO',
-                'line_frame': 'MARCO',
-                'line_inner_frame': 'MARCO INTERIOR',
-                'line_letter_h': 'LETRA H',
-                'line_letter_t': 'LETRA T',
-                'line_small_square': 'CUADRADO PEQUEÑO',
-                'line_diamond': 'DIAMANTE',
-                'line_star': 'ESTRELLA',
-                'line_heart': 'CORAZÓN',
-                'line_airplane': 'AVIÓN',
-                'line_arrow': 'FLECHA',
-                'line_crazy': 'ZIGZAG',
-                'line_pyramid': 'PIRÁMIDE',
-                'line_cross': 'CRUZ',
-                'line_letter_l': 'LETRA L',
-                'line_letter_c': 'LETRA C',
-                'line_letter_s': 'LETRA S',
-                'line_letter_z': 'LETRA Z',
-                'line_letter_u': 'LETRA U',
-                'line_letter_v': 'LETRA V',
-                'line_letter_w': 'LETRA W',
-                'line_letter_m': 'LETRA M',
-                'line_letter_n': 'LETRA N',
-                'line_letter_p': 'LETRA P',
-                'line_letter_e': 'LETRA E',
-                'line_letter_f': 'LETRA F',
-                'line_letter_d': 'LETRA D',
-                'line_letter_r': 'LETRA R',
-                'line_letter_k': 'LETRA K',
-                'line_letter_y': 'LETRA Y',
-                'line_letter_q': 'LETRA Q',
-                'line_letter_j': 'LETRA J',
-                'line_letter_a': 'LETRA A',
-                'line_letter_b': 'LETRA B',
-                'line_letter_o': 'LETRA O',
-                'line_letter_x': 'LETRA X',
-                'line_letter_g': 'LETRA G',
-                'line_letter_i': 'LETRA I',
-                'letter_4': 'NÚMERO 4',
-                'letter_7': 'NÚMERO 7',
-                'letter_8': 'NÚMERO 8',
-                'letter_9': 'NÚMERO 9',
-                'letter_0': 'NÚMERO 0',
-                'letter_1': 'NÚMERO 1',
-                'letter_2': 'NÚMERO 2',
-                'letter_3': 'NÚMERO 3',
-                'letter_5': 'NÚMERO 5',
-                'letter_6': 'NÚMERO 6',
-                'letter_plus': 'PATRÓN PLUS',
-                'letter_star': 'ESTRELLA',
-                'letter_heart': 'CORAZÓN',
-                'letter_diamond': 'DIAMANTE',
-                'letter_arrow': 'FLECHA',
-                'letter_cross': 'CRUZ'
-            };
-            document.getElementById('mode-display').innerText = map[p] || p;
+
+            // Usar el nuevo sistema de figuras centralizado
+            const patternData = BINGO_PATTERNS[p];
+            if (patternData) {
+                document.getElementById('mode-display').innerText = patternData.name;
+            } else {
+                document.getElementById('mode-display').innerText = p;
+            }
         }
         function updateHistory(l) {
             document.getElementById('history-list').innerHTML = l.length ? l.map(w => `<li><span class="t-name">${w.user}</span> <span class="t-card">#${w.card}</span></li>`).join('') : '<li class="empty">Lista vacía</li>';
@@ -1085,113 +1237,13 @@
             const title = document.getElementById('pattern-title');
             const display = document.getElementById('pattern-display');
 
-            // Set title
-            const map = {
-                'line': 'NORMAL (LÍNEA)',
-                'line_horizontal': 'LÍNEA HORIZONTAL',
-                'line_vertical': 'LÍNEA VERTICAL',
-                'line_diagonal': 'LÍNEA DIAGONAL',
-                'full': 'CARTÓN LLENO',
-                'corners': '4 ESQUINAS',
-                'x': 'X (DIAGONALES)',
-                'plus': 'PLUS (CENTRO + BRAZOS)',
-                'corners_center': 'ESQUINAS + CENTRO',
-                'frame': 'MARCO EXTERIOR',
-                'inner_frame': 'MARCO INTERIOR',
-                'letter_h': 'LETRA H',
-                'letter_t': 'LETRA T',
-                'small_square': 'CUADRADO PEQUEÑO',
-                'diamond': 'DIAMANTE',
-                'star': 'ESTRELLA',
-                'heart': 'CORAZÓN',
-                'airplane': 'AVIÓN',
-                'arrow': 'FLECHA',
-                'crazy': 'CRAZY (ZIGZAG)',
-                'pyramid': 'PIRÁMIDE',
-                'cross': 'CRUZ',
-                'custom': 'FIGURA MANUAL',
-                // Nuevos patrones añadidos
-                'line_horizontal_1': 'FILA 1',
-                'line_horizontal_2': 'FILA 2',
-                'line_horizontal_3': 'FILA 3',
-                'line_horizontal_4': 'FILA 4',
-                'line_horizontal_5': 'FILA 5',
-                'line_vertical_B': 'COLUMNA B',
-                'line_vertical_I': 'COLUMNA I',
-                'line_vertical_N': 'COLUMNA N',
-                'line_vertical_G': 'COLUMNA G',
-                'line_vertical_O': 'COLUMNA O',
-                'line_diagonal_main': 'DIAGONAL PRINCIPAL',
-                'line_diagonal_secondary': 'DIAGONAL SECUNDARIA',
-                'line_top_row': 'FILA SUPERIOR',
-                'line_middle_row': 'FILA CENTRAL',
-                'line_bottom_row': 'FILA INFERIOR',
-                'line_left_col': 'COLUMNA IZQUIERDA',
-                'line_right_col': 'COLUMNA DERECHA',
-                'line_main_diagonal': 'DIAGONAL PRINCIPAL',
-                'line_secondary_diagonal': 'DIAGONAL SECUNDARIA',
-                'line_perimeter': 'PERÍMETRO',
-                'line_inner_perimeter': 'PERÍMETRO INTERIOR',
-                'line_cross_center': 'CRUZ CENTRAL',
-                'line_x_pattern': 'PATRÓN X',
-                'line_plus_pattern': 'PATRÓN PLUS',
-                'line_corners': '4 ESQUINAS',
-                'line_corners_center': 'ESQUINAS + CENTRO',
-                'line_frame': 'MARCO',
-                'line_inner_frame': 'MARCO INTERIOR',
-                'line_letter_h': 'LETRA H',
-                'line_letter_t': 'LETRA T',
-                'line_small_square': 'CUADRADO PEQUEÑO',
-                'line_diamond': 'DIAMANTE',
-                'line_star': 'ESTRELLA',
-                'line_heart': 'CORAZÓN',
-                'line_airplane': 'AVIÓN',
-                'line_arrow': 'FLECHA',
-                'line_crazy': 'ZIGZAG',
-                'line_pyramid': 'PIRÁMIDE',
-                'line_cross': 'CRUZ',
-                'line_letter_l': 'LETRA L',
-                'line_letter_c': 'LETRA C',
-                'line_letter_s': 'LETRA S',
-                'line_letter_z': 'LETRA Z',
-                'line_letter_u': 'LETRA U',
-                'line_letter_v': 'LETRA V',
-                'line_letter_w': 'LETRA W',
-                'line_letter_m': 'LETRA M',
-                'line_letter_n': 'LETRA N',
-                'line_letter_p': 'LETRA P',
-                'line_letter_e': 'LETRA E',
-                'line_letter_f': 'LETRA F',
-                'line_letter_d': 'LETRA D',
-                'line_letter_r': 'LETRA R',
-                'line_letter_k': 'LETRA K',
-                'line_letter_y': 'LETRA Y',
-                'line_letter_q': 'LETRA Q',
-                'line_letter_j': 'LETRA J',
-                'line_letter_a': 'LETRA A',
-                'line_letter_b': 'LETRA B',
-                'line_letter_o': 'LETRA O',
-                'line_letter_x': 'LETRA X',
-                'line_letter_g': 'LETRA G',
-                'line_letter_i': 'LETRA I',
-                'letter_4': 'NÚMERO 4',
-                'letter_7': 'NÚMERO 7',
-                'letter_8': 'NÚMERO 8',
-                'letter_9': 'NÚMERO 9',
-                'letter_0': 'NÚMERO 0',
-                'letter_1': 'NÚMERO 1',
-                'letter_2': 'NÚMERO 2',
-                'letter_3': 'NÚMERO 3',
-                'letter_5': 'NÚMERO 5',
-                'letter_6': 'NÚMERO 6',
-                'letter_plus': 'PATRÓN PLUS',
-                'letter_star': 'ESTRELLA',
-                'letter_heart': 'CORAZÓN',
-                'letter_diamond': 'DIAMANTE',
-                'letter_arrow': 'FLECHA',
-                'letter_cross': 'CRUZ'
-            };
-            title.textContent = map[currentPattern] || currentPattern;
+            // Obtener el patrón actual
+            const patternData = BINGO_PATTERNS[currentPattern];
+            if (patternData) {
+                title.textContent = patternData.name;
+            } else {
+                title.textContent = currentPattern;
+            }
 
             // Generate mini card
             let html = '<div class="mini-bingo-card">';
@@ -1212,47 +1264,9 @@
             }
             html += '</div></div>';
 
-            // Add explanations for each pattern
-            const explanations = {
-                'line': 'Gana cualquier línea: horizontal, vertical o diagonal',
-                'line_horizontal_1': 'Gana cuando se completa la fila 1',
-                'line_horizontal_2': 'Gana cuando se completa la fila 2',
-                'line_horizontal_3': 'Gana cuando se completa la fila 3',
-                'line_horizontal_4': 'Gana cuando se completa la fila 4',
-                'line_horizontal_5': 'Gana cuando se completa la fila 5',
-                'line_vertical_B': 'Gana cuando se completa la columna B',
-                'line_vertical_I': 'Gana cuando se completa la columna I',
-                'line_vertical_N': 'Gana cuando se completa la columna N',
-                'line_vertical_G': 'Gana cuando se completa la columna G',
-                'line_vertical_O': 'Gana cuando se completa la columna O',
-                'line_diagonal_main': 'Gana cuando se completa la diagonal principal',
-                'line_diagonal_secondary': 'Gana cuando se completa la diagonal secundaria',
-                'line_horizontal': 'Gana cualquier línea horizontal (filas)',
-                'line_vertical': 'Gana cualquier línea vertical (columnas)',
-                'line_diagonal': 'Gana cualquier línea diagonal',
-                'full': 'Todo el cartón marcado (Blackout)',
-                'corners': 'Las 4 esquinas del cartón',
-                'x': 'Ambas diagonales cruzadas (X)',
-                'plus': 'Centro más los 4 brazos (+)',
-                'corners_center': '4 esquinas más el centro',
-                'frame': 'Marco exterior del cartón',
-                'inner_frame': 'Marco interior (cuadrado central)',
-                'letter_h': 'Patrón en forma de H',
-                'letter_t': 'Patrón en forma de T',
-                'small_square': 'Cuadrado pequeño en esquina superior izquierda',
-                'diamond': 'Patrón en forma de diamante',
-                'star': 'Patrón en forma de estrella',
-                'heart': 'Patrón en forma de corazón',
-                'airplane': 'Patrón en forma de avión',
-                'arrow': 'Patrón en forma de flecha',
-                'crazy': 'Patrón en forma de zigzag',
-                'pyramid': 'Patrón en forma de pirámide',
-                'cross': 'Patrón en forma de cruz',
-                'custom': 'El administrador define la figura manualmente'
-            };
-
-            if(explanations[currentPattern]) {
-                html += `<p class="pattern-explanation">${explanations[currentPattern]}</p>`;
+            // Add description for the pattern
+            if (patternData && patternData.description) {
+                html += `<p class="pattern-explanation">${patternData.description}</p>`;
             }
 
             display.innerHTML = html;
@@ -1260,100 +1274,17 @@
         }
 
         function isWinningCell(idx, pattern) {
-            // Define winning patterns for preview
-            const patterns = {
-                'full': Array(25).fill(true),
-                'corners': [true,false,false,false,true, false,false,false,false,false, false,false,true,false,false, false,false,false,false,false, false,false,false,false,true],
-                'x': [true,false,false,false,true, false,true,false,true,false, false,false,true,false,false, false,true,false,true,false, true,false,false,false,true],
-                'plus': [false,false,true,false,false, false,false,true,false,false, true,true,true,true,true, false,false,true,false,false, false,false,true,false,false],
-                'corners_center': [true,false,false,false,true, false,false,false,false,false, false,false,true,false,false, false,false,false,false,false, false,false,false,false,true],
-                'frame': [true,true,true,true,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,true,true,true,true],
-                'inner_frame': [false,false,false,false,false, false,true,true,true,false, false,true,false,true,false, false,true,true,true,false, false,false,false,false,false],
-                'letter_h': [true,false,false,false,true, true,false,false,false,true, true,true,true,true,true, true,false,false,false,true, true,false,false,false,true],
-                'letter_t': [true,true,true,true,true, false,false,true,false,false, false,false,true,false,false, false,false,true,false,false, false,false,true,false,false],
-                'small_square': [true,true,false,false,false, true,true,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'diamond': [false,false,true,false,false, false,true,false,true,false, true,false,false,false,true, false,true,false,true,false, false,false,true,false,false],
-                'star': [false,true,false,true,false, true,true,true,true,true, false,true,true,true,false, true,true,true,true,true, false,true,false,true,false],
-                'heart': [false,true,false,true,false, true,true,true,true,true, true,true,true,true,true, true,true,true,true,true, false,true,true,true,false],
-                'airplane': [false,false,true,false,false, true,true,true,true,true, false,true,true,true,false, false,true,false,true,false, false,false,false,false,false],
-                'arrow': [false,false,true,false,false, false,true,true,true,false, true,true,true,true,true, false,false,true,false,false, false,false,true,false,false],
-                'crazy': [true,false,false,false,false, false,false,true,false,false, false,false,false,false,true, false,true,false,false,false, false,false,false,true,false],
-                'pyramid': [false,false,true,false,false, false,true,true,true,false, true,true,true,true,true, false,false,false,false,false, false,false,false,false,false],
-                'cross': [false,true,false,false,false, true,true,true,false,false, false,true,false,false,false, false,true,false,false,false, false,true,false,false,false],
-                'line': [false,false,false,false,false, true,true,true,true,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_horizontal': [false,false,false,false,false, true,true,true,true,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_vertical': [true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false],
-                'line_diagonal': [true,false,false,false,false, false,true,false,false,false, false,false,true,false,false, false,false,false,true,false, false,false,false,false,true],
-                // Nuevos patrones añadidos
-                'line_horizontal_1': [true,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_horizontal_2': [false,true,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_horizontal_3': [false,false,true,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_horizontal_4': [false,false,false,true,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_horizontal_5': [false,false,false,false,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_vertical_B': [true,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_vertical_I': [false,true,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_vertical_N': [false,false,true,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_vertical_G': [false,false,false,true,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_vertical_O': [false,false,false,false,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_diagonal_main': [true,false,false,false,false, false,true,false,false,false, false,false,true,false,false, false,false,false,true,false, false,false,false,false,false],
-                'line_diagonal_secondary': [false,false,false,false,true, false,false,false,true,false, false,false,true,false,false, false,true,false,false,false, true,false,false,false,false],
-                'line_top_row': [true,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_middle_row': [false,false,true,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_bottom_row': [false,false,false,false,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_left_col': [true,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_right_col': [false,false,false,false,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_main_diagonal': [true,false,false,false,false, false,true,false,false,false, false,false,true,false,false, false,false,false,true,false, false,false,false,false,false],
-                'line_secondary_diagonal': [false,false,false,false,true, false,false,false,true,false, false,false,true,false,false, false,true,false,false,false, true,false,false,false,false],
-                'line_perimeter': [true,true,true,true,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,true,true,true,true],
-                'line_inner_perimeter': [false,false,false,false,false, false,true,true,true,false, false,true,false,true,false, false,true,true,true,false, false,false,false,false,false],
-                'line_cross_center': [false,false,false,false,false, false,false,true,false,false, true,true,true,true,true, false,false,true,false,false, false,false,false,false,false],
-                'line_x_pattern': [true,false,false,false,true, false,true,false,true,false, false,false,true,false,false, false,true,false,true,false, true,false,false,false,true],
-                'line_plus_pattern': [false,false,false,false,false, false,false,true,false,false, true,true,true,true,true, false,false,true,false,false, false,false,false,false,false],
-                'line_corners': [true,false,false,false,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, true,false,false,false,true],
-                'line_corners_center': [true,false,false,false,true, false,false,false,false,false, false,false,true,false,false, false,false,false,false,false, true,false,false,false,true],
-                'line_frame': [true,true,true,true,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,true,true,true,true],
-                'line_inner_frame': [false,false,false,false,false, false,true,true,true,false, false,true,false,true,false, false,true,true,true,false, false,false,false,false,false],
-                'line_letter_h': [true,false,false,false,true, true,false,false,false,true, true,true,true,true,true, true,false,false,false,true, true,false,false,false,true],
-                'line_letter_t': [true,true,true,true,true, false,false,true,false,false, false,false,true,false,false, false,false,true,false,false, false,false,true,false,false],
-                'line_small_square': [true,true,false,false,false, true,true,false,false,false, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false],
-                'line_diamond': [false,false,true,false,false, false,true,false,true,false, true,false,false,false,true, false,true,false,true,false, false,false,true,false,false],
-                'line_star': [false,true,false,true,false, true,true,true,true,true, false,true,true,true,false, true,true,true,true,true, false,true,false,true,false],
-                'line_heart': [false,true,false,true,false, true,true,true,true,true, true,true,true,true,true, true,true,true,true,true, false,true,true,true,false],
-                'line_airplane': [false,false,true,false,false, true,true,true,true,true, false,true,true,true,false, false,true,false,true,false, false,false,false,false,false],
-                'line_arrow': [false,false,true,false,false, false,true,true,true,false, true,true,true,true,true, false,false,true,false,false, false,false,true,false,false],
-                'line_crazy': [true,false,false,false,false, false,false,true,false,false, false,false,false,false,true, false,true,false,false,false, false,false,false,true,false],
-                'line_pyramid': [false,false,true,false,false, false,true,true,true,false, true,true,true,true,true, false,false,false,false,false, false,false,false,false,false],
-                'line_cross': [false,true,false,false,false, true,true,true,false,false, false,true,false,false,false, false,true,false,false,false, false,true,false,false,false],
-                'line_letter_l': [true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true],
-                'line_letter_c': [true,true,true,true,false, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,true,true,true,true],
-                'line_letter_s': [true,true,true,true,true, true,true,false,false,false, false,false,false,false,false, false,false,false,false,true, true,true,true,true],
-                'line_letter_z': [true,true,true,true,true, false,false,false,false,true, false,false,false,false,false, false,false,false,false,true, true,true,true,true,true],
-                'line_letter_u': [true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,true,true,true,true],
-                'line_letter_v': [true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, false,true,false,false,false, true,false,false,false,true],
-                'line_letter_w': [true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, false,true,false,false,false, true,false,false,false,true],
-                'line_letter_m': [true,false,false,false,true, true,true,false,false,true, true,true,false,false,true, true,false,false,false,true, true,false,false,false,true],
-                'line_letter_n': [true,false,false,false,true, true,true,false,false,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true],
-                'line_letter_p': [true,true,true,true,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,false, false,false,false,false,false],
-                'line_letter_e': [true,true,true,true,true, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,true,true,true,true],
-                'line_letter_f': [true,true,true,true,true, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false],
-                'line_letter_d': [true,true,true,true,false, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,true,true,true,true],
-                'line_letter_r': [true,true,true,true,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,false],
-                'line_letter_k': [true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, false,true,false,false,false, true,false,false,false,true],
-                'line_letter_y': [true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, false,true,false,false,false, true,false,false,false,true],
-                'line_letter_q': [true,true,true,true,true, true,false,false,false,false, true,false,false,false,false, true,false,false,false,false, true,true,true,true,true],
-                'line_letter_j': [true,true,true,true,true, false,false,false,false,true, false,false,false,false,false, false,false,false,false,true, true,true,true,true,true],
-                'line_letter_a': [true,false,false,false,true, true,true,false,false,true, true,true,true,true,true, true,false,false,false,true, true,false,false,false,true],
-                'line_letter_b': [true,true,true,true,false, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,true,true,true,true],
-                'line_letter_o': [true,true,true,true,true, true,false,false,false,true, true,false,false,false,true, true,false,false,false,true, true,true,true,true,true],
-                'line_letter_x': [true,false,false,false,true, false,true,false,true,false, false,false,true,false,false, false,true,false,true,false, true,false,false,false,true],
-                'line_letter_g': [true,true,true,true,true, true,false,false,false,false, true,false,false,false,false, true,false,false,false,true, true,true,true,true,true],
-                'line_letter_i': [true,true,true,true,true, false,false,false,false,false, false,false,false,false,false, false,false,false,false,false, true,true,true,true,true]
-            };
+            // Usar el nuevo sistema de figuras centralizado
+            const patternData = BINGO_PATTERNS[pattern];
+            if (!patternData || !patternData.positions) return false;
 
-            if(patterns[pattern] && patterns[pattern][idx]) {
-                return true;
-            }
-            return false;
+            // Verificar si alguna de las líneas del patrón contiene este índice
+            return patternData.positions.some(line => {
+                if (Array.isArray(line)) {
+                    return line.includes(idx);
+                }
+                return line === idx;
+            });
         }
 
         function hidePatternModal() {
@@ -1448,7 +1379,7 @@
             }
         }
 
-        // Función auxiliar para verificar victoria (misma lógica que en el servidor)
+        // Función auxiliar para verificar victoria (usando el nuevo sistema centralizado)
         function checkCardWin(card, calledNumbers, pattern) {
             console.log(`🔍 Verificando victoria cliente - Patrón: ${pattern}, Números llamados: ${calledNumbers.length}`);
 
@@ -1459,317 +1390,29 @@
             // Función auxiliar para ver si una celda está marcada
             const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
 
-            // Define winning patterns as arrays of indices
-            // IMPORTANT: flatCard is indexed by columns: B(0-4), I(5-9), N(10-14), G(15-19), O(20-24)
-            // Visual representation:
-            // 0  5  10 15 20  <- Column B indices
-            // 1  6  11 16 21  <- Column I indices
-            // 2  7  12 17 22  <- Column N indices (12 is FREE)
-            // 3  8  13 18 23  <- Column G indices
-            // 4  9  14 19 24  <- Column O indices
-            const patterns = {
-                'line': [
-                    // Columnas (B, I, N, G, O)
-                    [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-                    // Filas
-                    [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-                    // Diagonales
-                    [0,6,12,18,24], [4,8,12,16,20]
-                ],
-                'line_horizontal_1': [[0,5,10,15,20]], // Fila 1 (superior visual)
-                'line_horizontal_2': [[1,6,11,16,21]], // Fila 2
-                'line_horizontal_3': [[2,7,12,17,22]], // Fila 3
-                'line_horizontal_4': [[3,8,13,18,23]], // Fila 4
-                'line_horizontal_5': [[4,9,14,19,24]], // Fila 5 (inferior visual)
-                'line_vertical_B': [[0,1,2,3,4]],
-                'line_vertical_I': [[5,6,7,8,9]],
-                'line_vertical_N': [[10,11,12,13,14]],
-                'line_vertical_G': [[15,16,17,18,19]],
-                'line_vertical_O': [[20,21,22,23,24]],
-                'line_diagonal_main': [[0,6,12,18,24]],
-                'line_diagonal_secondary': [[4,8,12,16,20]],
-                'line_horizontal': [
-                    [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24]
-                ],
-                'line_vertical': [
-                    [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24]
-                ],
-                'line_diagonal': [
-                    [0,6,12,18,24], [4,8,12,16,20]
-                ],
-                'full': [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
-                'corners': [[0,4,20,24]],
-                'x': [[0,6,12,18,24], [4,8,12,16,20]],
-                'plus': [[7,11,12,13,17]],
-                'corners_center': [[0,4,12,20,24]],
-                'frame': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
-                'inner_frame': [[6,7,8,11,13,16,17,18]],
-                'letter_h': [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]],
-                'letter_t': [[0,1,2,3,4,7,12,17]],
-                'small_square': [[0,1,5,6]],
-                'diamond': [[2,6,10,14,18,22]],
-                'star': [[2,6,8,10,12,14,16,18,7,11,12,13,17]],
-                'heart': [[1,3,6,7,8,9,11,12,13,16,18]],
-                'airplane': [[1,3,5,7,9,11,13,15,17,19,21,23]],
-                'arrow': [[2,7,10,11,12,13,14,17]],
-                'crazy': [[0,2,4,6,8,10,12,14,16,18,20,22,24]],
-                'pyramid': [[2,6,7,8,10,11,12,13,14,16,17,18]],
-                'cross': [[2,7,11,12,13,17,22]],
-                // Nuevos patrones añadidos para alcanzar 40+
-                'letter_l': [[0,5,10,15,20,4,9,14,19,24]],
-                'letter_c': [[0,1,2,3,5,10,15,20,24,23,22,21]],
-                'letter_s': [[0,1,2,3,4,5,6,7,12,17,22,23,24]],
-                'letter_z': [[0,1,2,3,4,9,14,19,24,23,22,21,20]],
-                'letter_u': [[0,5,10,15,20,4,9,14,19,24,23,22,21,20]],
-                'letter_v': [[0,5,10,15,20,4,9,14,19,24,12]],
-                'letter_w': [[0,5,10,15,20,4,9,14,19,24,12,7,2]],
-                'letter_m': [[0,5,10,15,20,4,9,14,19,24,12,7,2,1,6,11]],
-                'letter_n': [[0,5,10,15,20,4,9,14,19,24,12,7,2]],
-                'letter_p': [[0,5,10,15,20,1,6,11,16,21,2,7,12]],
-                'letter_e': [[0,1,2,3,4,5,10,15,20,6,11,16,21,7,12,17]],
-                'letter_f': [[0,1,2,3,4,5,10,15,20,6,11,16,21]],
-                'letter_d': [[0,1,2,3,5,10,15,20,24,23,22,21,6,11,16,21]],
-                'letter_r': [[0,5,10,15,20,1,6,11,16,21,2,7,12,17,22]],
-                'letter_k': [[0,5,10,15,20,4,9,14,19,24,12,7,2,13,18,23]],
-                'letter_y': [[0,5,10,15,20,4,9,14,19,24,12,7,2,13,18,23,11,6,1]],
-                'letter_q': [[0,1,2,3,4,5,10,15,20,24,23,22,21,6,11,16,21,17,12]],
-                'letter_j': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
-                'letter_a': [[2,7,12,17,22,0,5,10,15,20,4,9,14,19,24,1,6,11,16,21]],
-                'letter_b': [[0,1,2,3,5,10,15,20,24,23,22,21,6,11,16,21,7,12,17,22,4,9,14,19]],
-                'letter_o': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
-                'letter_x': [[0,6,12,18,24,4,8,12,16,20]],
-                'letter_g': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,11,12,13,17,18]],
-                'letter_i': [[2,7,12,17,22,0,1,2,3,4,20,21,22,23,24]],
-                'letter_q': [[0,1,2,3,4,5,10,15,20,24,23,22,21,6,11,16,21,17,12]],
-                'letter_4': [[0,5,10,15,20,2,7,12,17,22,1,6,11,16,21]],
-                'letter_7': [[0,1,2,3,4,9,14,19,24]],
-                'letter_8': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5,6,7,8,11,13,16,17,18]],
-                'letter_9': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5,6,7,8,11,12,13,16,17,18]],
-                'letter_0': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5,6,7,8,11,13,16,17,18]],
-                'letter_1': [[2,7,12,17,22,1,6,11,16,21,0,5,10,15,20]],
-                'letter_2': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5,6,7,8,11,12,13]],
-                'letter_3': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,11,12,13,17,18]],
-                'letter_5': [[0,1,2,3,4,5,10,15,20,21,22,23,24,16,17,18,19]],
-                'letter_6': [[0,1,2,3,4,5,10,15,20,21,22,23,24,16,17,18,19,14,13,12,11]],
-                'letter_plus': [[7,11,12,13,17,2,7,12,17,22]],
-                'letter_star': [[2,6,8,10,12,14,16,18,7,11,12,13,17,1,3,13,18,20,22,24]],
-                'letter_heart': [[1,3,6,7,8,9,11,12,13,16,18,2,7,12,17,22,4,9,14,19]],
-                'letter_diamond': [[2,6,10,14,18,22,1,7,13,19,3,7,11,15,19,23]],
-                'letter_arrow': [[2,7,10,11,12,13,14,17,1,6,11,16,21,0,5,10,15,20]],
-                'letter_cross': [[2,7,11,12,13,17,22,1,6,11,16,21,0,5,10,15,20,4,9,14,19]],
-                'custom': null // Este será un array de índices proporcionado por el admin
-            };
+            // Usar el nuevo sistema de validación centralizada
+            return validatePattern(pattern, flatCard, calledNumbers);
+        }
 
-            // Función para validar que NO haya marcado en posiciones que NO deben estar marcadas
-            const validateStrictPattern = (requiredPositions) => {
-                // Verificar que todas las posiciones requeridas estén marcadas
-                const allRequiredMarked = requiredPositions.every(idx => isMarked(flatCard[idx]));
+        // Función de validación centralizada (igual que en el servidor)
+        function validatePattern(patternType, flatCard, calledNumbers) {
+            const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
 
-                if (!allRequiredMarked) return false;
+            // Obtener el patrón desde la definición centralizada
+            const pattern = BINGO_PATTERNS[patternType];
+            if (!pattern) return false;
 
-                // Verificar que NO haya marcado en posiciones que NO son parte del patrón
-                // Esto es para patrones específicos que deben ser exactos
-                if (pattern === 'corners' || pattern === 'corners_center' ||
-                    pattern === 'plus' || pattern === 'frame' || pattern === 'inner_frame' ||
-                    pattern === 'letter_h' || pattern === 'letter_t' || pattern === 'small_square' ||
-                    pattern === 'diamond' || pattern === 'star' || pattern === 'heart' ||
-                    pattern === 'airplane' || pattern === 'arrow' || pattern === 'crazy' ||
-                    pattern === 'pyramid' || pattern === 'cross') {
-
-                    // Para estos patrones, verificamos que NO haya marcado en posiciones no requeridas
-                    const allPositions = Array.from({length: 25}, (_, i) => i);
-                    const nonRequiredPositions = allPositions.filter(idx => !requiredPositions.includes(idx));
-
-                    // Verificar que NO haya marcado en posiciones no requeridas
-                    // Si hay alguna posición no requerida marcada, el patrón no es válido
-                    const hasUnwantedMarks = nonRequiredPositions.some(idx => isMarked(flatCard[idx]));
-
-                    if (hasUnwantedMarks) {
-                        console.log(`❌ Patrón ${pattern} inválido: hay marcas en posiciones no requeridas`);
-                        return false;
+            // Para patrones que tienen posiciones definidas
+            if (pattern.positions) {
+                // Verificar si alguna de las líneas del patrón está completa
+                return pattern.positions.some(line => {
+                    // Si es un array de arrays (múltiples líneas posibles)
+                    if (Array.isArray(line)) {
+                        return line.every(idx => isMarked(flatCard[idx]));
                     }
-
-                    return true;
-                }
-
-                return true;
-            };
-
-            // MODO LÍNEA HORIZONTAL - CADA FILA ES UNA FIGURA INDIVIDUAL
-            if (pattern === 'line_horizontal') {
-                const horizontalLines = [
-                    [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24]
-                ];
-                return horizontalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
-            }
-
-            // MODO LÍNEA VERTICAL - CADA COLUMNA ES UNA FIGURA INDIVIDUAL
-            if (pattern === 'line_vertical') {
-                const verticalLines = [
-                    [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24]
-                ];
-                return verticalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
-            }
-
-            // MODO LÍNEA DIAGONAL - CADA DIAGONAL ES UNA FIGURA INDIVIDUAL
-            if (pattern === 'line_diagonal') {
-                const diagonalLines = [
-                    [0,6,12,18,24], [4,8,12,16,20]
-                ];
-                return diagonalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
-            }
-
-            // MODO LÍNEA (NORMAL) - CUALQUIER LÍNEA COMPLETA
-            if (pattern === 'line') {
-                const winningLines = [
-                    // Columnas (B, I, N, G, O)
-                    [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-                    // Filas
-                    [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-                    // Diagonales
-                    [0,6,12,18,24], [4,8,12,16,20]
-                ];
-                return winningLines.some(line => line.every(idx => isMarked(flatCard[idx])));
-            }
-
-            // MODO CARTÓN LLENO (Full House) - TODAS LAS CELDAS MARCADAS
-            if (pattern === 'full') {
-                return patterns.full[0].every(idx => isMarked(flatCard[idx]));
-            }
-
-            // MODO 4 ESQUINAS - EXACTAMENTE LAS 4 ESQUINAS
-            if (pattern === 'corners') {
-                const requiredPositions = patterns.corners[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO X (DIAGONALES CRUZADAS) - EXACTAMENTE UNA DE LAS DIAGONALES
-            if (pattern === 'x') {
-                const requiredPositions = patterns.x[0]; // Primera diagonal
-                const requiredPositions2 = patterns.x[1]; // Segunda diagonal
-
-                // Verificar si alguna de las dos diagonales está completa
-                const diagonal1Complete = requiredPositions.every(idx => isMarked(flatCard[idx]));
-                const diagonal2Complete = requiredPositions2.every(idx => isMarked(flatCard[idx]));
-
-                if (diagonal1Complete) {
-                    return validateStrictPattern(requiredPositions);
-                } else if (diagonal2Complete) {
-                    return validateStrictPattern(requiredPositions2);
-                }
-
-                return false;
-            }
-
-            // MODO PLUS (CENTRO + BRAZOS) - EXACTAMENTE EL CENTRO Y LOS 4 BRAZOS
-            if (pattern === 'plus') {
-                const requiredPositions = patterns.plus[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO ESQUINAS + CENTRO - EXACTAMENTE LAS 4 ESQUINAS Y EL CENTRO
-            if (pattern === 'corners_center') {
-                const requiredPositions = patterns.corners_center[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO MARCO EXTERIOR - EXACTAMENTE EL MARCO EXTERIOR
-            if (pattern === 'frame') {
-                const requiredPositions = patterns.frame[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO MARCO INTERIOR - EXACTAMENTE EL MARCO INTERIOR (3x3 CENTRO)
-            if (pattern === 'inner_frame') {
-                const requiredPositions = patterns.inner_frame[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO LETRA H - EXACTAMENTE LA FORMA DE H
-            if (pattern === 'letter_h') {
-                const requiredPositions = patterns.letter_h[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO LETRA T - EXACTAMENTE LA FORMA DE T
-            if (pattern === 'letter_t') {
-                const requiredPositions = patterns.letter_t[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO CUADRADO PEQUEÑO - EXACTAMENTE EL CUADRADO 2x2 EN ESQUINA SUPERIOR IZQUIERDA
-            if (pattern === 'small_square') {
-                const requiredPositions = patterns.small_square[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO DIAMANTE - EXACTAMENTE LA FORMA DE DIAMANTE
-            if (pattern === 'diamond') {
-                const requiredPositions = patterns.diamond[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO ESTRELLA - EXACTAMENTE LA FORMA DE ESTRELLA
-            if (pattern === 'star') {
-                const requiredPositions = patterns.star[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO CORAZÓN - EXACTAMENTE LA FORMA DE CORAZÓN
-            if (pattern === 'heart') {
-                const requiredPositions = patterns.heart[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO AVIÓN - EXACTAMENTE LA FORMA DE AVIÓN
-            if (pattern === 'airplane') {
-                const requiredPositions = patterns.airplane[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO FLECHA - EXACTAMENTE LA FORMA DE FLECHA
-            if (pattern === 'arrow') {
-                const requiredPositions = patterns.arrow[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO CRAZY (ZIGZAG) - EXACTAMENTE EL PATRÓN ZIGZAG
-            if (pattern === 'crazy') {
-                const requiredPositions = patterns.crazy[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO PIRÁMIDE - EXACTAMENTE LA FORMA DE PIRÁMIDE
-            if (pattern === 'pyramid') {
-                const requiredPositions = patterns.pyramid[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO CRUZ - EXACTAMENTE LA FORMA DE CRUZ
-            if (pattern === 'cross') {
-                const requiredPositions = patterns.cross[0];
-                return validateStrictPattern(requiredPositions);
-            }
-
-            // MODO PERSONALIZADO (Figura manual) - EXACTAMENTE LA FIGURA DIBUJADA
-            if (pattern === 'custom') {
-                // En customGrid los índices van por filas visuales (0-4 fila 1, etc)
-                // flatCard va por columnas. Debemos mapear o usar una lógica consistente.
-                // Asumiendo que el admin dibuja visualmente en grid 5x5:
-                // Admin Grid: Fila 1 = índices 0,1,2,3,4.
-                // FlatCard:   Fila 1 = índices 0,5,10,15,20.
-
-                for(let r=0; r<5; r++) {
-                    for(let c=0; c<5; c++) {
-                        const adminIdx = r * 5 + c; // Indice lineal del admin (filas)
-                        const cardIdx = c * 5 + r;  // Indice lineal del cartón (columnas)
-
-                        if(currentCustomPatternGrid && currentCustomPatternGrid[adminIdx] && !isMarked(flatCard[cardIdx])) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
+                    // Si es un array simple (una sola línea)
+                    return line.every ? line.every(idx => isMarked(flatCard[idx])) : isMarked(flatCard[line]);
+                });
             }
 
             return false;
