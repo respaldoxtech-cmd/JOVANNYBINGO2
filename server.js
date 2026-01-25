@@ -863,7 +863,7 @@ io.on('connection', (socket) => {
             } catch (error) {
                 console.error('❌ Error en verificación automática de ganadores:', error);
             }
-        }, 50); // Reducido a 50ms para mayor inmediatez
+        }, 10); // Delay mínimo para mayor inmediatez
     });
 
     // Función para deshacer el último número llamado
