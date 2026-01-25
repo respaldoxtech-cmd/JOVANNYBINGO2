@@ -796,6 +796,7 @@ io.on('connection', (socket) => {
 
             // Permitir cualquier cantidad de cartones (sin límite)
             // Poner al jugador en lista de pendientes para aprobación
+            console.log(`📝 Jugador ${data.username} agregado a pendientes con cartones: ${ids.join(', ')}`);
             pendingPlayers.set(socket.id, {
                 username: data.username,
                 cardIds: ids,
@@ -804,6 +805,7 @@ io.on('connection', (socket) => {
             });
 
             // Notificar al admin sobre el nuevo jugador pendiente
+            console.log(`📢 Emitiendo update_pending_players a todos los admins`);
             io.emit('update_pending_players', getPendingPlayers());
             io.emit('new_player_pending', {
                 id: socket.id,
