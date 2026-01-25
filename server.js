@@ -873,7 +873,8 @@ io.on('connection', (socket) => {
         }, 200); // Aumentado el delay para mejor sincronización
     });
 
-    socket.on('admin_undo_last_number', () => {
+    // Función para deshacer el último número llamado
+    socket.on('admin_undo_number', () => {
         // Verificar que haya números llamados para deshacer
         if (gameState.calledNumbers.length === 0) {
             socket.emit('admin_error', { message: 'No hay números llamados para deshacer.' });
