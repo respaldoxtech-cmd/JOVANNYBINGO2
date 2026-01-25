@@ -239,6 +239,22 @@
         </div>
     </div>
 
+    <!-- Modal de Figura Personalizada -->
+    <div id="custom-pattern-modal" class="modal-backdrop hidden">
+        <div class="modal-card slide-up">
+            <div class="modal-header">
+                <h3>Figura Personalizada</h3>
+                <button onclick="hideCustomPatternModal()" class="btn-close">✕</button>
+            </div>
+            <div id="custom-pattern-display" class="custom-pattern-display">
+                <!-- Mini bingo card para figura personalizada -->
+            </div>
+            <div class="modal-actions" style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+                <button onclick="hideCustomPatternModal()" class="btn-secondary">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="winner-overlay" class="fullscreen-overlay hidden">
         <div class="winner-box zoom-in">
             <div class="icon-trophy">🏆</div>
@@ -632,6 +648,112 @@
             // El init_cards se manejará normalmente
         });
 
+        // Actualizar la lógica para mostrar el modal correcto según el patrón
+        function showPatternModal() {
+            // Si es una figura personalizada, mostrar el modal de figura personalizada
+            if (currentPattern === 'custom') {
+                showCustomPatternModal();
+                return;
+            }
+
+            const modal = document.getElementById('pattern-modal');
+            const title = document.getElementById('pattern-title');
+            const display = document.getElementById('pattern-display');
+
+            // Set title
+            const map = {
+                'line': 'NORMAL (LÍNEA)',
+                'line_horizontal': 'LÍNEA HORIZONTAL',
+                'line_vertical': 'LÍNEA VERTICAL',
+                'line_diagonal': 'LÍNEA DIAGONAL',
+                'full': 'CARTÓN LLENO',
+                'corners': '4 ESQUINAS',
+                'x': 'X (DIAGONALES)',
+                'plus': 'PLUS (CENTRO + BRAZOS)',
+                'corners_center': 'ESQUINAS + CENTRO',
+                'frame': 'MARCO EXTERIOR',
+                'inner_frame': 'MARCO INTERIOR',
+                'letter_h': 'LETRA H',
+                'letter_t': 'LETRA T',
+                'small_square': 'CUADRADO PEQUEÑO',
+                'diamond': 'DIAMANTE',
+                'star': 'ESTRELLA',
+                'heart': 'CORAZÓN',
+                'airplane': 'AVIÓN',
+                'arrow': 'FLECHA',
+                'crazy': 'CRAZY (ZIGZAG)',
+                'pyramid': 'PIRÁMIDE',
+                'cross': 'CRUZ',
+                'custom': 'FIGURA MANUAL'
+            };
+            title.textContent = map[currentPattern] || currentPattern;
+
+            // Generate mini card
+            let html = '<div class="mini-bingo-card">';
+            html += '<div class="mini-grid">';
+            // Headers B I N G O
+            ['B','I','N','G','O'].forEach(l => {
+                html += `<div class="mini-header">${l}</div>`;
+            });
+            // 5x5 grid
+            for(let row=0; row<5; row++) {
+                for(let col=0; col<5; col++) {
+                    const idx = row + col*5;
+                    let classes = 'mini-cell';
+                    if(isWinningCell(idx, currentPattern)) classes += ' winning';
+                    if(idx === 12) classes += ' free';
+                    html += `<div class="${classes}">${idx === 12 ? '★' : ''}</div>`;
+                }
+            }
+            html += '</div></div>';
+
+            // Add explanations for each pattern
+            const explanations = {
+                'line': 'Gana cualquier línea: horizontal, vertical o diagonal',
+                'line_horizontal_1': 'Gana cuando se completa la fila 1',
+                'line_horizontal_2': 'Gana cuando se completa la fila 2',
+                'line_horizontal_3': 'Gana cuando se completa la fila 3',
+                'line_horizontal_4': 'Gana cuando se completa la fila 4',
+                'line_horizontal_5': 'Gana cuando se completa la fila 5',
+                'line_vertical_B': 'Gana cuando se completa la columna B',
+                'line_vertical_I': 'Gana cuando se completa la columna I',
+                'line_vertical_N': 'Gana cuando se completa la columna N',
+                'line_vertical_G': 'Gana cuando se completa la columna G',
+                'line_vertical_O': 'Gana cuando se completa la columna O',
+                'line_diagonal_main': 'Gana cuando se completa la diagonal principal',
+                'line_diagonal_secondary': 'Gana cuando se completa la diagonal secundaria',
+                'line_horizontal': 'Gana cualquier línea horizontal (filas)',
+                'line_vertical': 'Gana cualquier línea vertical (columnas)',
+                'line_diagonal': 'Gana cualquier línea diagonal',
+                'full': 'Todo el cartón marcado (Blackout)',
+                'corners': 'Las 4 esquinas del cartón',
+                'x': 'Ambas diagonales cruzadas (X)',
+                'plus': 'Centro más los 4 brazos (+)',
+                'corners_center': '4 esquinas más el centro',
+                'frame': 'Marco exterior del cartón',
+                'inner_frame': 'Marco interior (cuadrado central)',
+                'letter_h': 'Patrón en forma de H',
+                'letter_t': 'Patrón en forma de T',
+                'small_square': 'Cuadrado pequeño en esquina superior izquierda',
+                'diamond': 'Patrón en forma de diamante',
+                'star': 'Patrón en forma de estrella',
+                'heart': 'Patrón en forma de corazón',
+                'airplane': 'Patrón en forma de avión',
+                'arrow': 'Patrón en forma de flecha',
+                'crazy': 'Patrón en forma de zigzag',
+                'pyramid': 'Patrón en forma de pirámide',
+                'cross': 'Patrón en forma de cruz',
+                'custom': 'El administrador define la figura manualmente'
+            };
+
+            if(explanations[currentPattern]) {
+                html += `<p class="pattern-explanation">${explanations[currentPattern]}</p>`;
+            }
+
+            display.innerHTML = html;
+            modal.classList.remove('hidden');
+        }
+
         // Jugador rechazado
         socket.on('player_rejected', (data) => {
             // Remover pantalla de espera y mostrar mensaje de rechazo
@@ -749,7 +871,7 @@
             // Verificar victoria automática después de marcar el número
             setTimeout(() => {
                 checkAutomaticBingo();
-            }, 5); // Delay mínimo para máxima inmediatez
+            }, 0); // Delay cero para máxima inmediatez instantánea
         });
 
 
@@ -1011,6 +1133,41 @@
 
         function hidePatternModal() {
             document.getElementById('pattern-modal').classList.add('hidden');
+        }
+
+        // Función para mostrar el modal de figura personalizada
+        function showCustomPatternModal() {
+            const modal = document.getElementById('custom-pattern-modal');
+            const display = document.getElementById('custom-pattern-display');
+
+            // Generar mini card para figura personalizada
+            let html = '<div class="mini-bingo-card">';
+            html += '<div class="mini-grid">';
+            // Headers B I N G O
+            ['B','I','N','G','O'].forEach(l => {
+                html += `<div class="mini-header">${l}</div>`;
+            });
+            // 5x5 grid
+            for(let row=0; row<5; row++) {
+                for(let col=0; col<5; col++) {
+                    const idx = row + col*5;
+                    let classes = 'mini-cell';
+                    // Para figuras personalizadas, usar el grid actual
+                    if(currentCustomPatternGrid && currentCustomPatternGrid[idx]) {
+                        classes += ' winning';
+                    }
+                    if(idx === 12) classes += ' free';
+                    html += `<div class="${classes}">${idx === 12 ? '★' : ''}</div>`;
+                }
+            }
+            html += '</div></div>';
+
+            display.innerHTML = html;
+            modal.classList.remove('hidden');
+        }
+
+        function hideCustomPatternModal() {
+            document.getElementById('custom-pattern-modal').classList.add('hidden');
         }
 
 
