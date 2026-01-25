@@ -873,6 +873,100 @@ io.on('connection', (socket) => {
         }, 200); // Aumentado el delay para mejor sincronización
     });
 
+    socket.on('admin_undo_last_number', () => {
+        // Verificar que haya números llamados para deshacer
+        if (gameState.calledNumbers.length === 0) {
+            socket.emit('admin_error', { message: 'No hay números llamados para deshacer.' });
+            return;
+        }
+
+        // Obtener el último número llamado
+        const lastNumber = gameState.calledNumbers.pop();
+        
+        // Actualizar last5Numbers
+        const last5Index = gameState.last5Numbers.indexOf(lastNumber);
+        if (last5Index !== -1) {
+            gameState.last5Numbers.splice(last5Index, 1);
+        }
+        
+        // Si el último número estaba en last5, agregar el número anterior
+        if (gameState.calledNumbers.length > 0) {
+            const previousNumber = gameState.calledNumbers[gameState.calledNumbers.length - 1];
+            if (!gameState.last5Numbers.includes(previousNumber)) {
+                gameState.last5Numbers.unshift(previousNumber);
+            }
+        }
+        
+        // Limitar last5Numbers a 5 elementos
+        if (gameState.last5Numbers.length > 5) {
+            gameState.last5Numbers = gameState.last5Numbers.slice(0, 5);
+        }
+
+        console.log(`🔙 Deshaciendo último tiro: ${lastNumber}`);
+        console.log(`📊 Números llamados ahora: ${gameState.calledNumbers.length}`);
+
+        // Emitir el evento de deshacer a todos los clientes
+        io.emit('number_undone', {
+            number: lastNumber,
+            calledNumbers: gameState.calledNumbers,
+            last5: gameState.last5Numbers,
+            totalCalled: gameState.calledNumbers.length
+        });
+
+        // Actualizar estado del juego para todos los clientes
+        io.emit('game_state_update', {
+            calledNumbers: gameState.calledNumbers,
+            last5Numbers: gameState.last5Numbers,
+            pattern: gameState.pattern,
+            winners: Array.from(gameSession.winners),
+            winningCards: Array.from(gameSession.winningCards)
+        });
+    });
+
+    socket.on('admin_uncall_number', (num) => {
+        // Validar que el número sea válido (1-75)
+        if (num < 1 || num > 75) {
+            socket.emit('admin_error', { message: `Número inválido: ${num}. Debe estar entre 1 y 75.` });
+            return;
+        }
+
+        // Verificar que el número haya sido llamado
+        const index = gameState.calledNumbers.indexOf(num);
+        if (index === -1) {
+            socket.emit('admin_error', { message: `El número ${num} no ha sido llamado.` });
+            return;
+        }
+
+        // Eliminar el número de la lista de llamados
+        gameState.calledNumbers.splice(index, 1);
+        
+        // Actualizar last5Numbers
+        const last5Index = gameState.last5Numbers.indexOf(num);
+        if (last5Index !== -1) {
+            gameState.last5Numbers.splice(last5Index, 1);
+        }
+
+        console.log(`🔙 Descarcelando número: ${num}`);
+        console.log(`📊 Números llamados ahora: ${gameState.calledNumbers.length}`);
+
+        // Emitir el evento de descarcelar a todos los clientes
+        io.emit('number_uncalled', {
+            number: num,
+            calledNumbers: gameState.calledNumbers,
+            last5: gameState.last5Numbers,
+            totalCalled: gameState.calledNumbers.length
+        });
+
+        // Actualizar estado del juego para todos los clientes
+        io.emit('game_state_update', {
+            calledNumbers: gameState.calledNumbers,
+            last5Numbers: gameState.last5Numbers,
+            pattern: gameState.pattern,
+            winners: Array.from(gameSession.winners),
+            winningCards: Array.from(gameSession.winningCards)
+        });
+    });
+
     socket.on('admin_set_pattern', (data) => {
         gameState.pattern = data.type;
         gameState.customPattern = data.grid || [];

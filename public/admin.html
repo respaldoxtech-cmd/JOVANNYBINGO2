@@ -187,6 +187,18 @@
             </div>
 
             <div class="nav-group">
+                <label>🔙 CONTROL DE TIROS</label>
+                <div class="undo-controls">
+                    <button onclick="undoLastNumber()" class="btn-undo" title="Deshacer último tiro">↩️ DESHACER ÚLTIMO</button>
+                    <div class="uncall-section">
+                        <input type="number" id="uncall-input" placeholder="Número a descarcelar" min="1" max="75">
+                        <button onclick="uncallNumber()" class="btn-uncall" title="Descarcelar número">🚫 DESCARCELAR</button>
+                    </div>
+                </div>
+                <small class="hint-text" style="margin-top: 5px; display: block; text-align: center; color: #666;">Utiliza estas herramientas para corregir errores de tiro</small>
+            </div>
+
+            <div class="nav-group">
                 <label>🏆 GANADORES</label>
                 <ul id="winner-list" class="scroll-list gold-text sidebar-winners">
                 </ul>
@@ -1633,6 +1645,95 @@
                 }
             }, 60); // Velocidad de cambio (ms)
         }
+
+        // --- FUNCIONES DE DESHACER Y DESCARCELAR ---
+        function undoLastNumber() {
+            if (calledNumbers.size === 0) {
+                alert("No hay números llamados para deshacer.");
+                return;
+            }
+
+            // 🎵 Sonido de deshacer
+            bingoAudio.play('buttonClick');
+
+            // Enviar solicitud al servidor para deshacer el último número
+            socket.emit('admin_undo_last_number');
+        }
+
+        function uncallNumber() {
+            const input = document.getElementById('uncall-input');
+            const number = parseInt(input.value);
+
+            if (isNaN(number) || number < 1 || number > 75) {
+                alert("Por favor ingresa un número válido entre 1 y 75.");
+                return;
+            }
+
+            // 🎵 Sonido de descarcelar
+            bingoAudio.play('buttonClick');
+
+            // Enviar solicitud al servidor para descarcelar el número
+            socket.emit('admin_uncall_number', number);
+            input.value = ''; // Limpiar el input
+        }
+
+        // --- SOCKET LISTENERS PARA DESHACER Y DESCARCELAR ---
+        socket.on('number_undone', (data) => {
+            // Actualizar el conjunto de números llamados
+            calledNumbers.delete(data.number);
+            
+            // Actualizar el tablero maestro
+            const el = document.getElementById(`btn-${data.number}`);
+            if(el) {
+                el.classList.remove('active');
+                // Efecto visual de deshacer
+                el.style.transform = "scale(0.8)";
+                setTimeout(() => el.style.transform = "scale(1)", 200);
+            }
+
+            // Update large last number display
+            if (data.calledNumbers.length > 0) {
+                document.getElementById('last-number-large').innerText = data.calledNumbers[data.calledNumbers.length - 1];
+            } else {
+                document.getElementById('last-number-large').innerText = "--";
+            }
+
+            // Actualizar contador
+            document.getElementById('count-called').innerText = data.totalCalled;
+            
+            // Actualizar última ronda
+            updateAdminLast5(data.last5);
+
+            console.log(`🔙 Último tiro deshecho: ${data.number}`);
+        });
+
+        socket.on('number_uncalled', (data) => {
+            // Actualizar el conjunto de números llamados
+            calledNumbers.delete(data.number);
+            
+            // Actualizar el tablero maestro
+            const el = document.getElementById(`btn-${data.number}`);
+            if(el) {
+                el.classList.remove('active');
+                // Efecto visual de descarcelar
+                el.style.transform = "scale(0.8)";
+                setTimeout(() => el.style.transform = "scale(1)", 200);
+            }
+
+            // Update large last number display (no cambiar si no es el último)
+            // Solo actualizar si el número descarcelado era el último llamado
+            if (data.calledNumbers.length > 0 && data.number === data.calledNumbers[data.calledNumbers.length - 1]) {
+                document.getElementById('last-number-large').innerText = data.calledNumbers[data.calledNumbers.length - 1];
+            }
+
+            // Actualizar contador
+            document.getElementById('count-called').innerText = data.totalCalled;
+            
+            // Actualizar última ronda
+            updateAdminLast5(data.last5);
+
+            console.log(`🔙 Número descarcelado: ${data.number}`);
+        });
     </script>
 </body>
 </html>
