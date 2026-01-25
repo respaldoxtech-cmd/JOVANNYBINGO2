@@ -1767,7 +1767,20 @@
             for(let i=0; i<25; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'admin-pattern-cell';
-                cell.innerText = i; // Mostrar índice para referencia
+                // Remove the index display for cleaner visual appearance
+                cell.innerText = ''; // Clean visual appearance
+                board.appendChild(cell);
+            }
+        }
+        // Inicializar el tablero de patrón del administrador
+        function initializeAdminPatternBoard() {
+            const board = document.getElementById('admin-pattern-board');
+            board.innerHTML = '';
+            for(let i=0; i<25; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'admin-pattern-cell';
+                // Remove the index display for cleaner visual appearance
+                cell.innerText = ''; // Clean visual appearance
                 board.appendChild(cell);
             }
         }
