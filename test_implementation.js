@@ -296,8 +296,8 @@ const BINGO_PATTERNS = {
 console.log("=== TEST 1: Pattern Count Verification ===");
 const patternCount = Object.keys(BINGO_PATTERNS).length;
 console.log(`Total patterns defined: ${patternCount}`);
-console.log(`Expected: 15+ core patterns (simplified system)`);
-console.log(`Result: ${patternCount >= 15 ? '✅ PASS' : '❌ FAIL'}`);
+console.log(`Expected: 29 core patterns (simplified system with single line pattern)`);
+console.log(`Result: ${patternCount >= 29 ? '✅ PASS' : '❌ FAIL'}`);
 
 // Test 2: Verify column-major indexing consistency
 console.log("\n=== TEST 2: Indexing Consistency ===");
@@ -389,13 +389,13 @@ console.log("✅ Automatic win detection logic is present and functional");
 
 // Summary
 console.log("\n=== TEST SUMMARY ===");
-console.log(`Pattern Count: ${patternCount >= 15 ? '✅ PASS' : '❌ FAIL'}`);
+console.log(`Pattern Count: ${patternCount >= 29 ? '✅ PASS' : '❌ FAIL'}`);
 console.log(`Indexing Consistency: ${indexingPass ? '✅ PASS' : '❌ FAIL'}`);
 console.log(`Core Patterns: ✅ PASS (simplified system with ${patternCount} patterns)`);
 console.log(`Validation Logic: ${validationPass ? '✅ PASS' : '❌ FAIL'}`);
 console.log(`Automatic Detection: ✅ PASS`);
 
-const overallPass = patternCount >= 15 && indexingPass && validationPass;
+const overallPass = patternCount >= 29 && indexingPass && validationPass;
 console.log(`\nOVERALL RESULT: ${overallPass ? '✅ ALL TESTS PASSED' : '❌ SOME TESTS FAILED'}`);
 
 // Export for use in other files
