@@ -853,20 +853,11 @@ io.on('connection', (socket) => {
             pattern: gameState.pattern
         });
 
-        // Pequeño delay para asegurar que todos los clientes procesen el número
+        // Verificar automáticamente si algún jugador ha ganado
         setTimeout(async () => {
             try {
                 // Verificar automáticamente si algún jugador ha ganado
                 await checkForAutomaticWinners();
-
-                // Actualizar estado del juego para todos los clientes
-                io.emit('game_state_update', {
-                    calledNumbers: gameState.calledNumbers,
-                    last5Numbers: gameState.last5Numbers,
-                    pattern: gameState.pattern,
-                    winners: Array.from(gameSession.winners),
-                    winningCards: Array.from(gameSession.winningCards)
-                });
             } catch (error) {
                 console.error('❌ Error en verificación automática de ganadores:', error);
             }
