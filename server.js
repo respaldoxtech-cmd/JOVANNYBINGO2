@@ -921,6 +921,15 @@ io.on('connection', (socket) => {
             winners: Array.from(gameSession.winners),
             winningCards: Array.from(gameSession.winningCards)
         });
+
+        // Verificar si hay ganadores después de deshacer
+        setTimeout(async () => {
+            try {
+                await checkForAutomaticWinners();
+            } catch (error) {
+                console.error('❌ Error verificando ganadores después de deshacer:', error);
+            }
+        }, 200);
     });
 
     socket.on('admin_uncall_number', (num) => {
@@ -965,6 +974,15 @@ io.on('connection', (socket) => {
             winners: Array.from(gameSession.winners),
             winningCards: Array.from(gameSession.winningCards)
         });
+
+        // Verificar si hay ganadores después de descarcelar
+        setTimeout(async () => {
+            try {
+                await checkForAutomaticWinners();
+            } catch (error) {
+                console.error('❌ Error verificando ganadores después de descarcelar:', error);
+            }
+        }, 200);
     });
 
     socket.on('admin_set_pattern', (data) => {
