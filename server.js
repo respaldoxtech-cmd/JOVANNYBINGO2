@@ -218,23 +218,23 @@ async function updatePlayerStats(username, winData) {
         if (winData) {
             player.stats.wins++;
             player.stats.lastWinDate = new Date();
-            
+
             // Actualizar racha de victorias
             player.stats.currentStreak++;
             if (player.stats.currentStreak > player.stats.maxConsecutiveWins) {
                 player.stats.maxConsecutiveWins = player.stats.currentStreak;
             }
-            
+
             // Calcular win rate
             player.stats.winRate = (player.stats.wins / player.stats.totalGames) * 100;
-            
+
             // Asignar puntos según el patrón ganado
             const points = calculateWinPoints(winData.pattern, gameState.calledNumbers.length);
             player.stats.totalPoints += points;
-            
+
             // Verificar logros
             await checkAchievements(player, winData);
-            
+
             // Actualizar nivel y experiencia
             await updatePlayerLevel(player, points);
         } else {
@@ -282,39 +282,39 @@ function calculateWinPoints(pattern, numbersCalled) {
         'cross': 5.5,
         'full': 10.0
     };
-    
+
     const multiplier = patternMultipliers[pattern] || 1.0;
     const speedBonus = Math.max(1.0, (75 - numbersCalled) / 25); // Bonus por velocidad
-    
+
     return Math.round(basePoints * multiplier * speedBonus);
 }
 
 async function checkAchievements(player, winData) {
     const achievements = [];
-    
+
     // Logros por victorias
     if (player.stats.wins === 1) achievements.push('Primer Triunfo');
     if (player.stats.wins === 10) achievements.push('Veterano del Bingo');
     if (player.stats.wins === 50) achievements.push('Maestro del Cartón');
     if (player.stats.wins === 100) achievements.push('Leyenda del Bingo');
-    
+
     // Logros por racha
     if (player.stats.currentStreak === 3) achievements.push('Racha de Suerte');
     if (player.stats.currentStreak === 5) achievements.push('Insuperable');
     if (player.stats.currentStreak === 10) achievements.push('Invencible');
-    
+
     // Logros por patrones
     if (winData.pattern === 'full') achievements.push('Cartón Lleno');
     if (winData.pattern === 'corners') achievements.push('Esquinas Perfectas');
     if (winData.pattern === 'x') achievements.push('Cruzada');
     if (winData.pattern === 'heart') achievements.push('Corazón de Bingo');
     if (winData.pattern === 'star') achievements.push('Estrella Brillante');
-    
+
     // Logros por velocidad
     if (gameState.calledNumbers.length <= 15) achievements.push('Velocista');
     if (gameState.calledNumbers.length <= 10) achievements.push('Rayo');
     if (gameState.calledNumbers.length <= 5) achievements.push('Instantáneo');
-    
+
     // Añadir logros nuevos al jugador
     for (const achievement of achievements) {
         if (!player.achievements.some(a => a.type === achievement)) {
@@ -329,26 +329,26 @@ async function checkAchievements(player, winData) {
 
 async function updatePlayerLevel(player, points) {
     player.stats.totalPoints += points;
-    
+
     // Experiencia ganada por puntos
     const expGained = Math.floor(points / 10);
     player.level.exp += expGained;
-    
+
     // Verificar si sube de nivel
     while (player.level.exp >= player.level.expToNext) {
         player.level.exp -= player.level.expToNext;
         player.level.current++;
         player.level.expToNext = Math.floor(player.level.expToNext * 1.2); // Escalado exponencial
-        
+
         console.log(`🎉 ${player.username} subió al nivel ${player.level.current}!`);
-        
+
         // Beneficios por nivel
         if (player.level.current % 5 === 0) {
             // Bonus cada 5 niveles
             player.stats.totalPoints += 100 * player.level.current;
         }
     }
-    
+
     await player.save();
 }
 
@@ -356,32 +356,32 @@ async function updatePlayerLevel(player, points) {
 function analyzeGameProgress(player, calledNumbers, pattern) {
     const card = generateCard(player.cardIds[0]); // Analizar primer cartón
     const flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
-    
+
     const analysis = {
         proximity: 0,
         missingNumbers: [],
         patternProgress: 0,
         winProbability: 0
     };
-    
+
     // Calcular proximidad al bingo
-    const markedPositions = flatCard.map((num, idx) => 
+    const markedPositions = flatCard.map((num, idx) =>
         num === "FREE" || calledNumbers.includes(num) ? idx : -1
     ).filter(idx => idx !== -1);
-    
+
     analysis.proximity = Math.round((markedPositions.length / 25) * 100);
-    
+
     // Encontrar números faltantes
     flatCard.forEach((num, idx) => {
         if (num !== "FREE" && !calledNumbers.includes(num)) {
             analysis.missingNumbers.push(num);
         }
     });
-    
+
     // Calcular progreso del patrón actual
     const patternLines = getPatternLines(pattern);
     let maxPatternProgress = 0;
-    
+
     for (const line of patternLines) {
         const markedInLine = line.filter(idx => markedPositions.includes(idx)).length;
         const progress = (markedInLine / line.length) * 100;
@@ -389,14 +389,14 @@ function analyzeGameProgress(player, calledNumbers, pattern) {
             maxPatternProgress = progress;
         }
     }
-    
+
     analysis.patternProgress = Math.round(maxPatternProgress);
-    
+
     // Calcular probabilidad de victoria (simplificada)
     const remainingNumbers = 75 - calledNumbers.length;
     const neededNumbers = analysis.missingNumbers.length;
     analysis.winProbability = Math.max(0, Math.round((1 - (neededNumbers / remainingNumbers)) * 100));
-    
+
     return analysis;
 }
 
@@ -491,7 +491,7 @@ async function refreshPlayerLists() {
     try {
         // Sync memory with database
         await syncTakenCardsWithDB();
-        
+
         // Refresh virtual players from database
         const dbPlayers = await getActivePlayersFromDB();
         virtualPlayers.clear();
@@ -502,7 +502,7 @@ async function refreshPlayerLists() {
                 cardIds: player.cardIds
             });
         });
-        
+
         console.log(`✅ Listas de jugadores actualizadas: ${dbPlayers.length} jugadores de base de datos`);
     } catch (error) {
         console.error('❌ Error actualizando listas de jugadores:', error);
@@ -593,7 +593,7 @@ const BINGO_PATTERNS = {
 // --- FUNCIONES DE VALIDACIÓN DE PATRONES ---
 function validatePattern(patternType, flatCard, calledNumbers) {
     const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
-    
+
     // Obtener el patrón desde la definición centralizada
     const pattern = BINGO_PATTERNS[patternType];
     if (!pattern) return false;
@@ -603,21 +603,21 @@ function validatePattern(patternType, flatCard, calledNumbers) {
         // Verificar si alguna de las líneas del patrón está completa
         return pattern.some(line => line.every(idx => isMarked(flatCard[idx])));
     }
-    
+
     // Para patrones que son arrays simples (patrones estrictos)
     if (Array.isArray(pattern)) {
         return validateStrictPattern(pattern, flatCard, calledNumbers, isMarked);
     }
-    
+
     return false;
 }
 
 function validateStrictPattern(requiredPositions, flatCard, calledNumbers, isMarked) {
     // Verificar que todas las posiciones requeridas estén marcadas
     const allRequiredMarked = requiredPositions.every(idx => isMarked(flatCard[idx]));
-    
+
     if (!allRequiredMarked) return false;
-    
+
     // Verificar que NO haya marcado en posiciones que NO son parte del patrón
     // Esto es para patrones específicos que deben ser exactos
     const strictPatterns = [
@@ -625,20 +625,20 @@ function validateStrictPattern(requiredPositions, flatCard, calledNumbers, isMar
         'letter_h', 'letter_t', 'small_square', 'diamond', 'star',
         'heart', 'airplane', 'arrow', 'crazy', 'pyramid', 'cross'
     ];
-    
+
     if (strictPatterns.includes(patternType)) {
         const allPositions = Array.from({length: 25}, (_, i) => i);
         const nonRequiredPositions = allPositions.filter(idx => !requiredPositions.includes(idx));
-        
+
         // Verificar que NO haya marcado en posiciones no requeridas
         const hasUnwantedMarks = nonRequiredPositions.some(idx => isMarked(flatCard[idx]));
-        
+
         if (hasUnwantedMarks) {
             console.log(`❌ Patrón ${patternType} inválido: hay marcas en posiciones no requeridas`);
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -665,16 +665,16 @@ async function initializeTakenCards() {
 async function cleanupInactivePlayers() {
     try {
         console.log('🧹 Limpiando jugadores inactivos de la base de datos...');
-        
+
         // Get all active players from database
         const activePlayers = await Player.find({ isActive: true }).lean();
         console.log(`📊 Jugadores activos encontrados: ${activePlayers.length}`);
-        
+
         let cleanedCount = 0;
         for (const player of activePlayers) {
             // Check if any of this player's cards are actually in use in memory
             const hasActiveCards = player.cardIds.some(cardId => takenCards.has(cardId));
-            
+
             if (!hasActiveCards) {
                 // Mark player as inactive since none of their cards are in use
                 await Player.findByIdAndUpdate(player._id, { isActive: false });
@@ -682,7 +682,7 @@ async function cleanupInactivePlayers() {
                 console.log(`🧹 Jugador ${player.username} marcado como inactivo (cartones no en uso)`);
             }
         }
-        
+
         console.log(`✅ Limpieza completada: ${cleanedCount} jugadores marcados como inactivos`);
     } catch (error) {
         console.error('❌ Error limpiando jugadores inactivos:', error);
@@ -761,7 +761,7 @@ function checkWin(card, called, patternType, customGrid) {
 
 io.on('connection', (socket) => {
     socket.emit('sync_state', gameState);
-    
+
     // Si es admin, enviar listas de jugadores
     socket.emit('update_pending_players', getPendingPlayers());
     socket.emit('update_players', getActivePlayers());
@@ -883,13 +883,13 @@ io.on('connection', (socket) => {
 
         // Obtener el último número llamado
         const lastNumber = gameState.calledNumbers.pop();
-        
+
         // Actualizar last5Numbers
         const last5Index = gameState.last5Numbers.indexOf(lastNumber);
         if (last5Index !== -1) {
             gameState.last5Numbers.splice(last5Index, 1);
         }
-        
+
         // Si el último número estaba en last5, agregar el número anterior
         if (gameState.calledNumbers.length > 0) {
             const previousNumber = gameState.calledNumbers[gameState.calledNumbers.length - 1];
@@ -897,7 +897,7 @@ io.on('connection', (socket) => {
                 gameState.last5Numbers.unshift(previousNumber);
             }
         }
-        
+
         // Limitar last5Numbers a 5 elementos
         if (gameState.last5Numbers.length > 5) {
             gameState.last5Numbers = gameState.last5Numbers.slice(0, 5);
@@ -949,7 +949,7 @@ io.on('connection', (socket) => {
 
         // Eliminar el número de la lista de llamados
         gameState.calledNumbers.splice(index, 1);
-        
+
         // Actualizar last5Numbers
         const last5Index = gameState.last5Numbers.indexOf(num);
         if (last5Index !== -1) {
@@ -1072,7 +1072,7 @@ io.on('connection', (socket) => {
             // Check for duplicates in both memory and database
             const takenCardsFromDB = await getTakenCardsFromDB();
             const duplicates = validCardIds.filter(id => takenCards.has(id) || takenCardsFromDB.has(id));
-            
+
             if (duplicates.length > 0) {
                 socket.emit('admin_error', {
                     message: `Los cartones #${duplicates.join(', #')} ya están en uso.`
@@ -1109,7 +1109,7 @@ io.on('connection', (socket) => {
         // Sync memory with database before showing availability
         await syncTakenCardsWithDB();
         await refreshPlayerLists();
-        
+
         const takenCardsArray = Array.from(takenCards);
         socket.emit('card_availability', {
             takenCards: takenCardsArray,
@@ -1231,9 +1231,9 @@ io.on('connection', (socket) => {
         }
 
         if (winnerCardId) {
-            const winData = { 
-                user: username, 
-                card: winnerCardId, 
+            const winData = {
+                user: username,
+                card: winnerCardId,
                 time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
                 pattern: gameState.pattern
             };
@@ -1242,10 +1242,10 @@ io.on('connection', (socket) => {
                 gameState.last5Winners.unshift(winData);
                 if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
             }
-            
+
             // Actualizar estadísticas del jugador
             await updatePlayerStats(username, winData);
-            
+
             // Anuncio automático inmediato
             io.emit('winner_announced', winData);
             io.emit('update_history', gameState.last5Winners);
@@ -1255,7 +1255,7 @@ io.on('connection', (socket) => {
                 message: `¡BINGO! ${username} ha ganado con el cartón #${winnerCardId}!`,
                 winner: winData
             });
-            
+
             // Enviar detalles del cartón ganador
             io.emit('winner_card_details', {
                 username: username,
@@ -1329,7 +1329,7 @@ io.on('connection', (socket) => {
                 .sort({ 'stats.totalPoints': -1 })
                 .limit(10)
                 .select('username stats.level stats.totalPoints stats.wins stats.winRate');
-            
+
             const leaderboard = players.map(player => ({
                 username: player.username,
                 level: player.stats.level,
@@ -1337,7 +1337,7 @@ io.on('connection', (socket) => {
                 wins: player.stats.wins,
                 winRate: player.stats.winRate
             }));
-            
+
             socket.emit('leaderboard_data', leaderboard);
         } catch (error) {
             console.error('Error obteniendo leaderboard:', error);
@@ -1351,18 +1351,18 @@ io.on('connection', (socket) => {
             // Liberar los cartones de este jugador de la memoria
             socket.data.cardIds.forEach(id => takenCards.delete(id));
             console.log(`Cartones liberados por desconexión: ${socket.data.cardIds.join(', ')}`);
-            
+
             // Actualizar la base de datos para marcar al jugador como inactivo
             try {
-                const player = await Player.findOne({ 
+                const player = await Player.findOne({
                     username: socket.data.username,
                     cardIds: { $in: socket.data.cardIds }
                 });
-                
+
                 if (player) {
                     // Verificar si este jugador tiene otros cartones activos
                     const activeCards = player.cardIds.filter(cardId => takenCards.has(cardId));
-                    
+
                     if (activeCards.length === 0) {
                         // No tiene más cartones activos, marcar como inactivo
                         await Player.findByIdAndUpdate(player._id, { isActive: false });
@@ -1418,18 +1418,18 @@ function getActivePlayers() {
 
     // Combine all lists and remove duplicates (prioritize connected players)
     const allPlayers = [...connectedPlayers, ...virtualPlayersList, ...dbPlayers];
-    
+
     // Remove duplicates by username, keeping connected players first
     const uniquePlayers = [];
     const seenUsernames = new Set();
-    
+
     for (const player of allPlayers) {
         if (!seenUsernames.has(player.name)) {
             seenUsernames.add(player.name);
             uniquePlayers.push(player);
         }
     }
-    
+
     return uniquePlayers;
 }
 
