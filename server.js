@@ -725,7 +725,7 @@ function checkWin(card, called, patternType, customGrid) {
         return true;
     };
 
-    // MODO LÍNEA HORIZONTAL - EXACTAMENTE UNA FILA COMPLETA
+    // MODO LÍNEA HORIZONTAL - CADA FILA ES UNA FIGURA INDIVIDUAL
     if (patternType === 'line_horizontal') {
         const horizontalLines = [
             [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24]
@@ -733,7 +733,7 @@ function checkWin(card, called, patternType, customGrid) {
         return horizontalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
     }
 
-    // MODO LÍNEA VERTICAL - EXACTAMENTE UNA COLUMNA COMPLETA
+    // MODO LÍNEA VERTICAL - CADA COLUMNA ES UNA FIGURA INDIVIDUAL
     if (patternType === 'line_vertical') {
         const verticalLines = [
             [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24]
@@ -741,7 +741,7 @@ function checkWin(card, called, patternType, customGrid) {
         return verticalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
     }
 
-    // MODO LÍNEA DIAGONAL - EXACTAMENTE UNA DIAGONAL COMPLETA
+    // MODO LÍNEA DIAGONAL - CADA DIAGONAL ES UNA FIGURA INDIVIDUAL
     if (patternType === 'line_diagonal') {
         const diagonalLines = [
             [0,6,12,18,24], [4,8,12,16,20]
