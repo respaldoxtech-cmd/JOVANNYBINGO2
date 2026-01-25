@@ -261,62 +261,23 @@
 
         <div class="card info-card">
             <div class="card-header">
-                <h3>🎯 CONFIGURACIÓN DE CARTONES</h3>
+                <h3>🎯 SELECCIÓN DE FIGURAS</h3>
             </div>
             <div class="game-config-content">
-                <select id="game-mode" onchange="changeMode()" class="select-dark" style="margin-bottom: 15px;">
-                    <optgroup label="Líneas Específicas">
-                        <option value="line_horizontal_1">Línea Horizontal 1</option>
-                        <option value="line_horizontal_2">Línea Horizontal 2</option>
-                        <option value="line_horizontal_3">Línea Horizontal 3</option>
-                        <option value="line_horizontal_4">Línea Horizontal 4</option>
-                        <option value="line_horizontal_5">Línea Horizontal 5</option>
-                        <option value="line_vertical_B">Línea Vertical B</option>
-                        <option value="line_vertical_I">Línea Vertical I</option>
-                        <option value="line_vertical_N">Línea Vertical N</option>
-                        <option value="line_vertical_G">Línea Vertical G</option>
-                        <option value="line_vertical_O">Línea Vertical O</option>
-                        <option value="line_diagonal_main">Línea Diagonal Principal</option>
-                        <option value="line_diagonal_secondary">Línea Diagonal Secundaria</option>
-                    </optgroup>
-                    <optgroup label="Líneas Generales">
-                        <option value="line_horizontal">Cualquier Línea Horizontal</option>
-                        <option value="line_vertical">Cualquier Línea Vertical</option>
-                        <option value="line_diagonal">Cualquier Línea Diagonal</option>
-                        <option value="line">Cualquier Línea (H,V,D)</option>
-                    </optgroup>
-                    <optgroup label="Figuras Especiales">
-                        <option value="full">Cartón Lleno (Blackout)</option>
-                        <option value="corners">4 Esquinas</option>
-                        <option value="x">X (Diagonales Cruzadas)</option>
-                        <option value="plus">Plus (Centro + Brazos)</option>
-                        <option value="corners_center">Esquinas + Centro</option>
-                        <option value="frame">Marco Exterior</option>
-                        <option value="inner_frame">Marco Interior</option>
-                        <option value="letter_h">Letra H</option>
-                        <option value="letter_t">Letra T</option>
-                        <option value="small_square">Cuadrado Pequeño</option>
-                        <option value="diamond">Diamante</option>
-                        <option value="star">Estrella</option>
-                        <option value="heart">Corazón</option>
-                        <option value="airplane">Avión</option>
-                        <option value="arrow">Flecha</option>
-                        <option value="crazy">Crazy (Zigzag)</option>
-                        <option value="pyramid">Pirámide</option>
-                        <option value="cross">Cruz</option>
-                        <option value="custom">Figura Manual (Personalizada)</option>
-                    </optgroup>
-                </select>
-
-                <div class="pattern-container">
-                    <div id="pattern-display" class="pattern-display-large"></div>
+                <div style="margin-bottom: 15px;">
+                    <h4 style="margin-bottom: 10px; color: var(--stream-header);">Figuras Disponibles:</h4>
+                    <div id="patterns-list" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background: white;">
+                        <!-- Patterns will be loaded here dynamically -->
+                    </div>
                 </div>
-                <small id="pattern-explanation" class="pattern-explanation" style="display: block; text-align: center; margin: 10px 0; font-weight: 600;"></small>
 
-                <div id="custom-ui" class="hidden custom-pattern-ui">
-                    <div style="text-align:center; margin-bottom:10px; font-size:0.8rem; font-weight:600;">DIBUJA TU FIGURA PERSONALIZADA:</div>
-                    <div id="pattern-grid" class="pattern-mini-large"></div>
-                    <button onclick="sendPattern()" class="btn-apply-pattern">APLICAR FIGURA</button>
+                <div style="margin-top: 15px;">
+                    <h4 style="margin-bottom: 10px; color: var(--stream-header);">Figura Actual:</h4>
+                    <div id="current-pattern-display" style="background: white; border: 2px solid var(--stream-accent); border-radius: 12px; padding: 15px; text-align: center;">
+                        <h3 id="current-pattern-name" style="color: var(--stream-accent); margin-bottom: 10px;">Ninguna figura seleccionada</h3>
+                        <div id="current-pattern-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 0 auto; width: 200px; height: 200px;"></div>
+                    </div>
+                    <button id="set-pattern-btn" onclick="setActivePattern()" class="btn-apply-pattern" style="margin-top: 15px; width: 100%;" disabled>ESTABLECER FIGURA ACTIVA</button>
                 </div>
             </div>
         </div>
@@ -1914,6 +1875,261 @@
         // Inicializar el tablero de patrón al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
             initializeAdminPatternBoard();
+            loadPatternSelectionInterface();
+        });
+
+        // --- SISTEMA DE SELECCIÓN DE FIGURAS ---
+
+        // Lista de figuras disponibles para selección
+        const availablePatterns = [
+            { id: 'linea_horizontal', name: 'Línea Horizontal', grid: [
+                [1, 1, 1, 1, 1],
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0]
+            ]},
+            { id: 'linea_vertical', name: 'Línea Vertical', grid: [
+                [1, 0, 0, 0, 0],
+                [1, 0, 0, 0, 0],
+                [1, 0, 0, 0, 0],
+                [1, 0, 0, 0, 0],
+                [1, 0, 0, 0, 0]
+            ]},
+            { id: 'diagonal', name: 'Diagonal', grid: [
+                [1, 0, 0, 0, 1],
+                [0, 1, 0, 1, 0],
+                [0, 0, 1, 0, 0],
+                [0, 1, 0, 1, 0],
+                [1, 0, 0, 0, 1]
+            ]},
+            { id: 'cuatro_esquinas', name: '4 Esquinas', grid: [
+                [1, 0, 0, 0, 1],
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0],
+                [1, 0, 0, 0, 1]
+            ]},
+            { id: 'x', name: 'X (Diagonales)', grid: [
+                [1, 0, 0, 0, 1],
+                [0, 1, 0, 1, 0],
+                [0, 0, 1, 0, 0],
+                [0, 1, 0, 1, 0],
+                [1, 0, 0, 0, 1]
+            ]},
+            { id: 'plus', name: 'Plus (+)', grid: [
+                [0, 0, 1, 0, 0],
+                [0, 0, 1, 0, 0],
+                [1, 1, 1, 1, 1],
+                [0, 0, 1, 0, 0],
+                [0, 0, 1, 0, 0]
+            ]},
+            { id: 'marco', name: 'Marco', grid: [
+                [1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 1],
+                [1, 0, 0, 0, 1],
+                [1, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1]
+            ]},
+            { id: 'letra_h', name: 'Letra H', grid: [
+                [1, 0, 0, 0, 1],
+                [1, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 1],
+                [1, 0, 0, 0, 1]
+            ]},
+            { id: 'letra_t', name: 'Letra T', grid: [
+                [1, 1, 1, 1, 1],
+                [0, 0, 1, 0, 0],
+                [0, 0, 1, 0, 0],
+                [0, 0, 1, 0, 0],
+                [0, 0, 1, 0, 0]
+            ]},
+            { id: 'lleno', name: 'Cartón Lleno', grid: [
+                [1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 1]
+            ]}
+        ];
+
+        // Variable para almacenar la figura seleccionada actualmente
+        let selectedPattern = null;
+
+        // Función para cargar la interfaz de selección de figuras
+        function loadPatternSelectionInterface() {
+            const patternsList = document.getElementById('patterns-list');
+            patternsList.innerHTML = '';
+
+            availablePatterns.forEach(pattern => {
+                const patternCard = document.createElement('div');
+                patternCard.className = 'pattern-card';
+                patternCard.style.background = 'white';
+                patternCard.style.border = '2px solid #e2e8f0';
+                patternCard.style.borderRadius = '8px';
+                patternCard.style.padding = '10px';
+                patternCard.style.cursor = 'pointer';
+                patternCard.style.transition = 'all 0.2s';
+                patternCard.style.marginBottom = '10px';
+
+                patternCard.innerHTML = `
+                    <h4 style="margin: 0 0 10px 0; color: var(--stream-header); font-size: 0.9rem; font-weight: 700;">${pattern.name}</h4>
+                    <div class="pattern-preview" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; margin-bottom: 8px;">
+                        ${pattern.grid.flat().map((cell, index) => `
+                            <div style="width: 12px; height: 12px; background: ${cell === 1 ? 'var(--stream-accent)' : '#e2e8f0'}; border-radius: 2px;"></div>
+                        `).join('')}
+                    </div>
+                    <small style="color: #666; font-size: 0.7rem;">Haz clic para seleccionar</small>
+                `;
+
+                patternCard.onclick = () => selectPattern(pattern);
+                patternsList.appendChild(patternCard);
+            });
+
+            // Inicializar el display de la figura actual
+            updateCurrentPatternDisplay();
+        }
+
+        // Función para seleccionar una figura
+        function selectPattern(pattern) {
+            selectedPattern = pattern;
+
+            // Actualizar el display de la figura actual
+            document.getElementById('current-pattern-name').textContent = pattern.name;
+            document.getElementById('current-pattern-name').style.color = 'var(--stream-accent)';
+
+            // Mostrar la figura seleccionada en la cuadrícula
+            const grid = document.getElementById('current-pattern-grid');
+            grid.innerHTML = '';
+
+            pattern.grid.forEach(row => {
+                row.forEach(cell => {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.style.width = '36px';
+                    cellDiv.style.height = '36px';
+                    cellDiv.style.border = '2px solid #e2e8f0';
+                    cellDiv.style.borderRadius = '4px';
+                    cellDiv.style.background = cell === 1 ? 'var(--stream-accent)' : 'white';
+                    grid.appendChild(cellDiv);
+                });
+            });
+
+            // Habilitar el botón de establecer figura
+            document.getElementById('set-pattern-btn').disabled = false;
+            document.getElementById('set-pattern-btn').style.background = 'var(--stream-accent)';
+            document.getElementById('set-pattern-btn').style.cursor = 'pointer';
+
+            // 🎵 Sonido de selección
+            bingoAudio.play('buttonClick');
+        }
+
+        // Función para establecer la figura activa
+        function setActivePattern() {
+            if (!selectedPattern) {
+                alert('Por favor selecciona una figura primero');
+                return;
+            }
+
+            // Enviar la figura seleccionada al servidor
+            socket.emit('setActivePattern', selectedPattern);
+
+            // 🎵 Sonido de éxito
+            bingoAudio.play('success');
+
+            // Mostrar confirmación
+            alert(`Figura "${selectedPattern.name}" establecida como figura activa`);
+
+            // Actualizar la interfaz para mostrar que la figura está activa
+            document.getElementById('current-pattern-display').style.borderColor = '#10b981';
+            document.getElementById('current-pattern-display').style.background = '#f0fdf4';
+        }
+
+        // Evento socket para recibir la figura activa
+        socket.on('updateActivePattern', (patternData) => {
+            console.log('Figura activa recibida:', patternData);
+
+            // Actualizar el display de la figura actual
+            document.getElementById('current-pattern-name').textContent = patternData.name;
+            document.getElementById('current-pattern-name').style.color = '#10b981';
+
+            // Mostrar la figura en la cuadrícula
+            const grid = document.getElementById('current-pattern-grid');
+            grid.innerHTML = '';
+
+            patternData.grid.forEach(row => {
+                row.forEach(cell => {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.style.width = '36px';
+                    cellDiv.style.height = '36px';
+                    cellDiv.style.border = '2px solid #10b981';
+                    cellDiv.style.borderRadius = '4px';
+                    cellDiv.style.background = cell === 1 ? '#10b981' : 'white';
+                    grid.appendChild(cellDiv);
+                });
+            });
+
+            // Actualizar el estilo del display
+            document.getElementById('current-pattern-display').style.borderColor = '#10b981';
+            document.getElementById('current-pattern-display').style.background = '#f0fdf4';
+
+            // Mostrar notificación
+            const notification = document.createElement('div');
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.right = '20px';
+            notification.style.background = 'rgba(16, 185, 129, 0.9)';
+            notification.style.color = 'white';
+            notification.style.padding = '12px 20px';
+            notification.style.borderRadius = '8px';
+            notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+            notification.style.zIndex = '1000';
+            notification.style.animation = 'fadeIn 0.3s';
+            notification.textContent = `Figura activa: ${patternData.name}`;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 2000);
+        });
+
+        // Evento socket para ganador automático
+        socket.on('automaticWinner', (data) => {
+            console.log('¡Ganador automático detectado!', data);
+
+            // Mostrar notificación de ganador
+            const winnerNotification = document.createElement('div');
+            winnerNotification.style.position = 'fixed';
+            winnerNotification.style.top = '80px';
+            winnerNotification.style.right = '20px';
+            winnerNotification.style.background = 'linear-gradient(135deg, #fbbf24, #f59e0b)';
+            winnerNotification.style.color = 'black';
+            winnerNotification.style.padding = '15px 25px';
+            winnerNotification.style.borderRadius = '12px';
+            winnerNotification.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)';
+            winnerNotification.style.zIndex = '1000';
+            winnerNotification.style.fontWeight = 'bold';
+            winnerNotification.style.fontSize = '1.1rem';
+            winnerNotification.style.animation = 'bounceIn 0.5s';
+            winnerNotification.textContent = `🏆 ¡BINGO AUTOMÁTICO! ${data.playerName} completó ${data.pattern}`;
+
+            document.body.appendChild(winnerNotification);
+
+            // 🎵 Sonido de bingo
+            bingoAudio.play('bingo');
+
+            // Vibración
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200, 100, 400]);
+            }
+
+            setTimeout(() => {
+                winnerNotification.style.opacity = '0';
+                winnerNotification.style.transform = 'translateY(-20px)';
+                setTimeout(() => winnerNotification.remove(), 300);
+            }, 5000);
         });
     </script>
 </body>

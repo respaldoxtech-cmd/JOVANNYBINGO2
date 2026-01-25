@@ -1885,5 +1885,210 @@ function resetWinnerManagement() {
     console.log(`🔄 Sistema de gestión de victorias reiniciado - Nueva sesión: ${gameSession.id}`);
 }
 
+// --- SISTEMA DE SELECCIÓN DE FIGURAS ---
+
+// Variable global para almacenar la figura activa
+let currentPattern = null;
+
+// Lista de figuras disponibles
+const patterns = [
+  { id: 'linea_horizontal', name: 'Línea Horizontal (cualquiera)', grid: [
+    [1, 1, 1, 1, 1],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0]
+  ]},
+  { id: 'linea_vertical', name: 'Línea Vertical (cualquiera)', grid: [
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0]
+  ]},
+  { id: 'diagonal', name: 'Diagonal (cualquiera)', grid: [
+    [1, 0, 0, 0, 1],
+    [0, 1, 0, 1, 0],
+    [0, 0, 1, 0, 0],
+    [0, 1, 0, 1, 0],
+    [1, 0, 0, 0, 1]
+  ]},
+  { id: 'cuatro_esquinas', name: '4 Esquinas', grid: [
+    [1, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 1]
+  ]},
+  { id: 'x', name: 'X (ambas diagonales)', grid: [
+    [1, 0, 0, 0, 1],
+    [0, 1, 0, 1, 0],
+    [0, 0, 1, 0, 0],
+    [0, 1, 0, 1, 0],
+    [1, 0, 0, 0, 1]
+  ]},
+  { id: 'plus', name: 'Plus (+)', grid: [
+    [0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0],
+    [1, 1, 1, 1, 1],
+    [0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0]
+  ]},
+  { id: 'marco', name: 'Marco', grid: [
+    [1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1]
+  ]},
+  { id: 'letra_h', name: 'Letra H', grid: [
+    [1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1]
+  ]},
+  { id: 'letra_t', name: 'Letra T', grid: [
+    [1, 1, 1, 1, 1],
+    [0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0]
+  ]},
+  { id: 'lleno', name: 'Cartón Lleno', grid: [
+    [1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1]
+  ]}
+];
+
+// Función para verificar si un jugador ha completado la figura activa
+function checkPatternWin(card, markedNumbers, pattern) {
+  if (!pattern || !pattern.grid) return false;
+
+  // Convertir cartón a matriz 5x5
+  const cardMatrix = [
+    [card.B[0], card.I[0], card.N[0], card.G[0], card.O[0]],
+    [card.B[1], card.I[1], card.N[1], card.G[1], card.O[1]],
+    [card.B[2], card.I[2], 'FREE', card.G[2], card.O[2]], // Centro libre
+    [card.B[3], card.I[3], card.N[3], card.G[3], card.O[3]],
+    [card.B[4], card.I[4], card.N[4], card.G[4], card.O[4]]
+  ];
+
+  // Verificar si todas las posiciones del patrón están marcadas
+  for (let row = 0; row < 5; row++) {
+    for (let col = 0; col < 5; col++) {
+      if (pattern.grid[row][col] === 1) {
+        const cellValue = cardMatrix[row][col];
+        if (cellValue !== 'FREE' && !markedNumbers.includes(cellValue)) {
+          return false; // Falta marcar esta celda
+        }
+      }
+    }
+  }
+
+  return true; // ¡Todas las celdas del patrón están marcadas!
+}
+
+// Evento socket para establecer figura activa
+socket.on('setActivePattern', (patternData) => {
+  currentPattern = patternData;
+  io.emit('updateActivePattern', patternData); // Broadcast a todos los jugadores
+  console.log(`🎯 Figura activa establecida: ${patternData.name}`);
+});
+
+// Función para verificar ganadores después de cada número llamado
+async function checkForPatternWinners() {
+  if (!currentPattern) {
+    console.log('No hay patrón activo');
+    return;
+  }
+
+  // Obtener todos los jugadores activos
+  const connectedPlayers = Array.from(io.sockets.sockets.values())
+    .filter(s => s.data.username && s.data.cardIds && s.data.cardIds.length > 0);
+
+  for (const player of connectedPlayers) {
+    const { username, cardIds } = player.data;
+
+    for (const cardId of cardIds) {
+      const card = generateCard(cardId);
+
+      // Obtener números marcados para este cartón
+      const markedNumbers = gameState.calledNumbers.filter(num => {
+        const flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
+        return flatCard.includes(num);
+      });
+
+      // Verificar si este cartón completa la figura activa
+      if (checkPatternWin(card, markedNumbers, currentPattern)) {
+        const winData = {
+          playerName: username,
+          cardNumber: cardId,
+          pattern: currentPattern.name
+        };
+
+        // Emitir evento de ganador automático
+        io.emit('automaticWinner', winData);
+        console.log(`🏆 ¡BINGO AUTOMÁTICO! ${username} completó la figura ${currentPattern.name} con cartón #${cardId}`);
+
+        // También anunciar como ganador normal
+        io.emit('winner_announced', {
+          user: username,
+          card: cardId,
+          time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          pattern: currentPattern.id
+        });
+
+        return; // Solo anunciar el primer ganador
+      }
+    }
+  }
+}
+
+// Modificar el evento admin_call_number para verificar ganadores después de cada número
+socket.on('admin_call_number', (num) => {
+    // Validar que el número sea válido (1-75)
+    if (num < 1 || num > 75) {
+        socket.emit('admin_error', { message: `Número inválido: ${num}. Debe estar entre 1 y 75.` });
+        return;
+    }
+
+    // Validar que el número no haya sido llamado ya
+    if (gameState.calledNumbers.includes(num)) {
+        socket.emit('admin_error', { message: `El número ${num} ya fue llamado anteriormente.` });
+        return;
+    }
+
+    // Agregar el número a la lista de llamados
+    gameState.calledNumbers.push(num);
+    gameState.last5Numbers.unshift(num);
+    if (gameState.last5Numbers.length > 5) gameState.last5Numbers.pop();
+
+    console.log(`🎯 Número llamado: ${num}`);
+    console.log(`📊 Patrón actual: ${gameState.pattern}`);
+    console.log(`🔢 Números llamados hasta ahora: ${gameState.calledNumbers.length}`);
+
+    // Emitir el número llamado a todos los clientes
+    io.emit('number_called', {
+        num,
+        last5: gameState.last5Numbers,
+        totalCalled: gameState.calledNumbers.length,
+        pattern: gameState.pattern
+    });
+
+    // Verificar automáticamente si algún jugador ha ganado con la figura activa
+    setTimeout(async () => {
+        try {
+            await checkForAutomaticWinners();
+            await checkForPatternWinners();
+        } catch (error) {
+            console.error('❌ Error en verificación automática de ganadores:', error);
+        }
+    }, 0); // Delay cero para máxima inmediatez instantánea
+});
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Yovanny Bingo V12 (Unique Cards) en puerto ${PORT}`));
