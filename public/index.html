@@ -497,7 +497,16 @@
 
         // Intentar reconexión cuando el socket se reconecta
         socket.on('connect', () => {
-            attemptAutoReconnect();
+            // Si ya teníamos un cartón (significa que es una reconexión tras caída), recargamos
+            if (myCards.length > 0) {
+                console.log("Reconectado, recargando página para resincronizar...");
+                window.location.reload();
+            }
+        });
+
+        // Si el servidor se desconecta y vuelve a conectar, recargamos para evitar errores de sincronización
+        socket.on('disconnect', () => {
+            console.log("Desconectado del servidor...");
         });
 
         // --- LÓGICA DEL SELECTOR DE CARTONES ---

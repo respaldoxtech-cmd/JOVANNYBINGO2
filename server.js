@@ -1437,6 +1437,64 @@ function getPendingPlayers() {
     }));
 }
 
+// --- LÓGICA DE VALIDACIÓN MEJORADA CON LOGS ---
+function verificarGanadores() {
+    console.log("--- VERIFICANDO BINGOS (Bola actual: " + gameState.calledNumbers[gameState.calledNumbers.length -1] + ") ---");
+    
+    const ganadores = [];
+    const matrizPatron = BINGO_PATTERNS[gameState.pattern];
+    const totalJugadores = Object.keys(gameState.jugadores).length;
+
+    if (totalJugadores === 0) {
+        console.log("⚠️ ALERTA: No hay jugadores registrados en memoria. Si reiniciaste el servidor, recarga las páginas web de los usuarios.");
+        return;
+    }
+
+    // Recorremos TODOS los jugadores conectados
+    for (const idSocket in gameState.jugadores) {
+        const jugador = gameState.jugadores[idSocket];
+        const carton = jugador.carton;
+        let esBingo = true;
+        let faltantes = []; // Para ver qué le falta
+
+        // Comparamos el cartón del usuario contra el Patrón
+        for (let fila = 0; fila < 5; fila++) {
+            for (let col = 0; col < 5; col++) {
+                // Si el patrón exige marcar esta casilla (es 1)
+                if (matrizPatron[fila][col] === 1) {
+                    // Ignoramos el centro (FREE)
+                    if (fila === 2 && col === 2) continue; 
+
+                    const numeroEnCasilla = carton[fila][col];
+                    
+                    // Si el número del cartón NO ha salido todavía
+                    if (!gameState.calledNumbers.includes(numeroEnCasilla)) {
+                        esBingo = false;
+                        faltantes.push(numeroEnCasilla); // Guardamos qué le falta para avisar en consola
+                    }
+                }
+            }
+        }
+
+        if (esBingo) {
+            console.log(`✅ ¡BINGO DETECTADO! Jugador: ${jugador.nombre}`);
+            ganadores.push(jugador.nombre);
+        } else {
+            // Log opcional: Descomenta esto si quieres ver qué le falta a cada uno (puede llenar mucho la consola)
+            // console.log(`Jugador ${jugador.nombre} no tiene bingo. Le faltan: ${faltantes.length} números.`);
+        }
+    }
+
+    // SI HAY GANADORES
+    if (ganadores.length > 0) {
+        gameState.juegoTerminado = true;
+        io.emit('BINGO_GANADOR', ganadores);
+        console.log('🏆 GANADORES ENVIADOS AL FRONTEND:', ganadores);
+    } else {
+        console.log("❌ Ningún ganador en esta bola.");
+    }
+}
+
 // Función mejorada para verificar automáticamente ganadores después de cada número
 async function checkForAutomaticWinners() {
     const currentTime = Date.now();
