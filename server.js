@@ -1425,6 +1425,7 @@ function getActivePlayers() {
 }
 
 function getPendingPlayers() {
+    console.log(`🔍 Obteniendo jugadores pendientes: ${pendingPlayers.size} en cola`);
     return Array.from(pendingPlayers.entries()).map(([socketId, player]) => ({
         id: socketId,
         name: player.username,
