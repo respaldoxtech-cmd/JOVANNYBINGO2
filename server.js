@@ -870,7 +870,7 @@ io.on('connection', (socket) => {
             } catch (error) {
                 console.error('❌ Error en verificación automática de ganadores:', error);
             }
-        }, 200); // Aumentado el delay para mejor sincronización
+        }, 150); // Optimizado para mejor responsividad
     });
 
     // Función para deshacer el último número llamado
