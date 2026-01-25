@@ -401,33 +401,8 @@ function analyzeGameProgress(player, calledNumbers, pattern) {
 }
 
 function getPatternLines(pattern) {
-    const patterns = {
-        'line': [
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-            [0,6,12,18,24], [4,8,12,16,20]
-        ],
-        'full': [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
-        'corners': [[0,4,20,24]],
-        'x': [[0,6,12,18,24], [4,8,12,16,20]],
-        'plus': [[7,11,12,13,17]],
-        'corners_center': [[0,4,12,20,24]],
-        'frame': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
-        'inner_frame': [[6,7,8,11,13,16,17,18]],
-        'letter_h': [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]],
-        'letter_t': [[0,1,2,3,4,7,12,17]],
-        'small_square': [[0,1,5,6]],
-        'diamond': [[2,6,10,14,18,22]],
-        'star': [[2,6,8,10,12,14,16,18,7,11,12,13,17]],
-        'heart': [[1,3,6,7,8,9,11,12,13,16,18]],
-        'airplane': [[1,3,5,7,9,11,13,15,17,19,21,23]],
-        'arrow': [[2,7,10,11,12,13,14,17]],
-        'crazy': [[0,2,4,6,8,10,12,14,16,18,20,22,24]],
-        'pyramid': [[2,6,7,8,10,11,12,13,14,16,17,18]],
-        'cross': [[2,7,11,12,13,17,22]]
-    };
-    
-    return patterns[pattern] || patterns.line;
+    // Utiliza la definición centralizada de patrones
+    return BINGO_PATTERNS[pattern] || BINGO_PATTERNS.line;
 }
 
 // Sistema de personalización avanzada
@@ -556,6 +531,117 @@ let gameSession = {
     winnerCooldown: 2000 // 2 segundos de cooldown entre ganadores
 };
 
+// --- DEFINICIÓN CENTRALIZADA DE PATRONES DE BINGO ---
+// IMPORTANTE: Los índices se refieren al 'flatCard' (column-major order):
+// Columna B: 0,1,2,3,4
+// Columna I: 5,6,7,8,9
+// Columna N: 10,11,12,13,14 (el 12 es el espacio libre central)
+// Columna G: 15,16,17,18,19
+// Columna O: 20,21,22,23,24
+const BINGO_PATTERNS = {
+    // Líneas - Cada sub-array es una posible línea de victoria
+    'line': [
+        // Columnas (B, I, N, G, O)
+        [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
+        // Filas (visuales)
+        [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
+        // Diagonales
+        [0,6,12,18,24], [4,8,12,16,20]
+    ],
+    'line_horizontal_1': [[0,5,10,15,20]], // Fila 1 (superior visual)
+    'line_horizontal_2': [[1,6,11,16,21]], // Fila 2
+    'line_horizontal_3': [[2,7,12,17,22]], // Fila 3
+    'line_horizontal_4': [[3,8,13,18,23]], // Fila 4
+    'line_horizontal_5': [[4,9,14,19,24]], // Fila 5 (inferior visual)
+    'line_vertical_B': [[0,1,2,3,4]],
+    'line_vertical_I': [[5,6,7,8,9]],
+    'line_vertical_N': [[10,11,12,13,14]],
+    'line_vertical_G': [[15,16,17,18,19]],
+    'line_vertical_O': [[20,21,22,23,24]],
+    'line_diagonal_main': [[0,6,12,18,24]],
+    'line_diagonal_secondary': [[4,8,12,16,20]],
+    'line_horizontal': [
+        [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24]
+    ],
+    'line_vertical': [
+        [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24]
+    ],
+    'line_diagonal': [
+        [0,6,12,18,24], [4,8,12,16,20]
+    ],
+    'full': [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
+    'corners': [[0,4,20,24]],
+    'x': [[0,6,12,18,24], [4,8,12,16,20]],
+    'plus': [[7,11,12,13,17]],
+    'corners_center': [[0,4,12,20,24]],
+    'frame': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
+    'inner_frame': [[6,7,8,11,13,16,17,18]],
+    'letter_h': [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]],
+    'letter_t': [[0,1,2,3,4,7,12,17]],
+    'small_square': [[0,1,5,6]],
+    'diamond': [[2,6,10,14,18,22]],
+    'star': [[2,6,8,10,12,14,16,18,7,11,12,13,17]],
+    'heart': [[1,3,6,7,8,9,11,12,13,16,18]],
+    'airplane': [[1,3,5,7,9,11,13,15,17,19,21,23]],
+    'arrow': [[2,7,10,11,12,13,14,17]],
+    'crazy': [[0,2,4,6,8,10,12,14,16,18,20,22,24]],
+    'pyramid': [[2,6,7,8,10,11,12,13,14,16,17,18]],
+    'cross': [[2,7,11,12,13,17,22]],
+    'custom': null // Este será un array de índices proporcionado por el admin
+};
+
+// --- FUNCIONES DE VALIDACIÓN DE PATRONES ---
+function validatePattern(patternType, flatCard, calledNumbers) {
+    const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
+    
+    // Obtener el patrón desde la definición centralizada
+    const pattern = BINGO_PATTERNS[patternType];
+    if (!pattern) return false;
+
+    // Para patrones que son arrays de arrays (múltiples líneas posibles)
+    if (Array.isArray(pattern) && Array.isArray(pattern[0])) {
+        // Verificar si alguna de las líneas del patrón está completa
+        return pattern.some(line => line.every(idx => isMarked(flatCard[idx])));
+    }
+    
+    // Para patrones que son arrays simples (patrones estrictos)
+    if (Array.isArray(pattern)) {
+        return validateStrictPattern(pattern, flatCard, calledNumbers, isMarked);
+    }
+    
+    return false;
+}
+
+function validateStrictPattern(requiredPositions, flatCard, calledNumbers, isMarked) {
+    // Verificar que todas las posiciones requeridas estén marcadas
+    const allRequiredMarked = requiredPositions.every(idx => isMarked(flatCard[idx]));
+    
+    if (!allRequiredMarked) return false;
+    
+    // Verificar que NO haya marcado en posiciones que NO son parte del patrón
+    // Esto es para patrones específicos que deben ser exactos
+    const strictPatterns = [
+        'corners', 'corners_center', 'plus', 'frame', 'inner_frame',
+        'letter_h', 'letter_t', 'small_square', 'diamond', 'star',
+        'heart', 'airplane', 'arrow', 'crazy', 'pyramid', 'cross'
+    ];
+    
+    if (strictPatterns.includes(patternType)) {
+        const allPositions = Array.from({length: 25}, (_, i) => i);
+        const nonRequiredPositions = allPositions.filter(idx => !requiredPositions.includes(idx));
+        
+        // Verificar que NO haya marcado en posiciones no requeridas
+        const hasUnwantedMarks = nonRequiredPositions.some(idx => isMarked(flatCard[idx]));
+        
+        if (hasUnwantedMarks) {
+            console.log(`❌ Patrón ${patternType} inválido: hay marcas en posiciones no requeridas`);
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 // Sistema de moderación de jugadores
 let pendingPlayers = new Map(); // socketId -> {username, cardIds, socket}
 let virtualPlayers = new Map(); // virtualId -> {username, cardIds} - Jugadores agregados manualmente
@@ -653,282 +739,9 @@ function checkWin(card, called, patternType, customGrid) {
     // Función auxiliar para ver si una celda está marcada
     const isMarked = (val) => val === "FREE" || called.includes(val);
 
-    // Define winning patterns as arrays of indices
-    // IMPORTANT: flatCard is indexed by columns: B(0-4), I(5-9), N(10-14), G(15-19), O(20-24)
-    // Visual representation:
-    // 0  5  10 15 20  <- Column B indices
-    // 1  6  11 16 21  <- Column I indices  
-    // 2  7  12 17 22  <- Column N indices (12 is FREE)
-    // 3  8  13 18 23  <- Column G indices
-    // 4  9  14 19 24  <- Column O indices
-    const patterns = {
-        'line': [
-            // Columnas (B, I, N, G, O)
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-            // Filas
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-            // Diagonales
-            [0,6,12,18,24], [4,8,12,16,20]
-        ],
-        'full': [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]], // All positions
-        'corners': [[0,4,20,24]], // 4 corners: B1, B5, O1, O5
-        'x': [[0,6,12,18,24], [4,8,12,16,20]], // Both diagonals (either one wins)
-        'plus': [[7,11,12,13,17]], // Plus shape: center + 4 arms (I3, N2, N3, N4, G3)
-        'corners_center': [[0,4,12,20,24]], // Corners plus center: B1, B5, N3, O1, O5
-        'frame': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]], // Outer frame
-        'inner_frame': [[6,7,8,11,13,16,17,18]], // Inner square (3x3 center)
-        'letter_h': [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]], // H shape: left column + center column + right column
-        'letter_t': [[0,1,2,3,4,7,12,17]], // T shape: top row + center column
-        'small_square': [[0,1,5,6]], // Top-left 2x2 square: B1, B2, I1, I2
-        'diamond': [[2,6,10,14,18,22]], // Diamond shape: N1, I2, B3, O3, G2, N5
-        'star': [[2,6,8,10,12,14,16,18,7,11,12,13,17]], // Star shape: corners + plus
-        'heart': [[1,3,6,7,8,9,11,12,13,16,18]], // Heart shape
-        'airplane': [[1,3,5,7,9,11,13,15,17,19,21,23]], // Airplane shape
-        'arrow': [[2,7,10,11,12,13,14,17]], // Arrow pointing down
-        'crazy': [[0,2,4,6,8,10,12,14,16,18,20,22,24]], // Crazy zigzag pattern
-        'pyramid': [[2,6,7,8,10,11,12,13,14,16,17,18]], // Pyramid shape
-        'cross': [[2,7,11,12,13,17,22]], // Cross shape
-        'custom': null // Handled separately
-    };
-
-    // Función para validar que NO haya marcado en posiciones que NO deben estar marcadas
-    const validateStrictPattern = (requiredPositions) => {
-        // Verificar que todas las posiciones requeridas estén marcadas
-        const allRequiredMarked = requiredPositions.every(idx => isMarked(flatCard[idx]));
-        
-        if (!allRequiredMarked) return false;
-        
-        // Verificar que NO haya marcado en posiciones que NO son parte del patrón
-        // Esto es para patrones específicos que deben ser exactos
-        if (patternType === 'corners' || patternType === 'corners_center' || 
-            patternType === 'plus' || patternType === 'frame' || patternType === 'inner_frame' ||
-            patternType === 'letter_h' || patternType === 'letter_t' || patternType === 'small_square' ||
-            patternType === 'diamond' || patternType === 'star' || patternType === 'heart' ||
-            patternType === 'airplane' || patternType === 'arrow' || patternType === 'crazy' ||
-            patternType === 'pyramid' || patternType === 'cross') {
-            
-            // Para estos patrones, verificamos que NO haya marcado en posiciones no requeridas
-            const allPositions = Array.from({length: 25}, (_, i) => i);
-            const nonRequiredPositions = allPositions.filter(idx => !requiredPositions.includes(idx));
-            
-            // Verificar que NO haya marcado en posiciones no requeridas
-            // Si hay alguna posición no requerida marcada, el patrón no es válido
-            const hasUnwantedMarks = nonRequiredPositions.some(idx => isMarked(flatCard[idx]));
-            
-            if (hasUnwantedMarks) {
-                console.log(`❌ Patrón ${patternType} inválido: hay marcas en posiciones no requeridas`);
-                return false;
-            }
-            
-            return true;
-        }
-        
-        return true;
-    };
-
-    // MODO LÍNEA HORIZONTAL ESPECÍFICA - SOLO UNA FILA ESPECÍFICA
-    if (patternType.startsWith('line_horizontal_')) {
-        const rowNum = parseInt(patternType.replace('line_horizontal_', ''));
-        // Las filas se numeran de arriba hacia abajo visualmente (1=superior, 5=interior)
-        const horizontalLines = [
-            [0,5,10,15,20], // Fila 1 (superior visual)
-            [1,6,11,16,21], // Fila 2
-            [2,7,12,17,22], // Fila 3
-            [3,8,13,18,23], // Fila 4
-            [4,9,14,19,24]  // Fila 5 (inferior visual)
-        ];
-        if (rowNum >= 1 && rowNum <= 5) {
-            return horizontalLines[rowNum - 1].every(idx => isMarked(flatCard[idx]));
-        }
-    }
-
-    // MODO LÍNEA VERTICAL ESPECÍFICA - SOLO UNA COLUMNA ESPECÍFICA
-    if (patternType.startsWith('line_vertical_')) {
-        const colLetter = patternType.replace('line_vertical_', '').toUpperCase();
-        const verticalLines = {
-            'B': [0,1,2,3,4], 'I': [5,6,7,8,9], 'N': [10,11,12,13,14],
-            'G': [15,16,17,18,19], 'O': [20,21,22,23,24]
-        };
-        if (verticalLines[colLetter]) {
-            return verticalLines[colLetter].every(idx => isMarked(flatCard[idx]));
-        }
-    }
-
-    // MODO LÍNEA HORIZONTAL - CUALQUIER FILA COMPLETA
-    if (patternType === 'line_horizontal') {
-        const horizontalLines = [
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24]
-        ];
-        return horizontalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
-    }
-
-    // MODO LÍNEA VERTICAL - CUALQUIER COLUMNA COMPLETA
-    if (patternType === 'line_vertical') {
-        const verticalLines = [
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24]
-        ];
-        return verticalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
-    }
-
-    // MODO LÍNEA DIAGONAL ESPECÍFICA
-    if (patternType === 'line_diagonal_main') {
-        const diagonal = [0,6,12,18,24];
-        return diagonal.every(idx => isMarked(flatCard[idx]));
-    }
-
-    if (patternType === 'line_diagonal_secondary') {
-        const diagonal = [4,8,12,16,20];
-        return diagonal.every(idx => isMarked(flatCard[idx]));
-    }
-
-    // MODO LÍNEA DIAGONAL - CUALQUIER DIAGONAL COMPLETA
-    if (patternType === 'line_diagonal') {
-        const diagonalLines = [
-            [0,6,12,18,24], [4,8,12,16,20]
-        ];
-        return diagonalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
-    }
-
-    // MODO LÍNEA (NORMAL) - CUALQUIER LÍNEA COMPLETA
-    if (patternType === 'line') {
-        const winningLines = [
-            // Columnas (B, I, N, G, O)
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-            // Filas
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-            // Diagonales
-            [0,6,12,18,24], [4,8,12,16,20]
-        ];
-        return winningLines.some(line => line.every(idx => isMarked(flatCard[idx])));
-    }
-
-    // MODO CARTÓN LLENO (Full House) - TODAS LAS CELDAS MARCADAS
-    if (patternType === 'full') {
-        return patterns.full[0].every(idx => isMarked(flatCard[idx]));
-    }
-
-    // MODO 4 ESQUINAS - EXACTAMENTE LAS 4 ESQUINAS
-    if (patternType === 'corners') {
-        const requiredPositions = patterns.corners[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO X (DIAGONALES CRUZADAS) - EXACTAMENTE UNA DE LAS DIAGONALES
-    if (patternType === 'x') {
-        const requiredPositions = patterns.x[0]; // Primera diagonal
-        const requiredPositions2 = patterns.x[1]; // Segunda diagonal
-        
-        // Verificar si alguna de las dos diagonales está completa
-        const diagonal1Complete = requiredPositions.every(idx => isMarked(flatCard[idx]));
-        const diagonal2Complete = requiredPositions2.every(idx => isMarked(flatCard[idx]));
-        
-        if (diagonal1Complete) {
-            return validateStrictPattern(requiredPositions);
-        } else if (diagonal2Complete) {
-            return validateStrictPattern(requiredPositions2);
-        }
-        
-        return false;
-    }
-
-    // MODO PLUS (CENTRO + BRAZOS) - EXACTAMENTE EL CENTRO Y LOS 4 BRAZOS
-    if (patternType === 'plus') {
-        const requiredPositions = patterns.plus[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO ESQUINAS + CENTRO - EXACTAMENTE LAS 4 ESQUINAS Y EL CENTRO
-    if (patternType === 'corners_center') {
-        const requiredPositions = patterns.corners_center[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO MARCO EXTERIOR - EXACTAMENTE EL MARCO EXTERIOR
-    if (patternType === 'frame') {
-        const requiredPositions = patterns.frame[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO MARCO INTERIOR - EXACTAMENTE EL MARCO INTERIOR (3x3 CENTRO)
-    if (patternType === 'inner_frame') {
-        const requiredPositions = patterns.inner_frame[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO LETRA H - EXACTAMENTE LA FORMA DE H
-    if (patternType === 'letter_h') {
-        const requiredPositions = patterns.letter_h[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO LETRA T - EXACTAMENTE LA FORMA DE T
-    if (patternType === 'letter_t') {
-        const requiredPositions = patterns.letter_t[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO CUADRADO PEQUEÑO - EXACTAMENTE EL CUADRADO 2x2 EN ESQUINA SUPERIOR IZQUIERDA
-    if (patternType === 'small_square') {
-        const requiredPositions = patterns.small_square[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO DIAMANTE - EXACTAMENTE LA FORMA DE DIAMANTE
-    if (patternType === 'diamond') {
-        const requiredPositions = patterns.diamond[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO ESTRELLA - EXACTAMENTE LA FORMA DE ESTRELLA
-    if (patternType === 'star') {
-        const requiredPositions = patterns.star[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO CORAZÓN - EXACTAMENTE LA FORMA DE CORAZÓN
-    if (patternType === 'heart') {
-        const requiredPositions = patterns.heart[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO AVIÓN - EXACTAMENTE LA FORMA DE AVIÓN
-    if (patternType === 'airplane') {
-        const requiredPositions = patterns.airplane[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO FLECHA - EXACTAMENTE LA FORMA DE FLECHA
-    if (patternType === 'arrow') {
-        const requiredPositions = patterns.arrow[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO CRAZY (ZIGZAG) - EXACTAMENTE EL PATRÓN ZIGZAG
-    if (patternType === 'crazy') {
-        const requiredPositions = patterns.crazy[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO PIRÁMIDE - EXACTAMENTE LA FORMA DE PIRÁMIDE
-    if (patternType === 'pyramid') {
-        const requiredPositions = patterns.pyramid[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO CRUZ - EXACTAMENTE LA FORMA DE CRUZ
-    if (patternType === 'cross') {
-        const requiredPositions = patterns.cross[0];
-        return validateStrictPattern(requiredPositions);
-    }
-
-    // MODO PERSONALIZADO (Figura manual) - EXACTAMENTE LA FIGURA DIBUJADA
+    // Utilizar la nueva función de validación centralizada
     if (patternType === 'custom') {
-        // En customGrid los índices van por filas visuales (0-4 fila 1, etc)
-        // flatCard va por columnas. Debemos mapear o usar una lógica consistente.
-        // Asumiendo que el admin dibuja visualmente en grid 5x5:
-        // Admin Grid: Fila 1 = índices 0,1,2,3,4.
-        // FlatCard:   Fila 1 = índices 0,5,10,15,20.
-
+        // Para patrones personalizados, usar la lógica existente
         for(let r=0; r<5; r++) {
             for(let c=0; c<5; c++) {
                 const adminIdx = r * 5 + c; // Indice lineal del admin (filas)
@@ -942,7 +755,8 @@ function checkWin(card, called, patternType, customGrid) {
         return true;
     }
 
-    return false;
+    // Para todos los demás patrones, usar la validación centralizada
+    return validatePattern(patternType, flatCard, called);
 }
 
 io.on('connection', (socket) => {
