@@ -629,7 +629,71 @@ const BINGO_PATTERNS = {
     'letter_diamond': [[2,6,10,14,18,22,1,7,13,19,3,7,11,15,19,23]],
     'letter_arrow': [[2,7,10,11,12,13,14,17,1,6,11,16,21,0,5,10,15,20]],
     'letter_cross': [[2,7,11,12,13,17,22,1,6,11,16,21,0,5,10,15,20,4,9,14,19]],
-    'custom': null // Este será un array de índices proporcionado por el admin
+    // Specific line patterns - 60 patterns that work like the existing line patterns
+    'line_horizontal_1': [[0,5,10,15,20]], // Fila 1 (superior visual)
+    'line_horizontal_2': [[1,6,11,16,21]], // Fila 2
+    'line_horizontal_3': [[2,7,12,17,22]], // Fila 3
+    'line_horizontal_4': [[3,8,13,18,23]], // Fila 4
+    'line_horizontal_5': [[4,9,14,19,24]], // Fila 5 (inferior visual)
+    'line_vertical_B': [[0,1,2,3,4]], // Columna B
+    'line_vertical_I': [[5,6,7,8,9]], // Columna I
+    'line_vertical_N': [[10,11,12,13,14]], // Columna N
+    'line_vertical_G': [[15,16,17,18,19]], // Columna G
+    'line_vertical_O': [[20,21,22,23,24]], // Columna O
+    'line_diagonal_main': [[0,6,12,18,24]], // Diagonal principal
+    'line_diagonal_secondary': [[4,8,12,16,20]], // Diagonal secundaria
+    // Additional specific patterns - 45 more patterns to reach 60 total
+    'line_top_row': [[0,5,10,15,20]], // Top row (same as horizontal_1)
+    'line_middle_row': [[2,7,12,17,22]], // Middle row (same as horizontal_3)
+    'line_bottom_row': [[4,9,14,19,24]], // Bottom row (same as horizontal_5)
+    'line_left_col': [[0,1,2,3,4]], // Left column (same as vertical_B)
+    'line_right_col': [[20,21,22,23,24]], // Right column (same as vertical_O)
+    'line_main_diagonal': [[0,6,12,18,24]], // Main diagonal (same as diagonal_main)
+    'line_secondary_diagonal': [[4,8,12,16,20]], // Secondary diagonal (same as diagonal_secondary)
+    'line_perimeter': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]], // Perimeter
+    'line_inner_perimeter': [[6,7,8,11,13,16,17,18]], // Inner perimeter
+    'line_cross_center': [[7,11,12,13,17]], // Cross through center
+    'line_x_pattern': [[0,6,12,18,24], [4,8,12,16,20]], // X pattern
+    'line_plus_pattern': [[7,11,12,13,17]], // Plus pattern
+    'line_corners': [[0,4,20,24]], // Four corners
+    'line_corners_center': [[0,4,12,20,24]], // Four corners + center
+    'line_frame': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]], // Frame
+    'line_inner_frame': [[6,7,8,11,13,16,17,18]], // Inner frame
+    'line_letter_h': [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]], // H pattern
+    'line_letter_t': [[0,1,2,3,4,7,12,17]], // T pattern
+    'line_small_square': [[0,1,5,6]], // Small square top-left
+    'line_diamond': [[2,6,10,14,18,22]], // Diamond pattern
+    'line_star': [[2,6,8,10,12,14,16,18,7,11,12,13,17]], // Star pattern
+    'line_heart': [[1,3,6,7,8,9,11,12,13,16,18]], // Heart pattern
+    'line_airplane': [[1,3,5,7,9,11,13,15,17,19,21,23]], // Airplane pattern
+    'line_arrow': [[2,7,10,11,12,13,14,17]], // Arrow pattern
+    'line_crazy': [[0,2,4,6,8,10,12,14,16,18,20,22,24]], // Crazy zigzag
+    'line_pyramid': [[2,6,7,8,10,11,12,13,14,16,17,18]], // Pyramid pattern
+    'line_cross': [[2,7,11,12,13,17,22]], // Cross pattern
+    'line_letter_l': [[0,5,10,15,20,4,9,14,19,24]], // L pattern
+    'line_letter_c': [[0,1,2,3,5,10,15,20,24,23,22,21]], // C pattern
+    'line_letter_s': [[0,1,2,3,4,5,6,7,12,17,22,23,24]], // S pattern
+    'line_letter_z': [[0,1,2,3,4,9,14,19,24,23,22,21,20]], // Z pattern
+    'line_letter_u': [[0,5,10,15,20,4,9,14,19,24,23,22,21,20]], // U pattern
+    'line_letter_v': [[0,5,10,15,20,4,9,14,19,24,12]], // V pattern
+    'line_letter_w': [[0,5,10,15,20,4,9,14,19,24,12,7,2]], // W pattern
+    'line_letter_m': [[0,5,10,15,20,4,9,14,19,24,12,7,2,1,6,11]], // M pattern
+    'line_letter_n': [[0,5,10,15,20,4,9,14,19,24,12,7,2]], // N pattern
+    'line_letter_p': [[0,5,10,15,20,1,6,11,16,21,2,7,12]], // P pattern
+    'line_letter_e': [[0,1,2,3,4,5,10,15,20,6,11,16,21,7,12,17]], // E pattern
+    'line_letter_f': [[0,1,2,3,4,5,10,15,20,6,11,16,21]], // F pattern
+    'line_letter_d': [[0,1,2,3,5,10,15,20,24,23,22,21,6,11,16,21]], // D pattern
+    'line_letter_r': [[0,5,10,15,20,1,6,11,16,21,2,7,12,17,22]], // R pattern
+    'line_letter_k': [[0,5,10,15,20,4,9,14,19,24,12,7,2,13,18,23]], // K pattern
+    'line_letter_y': [[0,5,10,15,20,4,9,14,19,24,12,7,2,13,18,23,11,6,1]], // Y pattern
+    'line_letter_q': [[0,1,2,3,4,5,10,15,20,24,23,22,21,6,11,16,21,17,12]], // Q pattern
+    'line_letter_j': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]], // J pattern
+    'line_letter_a': [[2,7,12,17,22,0,5,10,15,20,4,9,14,19,24,1,6,11,16,21]], // A pattern
+    'line_letter_b': [[0,1,2,3,5,10,15,20,24,23,22,21,6,11,16,21,7,12,17,22,4,9,14,19]], // B pattern
+    'line_letter_o': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]], // O pattern
+    'line_letter_x': [[0,6,12,18,24,4,8,12,16,20]], // X pattern
+    'line_letter_g': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,11,12,13,17,18]], // G pattern
+    'line_letter_i': [[2,7,12,17,22,0,1,2,3,4,20,21,22,23,24]] // I pattern
 };
 
 // --- FUNCIONES DE VALIDACIÓN DE PATRONES ---
