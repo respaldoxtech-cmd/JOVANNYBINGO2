@@ -258,67 +258,89 @@
 
                 <div class="side-column">
 
-                    <div class="card info-card">
-                        <div class="card-header">
-                            <h3>🎯 CONFIGURACIÓN DE CARTONES</h3>
-                        </div>
-                        <div class="game-config-content">
-                            <select id="game-mode" onchange="changeMode()" class="select-dark" style="margin-bottom: 15px;">
-                                <optgroup label="Líneas Específicas">
-                                    <option value="line_horizontal_1">Línea Horizontal 1</option>
-                                    <option value="line_horizontal_2">Línea Horizontal 2</option>
-                                    <option value="line_horizontal_3">Línea Horizontal 3</option>
-                                    <option value="line_horizontal_4">Línea Horizontal 4</option>
-                                    <option value="line_horizontal_5">Línea Horizontal 5</option>
-                                    <option value="line_vertical_B">Línea Vertical B</option>
-                                    <option value="line_vertical_I">Línea Vertical I</option>
-                                    <option value="line_vertical_N">Línea Vertical N</option>
-                                    <option value="line_vertical_G">Línea Vertical G</option>
-                                    <option value="line_vertical_O">Línea Vertical O</option>
-                                    <option value="line_diagonal_main">Línea Diagonal Principal</option>
-                                    <option value="line_diagonal_secondary">Línea Diagonal Secundaria</option>
-                                </optgroup>
-                                <optgroup label="Líneas Generales">
-                                    <option value="line_horizontal">Cualquier Línea Horizontal</option>
-                                    <option value="line_vertical">Cualquier Línea Vertical</option>
-                                    <option value="line_diagonal">Cualquier Línea Diagonal</option>
-                                    <option value="line">Cualquier Línea (H,V,D)</option>
-                                </optgroup>
-                                <optgroup label="Figuras Especiales">
-                                    <option value="full">Cartón Lleno (Blackout)</option>
-                                    <option value="corners">4 Esquinas</option>
-                                    <option value="x">X (Diagonales Cruzadas)</option>
-                                    <option value="plus">Plus (Centro + Brazos)</option>
-                                    <option value="corners_center">Esquinas + Centro</option>
-                                    <option value="frame">Marco Exterior</option>
-                                    <option value="inner_frame">Marco Interior</option>
-                                    <option value="letter_h">Letra H</option>
-                                    <option value="letter_t">Letra T</option>
-                                    <option value="small_square">Cuadrado Pequeño</option>
-                                    <option value="diamond">Diamante</option>
-                                    <option value="star">Estrella</option>
-                                    <option value="heart">Corazón</option>
-                                    <option value="airplane">Avión</option>
-                                    <option value="arrow">Flecha</option>
-                                    <option value="crazy">Crazy (Zigzag)</option>
-                                    <option value="pyramid">Pirámide</option>
-                                    <option value="cross">Cruz</option>
-                                    <option value="custom">Figura Manual (Personalizada)</option>
-                                </optgroup>
-                            </select>
+        <div class="card info-card">
+            <div class="card-header">
+                <h3>🎯 CONFIGURACIÓN DE CARTONES</h3>
+            </div>
+            <div class="game-config-content">
+                <select id="game-mode" onchange="changeMode()" class="select-dark" style="margin-bottom: 15px;">
+                    <optgroup label="Líneas Específicas">
+                        <option value="line_horizontal_1">Línea Horizontal 1</option>
+                        <option value="line_horizontal_2">Línea Horizontal 2</option>
+                        <option value="line_horizontal_3">Línea Horizontal 3</option>
+                        <option value="line_horizontal_4">Línea Horizontal 4</option>
+                        <option value="line_horizontal_5">Línea Horizontal 5</option>
+                        <option value="line_vertical_B">Línea Vertical B</option>
+                        <option value="line_vertical_I">Línea Vertical I</option>
+                        <option value="line_vertical_N">Línea Vertical N</option>
+                        <option value="line_vertical_G">Línea Vertical G</option>
+                        <option value="line_vertical_O">Línea Vertical O</option>
+                        <option value="line_diagonal_main">Línea Diagonal Principal</option>
+                        <option value="line_diagonal_secondary">Línea Diagonal Secundaria</option>
+                    </optgroup>
+                    <optgroup label="Líneas Generales">
+                        <option value="line_horizontal">Cualquier Línea Horizontal</option>
+                        <option value="line_vertical">Cualquier Línea Vertical</option>
+                        <option value="line_diagonal">Cualquier Línea Diagonal</option>
+                        <option value="line">Cualquier Línea (H,V,D)</option>
+                    </optgroup>
+                    <optgroup label="Figuras Especiales">
+                        <option value="full">Cartón Lleno (Blackout)</option>
+                        <option value="corners">4 Esquinas</option>
+                        <option value="x">X (Diagonales Cruzadas)</option>
+                        <option value="plus">Plus (Centro + Brazos)</option>
+                        <option value="corners_center">Esquinas + Centro</option>
+                        <option value="frame">Marco Exterior</option>
+                        <option value="inner_frame">Marco Interior</option>
+                        <option value="letter_h">Letra H</option>
+                        <option value="letter_t">Letra T</option>
+                        <option value="small_square">Cuadrado Pequeño</option>
+                        <option value="diamond">Diamante</option>
+                        <option value="star">Estrella</option>
+                        <option value="heart">Corazón</option>
+                        <option value="airplane">Avión</option>
+                        <option value="arrow">Flecha</option>
+                        <option value="crazy">Crazy (Zigzag)</option>
+                        <option value="pyramid">Pirámide</option>
+                        <option value="cross">Cruz</option>
+                        <option value="custom">Figura Manual (Personalizada)</option>
+                    </optgroup>
+                </select>
 
-                            <div class="pattern-container">
-                                <div id="pattern-display" class="pattern-display-large"></div>
-                            </div>
-                            <small id="pattern-explanation" class="pattern-explanation" style="display: block; text-align: center; margin: 10px 0; font-weight: 600;"></small>
+                <div class="pattern-container">
+                    <div id="pattern-display" class="pattern-display-large"></div>
+                </div>
+                <small id="pattern-explanation" class="pattern-explanation" style="display: block; text-align: center; margin: 10px 0; font-weight: 600;"></small>
 
-                            <div id="custom-ui" class="hidden custom-pattern-ui">
-                                <div style="text-align:center; margin-bottom:10px; font-size:0.8rem; font-weight:600;">DIBUJA TU FIGURA PERSONALIZADA:</div>
-                                <div id="pattern-grid" class="pattern-mini-large"></div>
-                                <button onclick="sendPattern()" class="btn-apply-pattern">APLICAR FIGURA</button>
-                            </div>
-                        </div>
+                <div id="custom-ui" class="hidden custom-pattern-ui">
+                    <div style="text-align:center; margin-bottom:10px; font-size:0.8rem; font-weight:600;">DIBUJA TU FIGURA PERSONALIZADA:</div>
+                    <div id="pattern-grid" class="pattern-mini-large"></div>
+                    <button onclick="sendPattern()" class="btn-apply-pattern">APLICAR FIGURA</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NUEVA SECCIÓN: NOTIFICACIONES DE BINGO -->
+        <div class="card info-card">
+            <div class="card-header">
+                <h3>🚨 NOTIFICACIONES DE BINGO</h3>
+            </div>
+            <div class="bingo-notifications-content">
+                <div class="current-pattern-display">
+                    <h4>Patrón Actual: <span id="current-pattern-name-display">Ninguno</span></h4>
+                    <div id="admin-pattern-board" class="admin-pattern-grid">
+                        <!-- Tablero de 5x5 para mostrar el patrón actual -->
                     </div>
+                </div>
+                
+                <div class="notifications-section">
+                    <h4>Alertas de Bingo</h4>
+                    <div id="bingo-notifications-list" class="notifications-list">
+                        <p style="text-align: center; color: #666; font-style: italic; padding: 20px;">Esperando notificaciones de Bingo...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
                     <div class="card info-card">
                         <div class="card-header">
@@ -1733,6 +1755,160 @@
             updateAdminLast5(data.last5);
 
             console.log(`🔙 Número descarcelado: ${data.number}`);
+        });
+
+        // --- FUNCIONES DE NOTIFICACIONES DE BINGO ---
+
+        // Inicializar el tablero de patrón del administrador
+        function initializeAdminPatternBoard() {
+            const board = document.getElementById('admin-pattern-board');
+            board.innerHTML = '';
+            for(let i=0; i<25; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'admin-pattern-cell';
+                cell.innerText = i; // Mostrar índice para referencia
+                board.appendChild(cell);
+            }
+        }
+
+        // Actualizar el display del patrón actual
+        function updateCurrentPatternDisplay(patternKey) {
+            const patternNameDisplay = document.getElementById('current-pattern-name-display');
+            const patternName = getPatternName(patternKey);
+            patternNameDisplay.innerText = patternName || 'Patrón Desconocido';
+
+            // Resaltar el patrón en el tablero del administrador
+            highlightAdminPattern(patternKey);
+        }
+
+        // Resaltar el patrón en el tablero del administrador
+        function highlightAdminPattern(patternKey) {
+            const board = document.getElementById('admin-pattern-board');
+            const cells = board.querySelectorAll('.admin-pattern-cell');
+            
+            // Limpiar resaltados anteriores
+            cells.forEach(cell => {
+                cell.classList.remove('pattern-highlight');
+                cell.classList.remove('bingo-highlight');
+            });
+
+            // Obtener el patrón y resaltarlo
+            const pattern = BINGO_PATTERNS[patternKey];
+            if (pattern) {
+                // Para patrones que son arrays de arrays (múltiples líneas posibles)
+                if(Array.isArray(pattern) && Array.isArray(pattern[0])) {
+                    // Tomar la primera línea como representación visual
+                    const firstLine = pattern[0];
+                    cells.forEach((cell, visualIndex) => {
+                        const logicalIndex = visualToLogicalIndex(visualIndex);
+                        if(firstLine.includes(logicalIndex)) {
+                            cell.classList.add('pattern-highlight');
+                        }
+                    });
+                }
+                // Para patrones que son arrays simples (patrones estrictos)
+                else if(Array.isArray(pattern)) {
+                    cells.forEach((cell, visualIndex) => {
+                        const logicalIndex = visualToLogicalIndex(visualIndex);
+                        if(pattern.includes(logicalIndex)) {
+                            cell.classList.add('pattern-highlight');
+                        }
+                    });
+                }
+            }
+        }
+
+        // Añadir una notificación de Bingo al panel del administrador
+        function addBingoNotification(playerId, patternKey, patternName) {
+            const notificationsContainer = document.getElementById('bingo-notifications-list');
+            
+            // Quitar el mensaje de "Esperando Bingos..." si existe
+            const waitingMessage = notificationsContainer.querySelector('p');
+            if (waitingMessage) {
+                waitingMessage.remove();
+            }
+
+            const notificationItem = document.createElement('div');
+            notificationItem.classList.add('notification-item');
+            notificationItem.setAttribute('data-player-id', playerId);
+
+            notificationItem.innerHTML = `
+                <span>🚨 ¡BINGO de Jugador ${playerId} con patrón ${patternName}!</span>
+                <button onclick="resolveBingoNotification('${playerId}', this)" class="btn-resolve">Resolver</button>
+            `;
+            
+            // Añadir al principio de la lista
+            notificationsContainer.prepend(notificationItem);
+
+            // 🎵 Sonido de notificación de Bingo
+            bingoAudio.play('notification');
+
+            // Opcional: Resaltar el tablero del administrador brevemente con el patrón que hizo Bingo
+            const winningPatternIndices = BINGO_PATTERNS[patternKey];
+            if (winningPatternIndices) {
+                const board = document.getElementById('admin-pattern-board');
+                const cells = board.querySelectorAll('.admin-pattern-cell');
+                
+                cells.forEach((cell, visualIndex) => {
+                    const logicalIndex = visualToLogicalIndex(visualIndex);
+                    if (Array.isArray(winningPatternIndices) && winningPatternIndices.includes(logicalIndex)) {
+                        cell.classList.add('bingo-highlight');
+                    }
+                });
+                
+                // Después de un tiempo, quitar el highlight de bingo y restaurar el de patrón si aplica
+                setTimeout(() => {
+                    cells.forEach((cell, visualIndex) => {
+                        cell.classList.remove('bingo-highlight');
+                        const logicalIndex = visualToLogicalIndex(visualIndex);
+                        if (BINGO_PATTERNS[patternKey] && BINGO_PATTERNS[patternKey].includes && BINGO_PATTERNS[patternKey].includes(logicalIndex)) {
+                            cell.classList.add('pattern-highlight');
+                        }
+                    });
+                }, 3000); // 3 segundos de resalte
+            }
+        }
+
+        // Marcar una notificación de Bingo como resuelta
+        function resolveBingoNotification(playerId, buttonElement) {
+            const notificationItem = buttonElement.closest('.notification-item');
+            if (notificationItem) {
+                notificationItem.classList.add('resolved');
+                buttonElement.remove(); // Quitar el botón de resolver
+                
+                // Enviar evento de resolución al servidor
+                socket.emit('admin_resolve_bingo', { playerId: playerId });
+            }
+            console.log(`Bingo del jugador ${playerId} resuelto.`);
+        }
+
+        // --- SOCKET LISTENERS PARA NOTIFICACIONES DE BINGO ---
+        // Sincronizar el patrón actual con el panel de administración
+        socket.on('sync_state', (s) => {
+            // ... código existente ...
+            
+            // Actualizar el patrón actual en el panel de notificaciones
+            updateCurrentPatternDisplay(s.pattern);
+        });
+
+        // Escuchar cuando se establece un nuevo patrón
+        socket.on('pattern_set', (data) => {
+            updateCurrentPatternDisplay(data.pattern);
+        });
+
+        // Escuchar notificaciones de Bingo de los clientes
+        socket.on('client_bingo_notification', (data) => {
+            addBingoNotification(data.playerId, data.patternKey, data.patternName);
+        });
+
+        // Escuchar resolución de Bingo
+        socket.on('bingo_resolved', (data) => {
+            resolveBingoNotification(data.playerId);
+        });
+
+        // Inicializar el tablero de patrón al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeAdminPatternBoard();
         });
     </script>
 </body>
