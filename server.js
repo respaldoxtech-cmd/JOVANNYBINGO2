@@ -710,8 +710,15 @@ function checkWin(card, called, patternType, customGrid) {
             const allPositions = Array.from({length: 25}, (_, i) => i);
             const nonRequiredPositions = allPositions.filter(idx => !requiredPositions.includes(idx));
             
-            // Permitir que estén marcadas posiciones no requeridas (para mayor flexibilidad)
-            // Pero al menos las requeridas deben estar marcadas
+            // Verificar que NO haya marcado en posiciones no requeridas
+            // Si hay alguna posición no requerida marcada, el patrón no es válido
+            const hasUnwantedMarks = nonRequiredPositions.some(idx => isMarked(flatCard[idx]));
+            
+            if (hasUnwantedMarks) {
+                console.log(`❌ Patrón ${patternType} inválido: hay marcas en posiciones no requeridas`);
+                return false;
+            }
+            
             return true;
         }
         
@@ -762,87 +769,116 @@ function checkWin(card, called, patternType, customGrid) {
 
     // MODO 4 ESQUINAS - EXACTAMENTE LAS 4 ESQUINAS
     if (patternType === 'corners') {
-        return patterns.corners[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.corners[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO X (DIAGONALES CRUZADAS) - EXACTAMENTE UNA DE LAS DIAGONALES
     if (patternType === 'x') {
-        return patterns.x.some(line => line.every(idx => isMarked(flatCard[idx])));
+        const requiredPositions = patterns.x[0]; // Primera diagonal
+        const requiredPositions2 = patterns.x[1]; // Segunda diagonal
+        
+        // Verificar si alguna de las dos diagonales está completa
+        const diagonal1Complete = requiredPositions.every(idx => isMarked(flatCard[idx]));
+        const diagonal2Complete = requiredPositions2.every(idx => isMarked(flatCard[idx]));
+        
+        if (diagonal1Complete) {
+            return validateStrictPattern(requiredPositions);
+        } else if (diagonal2Complete) {
+            return validateStrictPattern(requiredPositions2);
+        }
+        
+        return false;
     }
 
     // MODO PLUS (CENTRO + BRAZOS) - EXACTAMENTE EL CENTRO Y LOS 4 BRAZOS
     if (patternType === 'plus') {
-        return patterns.plus[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.plus[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO ESQUINAS + CENTRO - EXACTAMENTE LAS 4 ESQUINAS Y EL CENTRO
     if (patternType === 'corners_center') {
-        return patterns.corners_center[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.corners_center[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO MARCO EXTERIOR - EXACTAMENTE EL MARCO EXTERIOR
     if (patternType === 'frame') {
-        return patterns.frame[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.frame[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO MARCO INTERIOR - EXACTAMENTE EL MARCO INTERIOR (3x3 CENTRO)
     if (patternType === 'inner_frame') {
-        return patterns.inner_frame[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.inner_frame[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO LETRA H - EXACTAMENTE LA FORMA DE H
     if (patternType === 'letter_h') {
-        return patterns.letter_h[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.letter_h[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO LETRA T - EXACTAMENTE LA FORMA DE T
     if (patternType === 'letter_t') {
-        return patterns.letter_t[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.letter_t[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO CUADRADO PEQUEÑO - EXACTAMENTE EL CUADRADO 2x2 EN ESQUINA SUPERIOR IZQUIERDA
     if (patternType === 'small_square') {
-        return patterns.small_square[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.small_square[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO DIAMANTE - EXACTAMENTE LA FORMA DE DIAMANTE
     if (patternType === 'diamond') {
-        return patterns.diamond[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.diamond[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO ESTRELLA - EXACTAMENTE LA FORMA DE ESTRELLA
     if (patternType === 'star') {
-        return patterns.star[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.star[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO CORAZÓN - EXACTAMENTE LA FORMA DE CORAZÓN
     if (patternType === 'heart') {
-        return patterns.heart[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.heart[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO AVIÓN - EXACTAMENTE LA FORMA DE AVIÓN
     if (patternType === 'airplane') {
-        return patterns.airplane[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.airplane[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO FLECHA - EXACTAMENTE LA FORMA DE FLECHA
     if (patternType === 'arrow') {
-        return patterns.arrow[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.arrow[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO CRAZY (ZIGZAG) - EXACTAMENTE EL PATRÓN ZIGZAG
     if (patternType === 'crazy') {
-        return patterns.crazy[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.crazy[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO PIRÁMIDE - EXACTAMENTE LA FORMA DE PIRÁMIDE
     if (patternType === 'pyramid') {
-        return patterns.pyramid[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.pyramid[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO CRUZ - EXACTAMENTE LA FORMA DE CRUZ
     if (patternType === 'cross') {
-        return patterns.cross[0].every(idx => isMarked(flatCard[idx]));
+        const requiredPositions = patterns.cross[0];
+        return validateStrictPattern(requiredPositions);
     }
 
     // MODO PERSONALIZADO (Figura manual) - EXACTAMENTE LA FIGURA DIBUJADA
