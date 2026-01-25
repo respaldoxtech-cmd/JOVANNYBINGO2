@@ -151,7 +151,8 @@ const Player = mongoose.model('Player', playerSchema);
 async function getActivePlayersFromDB() {
     try {
         const players = await Player.find({ isActive: true }).lean();
-        return players;
+        // Ensure we always return an array
+        return Array.isArray(players) ? players : [];
     } catch (error) {
         console.error('❌ Error getting active players from database:', error);
         return [];
@@ -728,8 +729,13 @@ function checkWin(card, called, patternType, customGrid) {
     // MODO LÍNEA HORIZONTAL ESPECÍFICA - SOLO UNA FILA ESPECÍFICA
     if (patternType.startsWith('line_horizontal_')) {
         const rowNum = parseInt(patternType.replace('line_horizontal_', ''));
+        // Las filas se numeran de arriba hacia abajo visualmente (1=superior, 5=interior)
         const horizontalLines = [
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24]
+            [0,5,10,15,20], // Fila 1 (superior visual)
+            [1,6,11,16,21], // Fila 2
+            [2,7,12,17,22], // Fila 3
+            [3,8,13,18,23], // Fila 4
+            [4,9,14,19,24]  // Fila 5 (inferior visual)
         ];
         if (rowNum >= 1 && rowNum <= 5) {
             return horizontalLines[rowNum - 1].every(idx => isMarked(flatCard[idx]));
@@ -1034,18 +1040,22 @@ io.on('connection', (socket) => {
         });
 
         // Pequeño delay para asegurar que todos los clientes procesen el número
-        setTimeout(() => {
-            // Verificar automáticamente si algún jugador ha ganado
-            checkForAutomaticWinners();
+        setTimeout(async () => {
+            try {
+                // Verificar automáticamente si algún jugador ha ganado
+                await checkForAutomaticWinners();
 
-            // Actualizar estado del juego para todos los clientes
-            io.emit('game_state_update', {
-                calledNumbers: gameState.calledNumbers,
-                last5Numbers: gameState.last5Numbers,
-                pattern: gameState.pattern,
-                winners: Array.from(gameSession.winners),
-                winningCards: Array.from(gameSession.winningCards)
-            });
+                // Actualizar estado del juego para todos los clientes
+                io.emit('game_state_update', {
+                    calledNumbers: gameState.calledNumbers,
+                    last5Numbers: gameState.last5Numbers,
+                    pattern: gameState.pattern,
+                    winners: Array.from(gameSession.winners),
+                    winningCards: Array.from(gameSession.winningCards)
+                });
+            } catch (error) {
+                console.error('❌ Error en verificación automática de ganadores:', error);
+            }
         }, 200); // Aumentado el delay para mejor sincronización
     });
 
@@ -1471,12 +1481,13 @@ function getActivePlayers() {
         }));
 
     // Get database players (persisted in MongoDB) - Only show if they have active cards
-    const dbPlayers = Array.from(getActivePlayersFromDB()).map(player => ({
+    const dbPlayersRaw = getActivePlayersFromDB();
+    const dbPlayers = Array.isArray(dbPlayersRaw) ? dbPlayersRaw.map(player => ({
         id: player._id.toString(),
         name: player.username,
         cardCount: player.cardIds.length,
         status: 'online' // Changed from 'database' to 'online'
-    }));
+    })) : [];
 
     // Combine all lists and remove duplicates (prioritize connected players)
     const allPlayers = [...connectedPlayers, ...virtualPlayersList, ...dbPlayers];
@@ -1506,7 +1517,7 @@ function getPendingPlayers() {
 }
 
 // Función mejorada para verificar automáticamente ganadores después de cada número
-function checkForAutomaticWinners() {
+async function checkForAutomaticWinners() {
     const currentTime = Date.now();
     const timeSinceLastWinner = currentTime - gameSession.lastWinnerTime;
 
@@ -1536,14 +1547,21 @@ function checkForAutomaticWinners() {
             type: 'virtual'
         }));
 
-    // Agregar jugadores de base de datos activos
-    const dbPlayers = getActivePlayersFromDB()
-        .filter(player => player.cardIds.some(cardId => takenCards.has(cardId)))
-        .map(player => ({
-            username: player.username,
-            cardIds: player.cardIds,
-            type: 'database'
-        }));
+    // Agregar jugadores de base de datos activos (solo obtener una vez fuera del loop)
+    let dbPlayers = [];
+    try {
+        const allDbPlayers = await getActivePlayersFromDB();
+        dbPlayers = allDbPlayers
+            .filter(player => player.cardIds.some(cardId => takenCards.has(cardId)))
+            .map(player => ({
+                username: player.username,
+                cardIds: player.cardIds,
+                type: 'database'
+            }));
+    } catch (error) {
+        console.error('❌ Error obteniendo jugadores de base de datos:', error);
+        dbPlayers = [];
+    }
 
     // Combinar todas las listas de jugadores
     const allActivePlayers = [...connectedPlayers, ...virtualPlayersList, ...dbPlayers];
