@@ -432,6 +432,8 @@
                         } else {
                             cell.innerText = n;
                             cell.id = `c${card.id}-n${n}`;
+                            // Añadir evento de clic para alternar marca/desmarca
+                            cell.addEventListener('click', () => toggleCellMark(cell, n));
                         }
                         grid.appendChild(cell);
                     });
@@ -681,6 +683,8 @@
                         } else {
                             cell.innerText = n;
                             cell.id = `c${card.id}-n${n}`;
+                            // Añadir evento de clic para alternar marca/desmarca
+                            cell.addEventListener('click', () => toggleCellMark(cell, n));
                         }
                         grid.appendChild(cell);
                     });
@@ -929,6 +933,29 @@
 
         function hidePatternModal() {
             document.getElementById('pattern-modal').classList.add('hidden');
+        }
+
+        // Función para alternar marca/desmarca de una celda
+        function toggleCellMark(cell, number) {
+            // No permitir desmarcar el centro FREE
+            if(cell.classList.contains('free')) return;
+
+            if(cell.classList.contains('marked')) {
+                // Desmarcar: remover la clase marked
+                cell.classList.remove('marked');
+                // 🎵 Sonido de desmarcado
+                bingoAudio.play('buttonClick');
+            } else {
+                // Marcar: añadir la clase marked
+                cell.classList.add('marked');
+                // 🎵 Sonido de marcado
+                bingoAudio.play('buttonClick');
+            }
+
+            // Verificar victoria automática después de alternar
+            setTimeout(() => {
+                checkAutomaticBingo();
+            }, 100);
         }
 
         // Función para salir del juego
