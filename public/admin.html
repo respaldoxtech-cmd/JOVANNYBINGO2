@@ -328,12 +328,15 @@
             </div>
             <div class="bingo-notifications-content">
                 <div class="current-pattern-display">
-                    <h4>Patrón Actual: <span id="current-pattern-name-display">Ninguno</span></h4>
+                    <h4>Patrón Actual: <span id="current-pattern-name-display">Selecciona un patrón</span></h4>
                     <div id="admin-pattern-board" class="admin-pattern-grid">
                         <!-- Tablero de 5x5 para mostrar el patrón actual -->
                     </div>
+                    <p class="pattern-hint" style="font-size: 0.8rem; color: #666; text-align: center; margin-top: 5px;">
+                        El patrón seleccionado se mostrará visualmente aquí
+                    </p>
                 </div>
-                
+
                 <div class="notifications-section">
                     <h4>Alertas de Bingo</h4>
                     <div id="bingo-notifications-list" class="notifications-list">
@@ -1760,18 +1763,6 @@
 
         // --- FUNCIONES DE NOTIFICACIONES DE BINGO ---
 
-        // Inicializar el tablero de patrón del administrador
-        function initializeAdminPatternBoard() {
-            const board = document.getElementById('admin-pattern-board');
-            board.innerHTML = '';
-            for(let i=0; i<25; i++) {
-                const cell = document.createElement('div');
-                cell.className = 'admin-pattern-cell';
-                // Remove the index display for cleaner visual appearance
-                cell.innerText = ''; // Clean visual appearance
-                board.appendChild(cell);
-            }
-        }
         // Inicializar el tablero de patrón del administrador
         function initializeAdminPatternBoard() {
             const board = document.getElementById('admin-pattern-board');
