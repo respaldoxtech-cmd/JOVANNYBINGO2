@@ -1584,6 +1584,13 @@ async function checkForAutomaticWinners() {
                 // Actualizar estadísticas del jugador
                 updatePlayerStats(username, winData).catch(err => console.error('Error updating stats:', err));
 
+                // 🎵 AUDIO AUTOMÁTICO INMEDIATO - El cartón "canta" bingo apenas se detecta
+                io.emit('bingo_audio_automatic', {
+                    message: `¡BINGO!`,
+                    winner: winData,
+                    playSound: true
+                });
+
                 // Anuncio automático inmediato
                 io.emit('winner_announced', winData);
                 io.emit('update_history', gameState.last5Winners);

@@ -886,16 +886,39 @@
 
         });
 
+        // 🎵 AUDIO AUTOMÁTICO INMEDIATO - El cartón "canta" bingo apenas se detecta
+        socket.on('bingo_audio_automatic', (data) => {
+            console.log('🎵 ¡BINGO DETECTADO! Reproduciendo audio automático...');
+
+            // 🎵 AUDIO INMEDIATO - El cartón canta bingo automáticamente
+            bingoAudio.play('bingo');
+
+            // Vibración inmediata para todos los dispositivos
+            if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
+            // Confetti inmediato para celebración visual
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+
+            // Mostrar mensaje de bingo inmediato en el anuncio
+            const originalMessage = document.getElementById('announcement-text').innerText;
+            document.getElementById('announcement-text').innerText = `¡BINGO AUTOMÁTICO! ${data.winner.user} con cartón #${data.winner.card}`;
+
+            // Restaurar mensaje después de 8 segundos
+            setTimeout(() => {
+                document.getElementById('announcement-text').innerText = originalMessage;
+            }, 8000);
+        });
+
         // Celebración automática cuando alguien gana
         socket.on('bingo_celebration', (data) => {
-            // 🎵 Sonido de celebración de bingo
-            bingoAudio.play('bingo');
+            // 🎵 Sonido adicional de celebración (ya se reprodujo el automático)
+            // bingoAudio.play('bingo'); // Ya se reprodujo arriba
 
             // Mostrar mensaje de celebración en el anuncio
             const originalMessage = document.getElementById('announcement-text').innerText;
             document.getElementById('announcement-text').innerText = data.message;
 
-            // Efectos de celebración para todos los jugadores
+            // Efectos de celebración adicionales para todos los jugadores
             if(navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
 
             // Confetti más moderado para otros jugadores
