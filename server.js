@@ -374,11 +374,17 @@ function checkWin(card, calledNumbers, patternType, customPattern = []) {
     }
 
     const pattern = BINGO_PATTERNS[patternType];
-    if (!pattern || !pattern.positions) return false;
+    if (!pattern || !pattern.positions) {
+        console.warn(`⚠️ Patrón "${patternType}" no encontrado en BINGO_PATTERNS`);
+        return false;
+    }
 
-    return pattern.positions.some(line => 
+    // Verificar si alguna línea del patrón está completa
+    const hasWon = pattern.positions.some(line => 
         line.every(idx => isMarked(flatCard[idx]))
     );
+    
+    return hasWon;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -884,24 +890,25 @@ io.on('connection', (socket) => {
         
         const patternInfo = BINGO_PATTERNS[data.type];
         console.log(`🎯 Patrón cambiado a: ${patternInfo?.name || data.type}`);
+        console.log(`   Posiciones:`, patternInfo?.positions || data.grid);
         
         // Emitir a todos con información completa del patrón
         io.emit('pattern_changed', {
             type: data.type,
             name: patternInfo?.name || data.type,
             description: patternInfo?.description || '',
-            positions: patternInfo?.positions || null,
+            positions: patternInfo?.positions || (data.type === 'custom' ? null : []),
             grid: data.grid
         });
         
-        // También actualizar el estado sincronizado
+        // También actualizar el estado sincronizado con TODOS los patrones
         io.emit('sync_state', {
             ...gameState,
             patterns: Object.keys(BINGO_PATTERNS).map(k => ({
                 id: k,
                 name: BINGO_PATTERNS[k].name,
-                description: BINGO_PATTERNS[k].description,
-                positions: BINGO_PATTERNS[k].positions
+                description: BINGO_PATTERNS[k].description || '',
+                positions: BINGO_PATTERNS[k].positions || []
             }))
         });
     });
@@ -1004,23 +1011,59 @@ io.on('connection', (socket) => {
     });
     
     // ─────────────────────────────────────────────────────────────
-    // ADMIN: Expulsar jugador
+    // ADMIN: Expulsar jugador (online u offline)
     // ─────────────────────────────────────────────────────────────
-    socket.on('admin_kick_player', async (socketId) => {
-        const target = io.sockets.sockets.get(socketId);
-        if (target?.data.cardIds) {
-            target.data.cardIds.forEach(id => takenCards.delete(id));
+    socket.on('admin_kick_player', async (data) => {
+        let playerToRemove = null;
+        let cardIdsToFree = [];
+        
+        // Si es un socketId (jugador online)
+        if (typeof data === 'string' || (data && data.socketId)) {
+            const socketId = typeof data === 'string' ? data : data.socketId;
+            const target = io.sockets.sockets.get(socketId);
+            if (target?.data.cardIds) {
+                cardIdsToFree = target.data.cardIds;
+                playerToRemove = target.data.username;
+                
+                target.emit('kicked');
+                target.disconnect();
+            }
+        }
+        // Si es un nombre de jugador (jugador offline)
+        else if (data && data.username) {
+            try {
+                const player = await Player.findOne({ username: data.username, isActive: true });
+                if (player) {
+                    playerToRemove = player.username;
+                    cardIdsToFree = player.cardIds || [];
+                    
+                    // Marcar como inactivo en la base de datos
+                    await Player.findOneAndUpdate(
+                        { username: data.username },
+                        { isActive: false }
+                    );
+                }
+            } catch (error) {
+                console.error('Error eliminando jugador offline:', error);
+                socket.emit('admin_error', { message: 'Error al eliminar jugador' });
+                return;
+            }
+        }
+        
+        // Liberar cartones y actualizar lista
+        if (playerToRemove && cardIdsToFree.length > 0) {
+            cardIdsToFree.forEach(id => takenCards.delete(id));
             
-            await Player.findOneAndUpdate(
-                { username: target.data.username },
-                { isActive: false }
-            );
+            console.log(`🗑️ Jugador eliminado: ${playerToRemove} (${cardIdsToFree.length} cartones liberados)`);
             
-            target.emit('kicked');
-            target.disconnect();
-            getActivePlayers().then(players => {
-                io.emit('update_players', players);
+            const activePlayers = await getActivePlayers();
+            io.emit('update_players', activePlayers);
+            
+            socket.emit('admin_success', {
+                message: `Jugador "${playerToRemove}" eliminado correctamente`
             });
+        } else {
+            socket.emit('admin_error', { message: 'Jugador no encontrado' });
         }
     });
     

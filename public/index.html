@@ -548,15 +548,17 @@
             document.getElementById('announcement-text').textContent = state.message;
             currentPattern = state.pattern;
             
-            // Sincronizar patrones recibidos con información completa
-            if (state.patterns) {
+            // Sincronizar patrones recibidos del servidor (fuente de verdad)
+            if (state.patterns && state.patterns.length > 0) {
+                patterns = {}; // Limpiar patrones anteriores
                 state.patterns.forEach(p => {
                     patterns[p.id] = {
                         name: p.name,
-                        description: p.description,
-                        positions: p.positions
+                        description: p.description || '',
+                        positions: p.positions || []
                     };
                 });
+                console.log('✅ Patrones sincronizados desde servidor:', Object.keys(patterns).length);
             }
             
             const patternInfo = patterns[state.pattern];
@@ -634,13 +636,13 @@
         socket.on('pattern_changed', (data) => {
             currentPattern = data.type;
             
-            // Actualizar información del patrón
+            // Actualizar información del patrón desde el servidor (fuente de verdad)
             if (!patterns[data.type]) {
                 patterns[data.type] = {};
             }
             patterns[data.type].name = data.name;
-            patterns[data.type].description = data.description;
-            if (data.positions) {
+            patterns[data.type].description = data.description || '';
+            if (data.positions !== undefined) {
                 patterns[data.type].positions = data.positions;
             }
             
