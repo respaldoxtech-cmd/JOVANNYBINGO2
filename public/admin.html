@@ -454,12 +454,22 @@
             }
         }
 
+        /**
+         * Función para renderizar mini grid (usada en selector de patrones)
+         * Usa el mismo sistema de índices row-major que renderLargeGrid
+         */
         function renderMiniGrid(positions) {
             let html = '';
-            const flatPositions = positions.flat();
+            // Aplanar el array de posiciones si es un array de arrays
+            const flatPositions = Array.isArray(positions) && positions.length > 0 && Array.isArray(positions[0])
+                ? positions.flat()
+                : positions;
+            
+            // Iterar en orden row-major: fila por fila, de izquierda a derecha
+            // Índice = row * 5 + col (0-24)
             for (let i = 0; i < 25; i++) {
                 const isActive = flatPositions.includes(i);
-                const isFree = i === 12;
+                const isFree = i === 12; // Centro del cartón (fila 2, columna 2)
                 html += `<div class="mini-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}"></div>`;
             }
             return html;
@@ -526,13 +536,46 @@
             }
         }
         
+        /**
+         * Función estandarizada para renderizar patrón (idéntica a index.html)
+         * Sistema de índices row-major (fila por fila, de izquierda a derecha):
+         * 
+         * Fila 0: índices  0,  1,  2,  3,  4
+         * Fila 1: índices  5,  6,  7,  8,  9
+         * Fila 2: índices 10, 11, 12, 13, 14  (12 = centro/free)
+         * Fila 3: índices 15, 16, 17, 18, 19
+         * Fila 4: índices 20, 21, 22, 23, 24
+         * 
+         * Índice = row * 5 + col
+         */
         function renderLargeGrid(positions) {
             let html = '';
-            const flatPositions = positions.flat();
+            // Aplanar el array de posiciones si es un array de arrays
+            const flatPositions = Array.isArray(positions) && positions.length > 0 && Array.isArray(positions[0])
+                ? positions.flat()
+                : positions;
+            
+            // Iterar en orden row-major: fila por fila, de izquierda a derecha
+            // Índice = row * 5 + col (0-24)
+            for (let i = 0; i < 25; i++) {
+                const isActive = flatPositions.includes(i);
+                const isFree = i === 12; // Centro del cartón (fila 2, columna 2)
+                html += `<div class="large-pattern-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}">${isFree ? '★' : ''}</div>`;
+            }
+            return html;
+        }
+        
+        // Función para renderizar mini grid (usada en selector de patrones)
+        function renderMiniGrid(positions) {
+            let html = '';
+            const flatPositions = Array.isArray(positions) && positions.length > 0 && Array.isArray(positions[0])
+                ? positions.flat()
+                : positions;
+            
             for (let i = 0; i < 25; i++) {
                 const isActive = flatPositions.includes(i);
                 const isFree = i === 12;
-                html += `<div class="large-pattern-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}">${isFree ? '★' : ''}</div>`;
+                html += `<div class="mini-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}"></div>`;
             }
             return html;
         }

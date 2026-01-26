@@ -461,36 +461,52 @@
             document.getElementById('pattern-description').textContent = pattern?.description || '';
             
             const grid = document.getElementById('pattern-grid');
-            grid.innerHTML = '';
-            
-            for (let row = 0; row < 5; row++) {
-                for (let col = 0; col < 5; col++) {
-                    const idx = col * 5 + row;
-                    const isActive = isPatternCell(idx, currentPattern);
-                    const isFree = idx === 12;
-                    grid.innerHTML += `<div class="pattern-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}">${isFree ? '★' : ''}</div>`;
-                }
-            }
+            // Usar la misma función estandarizada que el admin
+            grid.innerHTML = renderPatternGrid(pattern?.positions || []);
             
             showModal('pattern-modal');
         }
         
+        /**
+         * Función estandarizada para renderizar patrón (idéntica a admin.html)
+         * Sistema de índices row-major (fila por fila, de izquierda a derecha):
+         * 
+         * Fila 0: índices  0,  1,  2,  3,  4
+         * Fila 1: índices  5,  6,  7,  8,  9
+         * Fila 2: índices 10, 11, 12, 13, 14  (12 = centro/free)
+         * Fila 3: índices 15, 16, 17, 18, 19
+         * Fila 4: índices 20, 21, 22, 23, 24
+         * 
+         * Índice = row * 5 + col
+         */
+        function renderPatternGrid(positions) {
+            let html = '';
+            // Aplanar el array de posiciones si es un array de arrays
+            const flatPositions = Array.isArray(positions) && positions.length > 0 && Array.isArray(positions[0])
+                ? positions.flat()
+                : positions;
+            
+            // Iterar en orden row-major: fila por fila, de izquierda a derecha
+            // Índice = row * 5 + col (0-24)
+            for (let i = 0; i < 25; i++) {
+                const isActive = flatPositions.includes(i);
+                const isFree = i === 12; // Centro del cartón (fila 2, columna 2)
+                html += `<div class="pattern-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}">${isFree ? '★' : ''}</div>`;
+            }
+            return html;
+        }
+        
+        // Función auxiliar para verificar si un índice está en el patrón
         function isPatternCell(idx, patternType) {
             const pattern = patterns[patternType];
             if (!pattern?.positions) return false;
             
-            // Si positions es un array de arrays (líneas)
-            if (Array.isArray(pattern.positions) && pattern.positions.length > 0) {
-                if (Array.isArray(pattern.positions[0])) {
-                    // Es un array de líneas, aplanar
-                    const flatPositions = pattern.positions.flat();
-                    return flatPositions.includes(idx);
-                } else {
-                    // Es un array plano
-                    return pattern.positions.includes(idx);
-                }
-            }
-            return false;
+            // Aplanar el array de posiciones si es un array de arrays
+            const flatPositions = Array.isArray(pattern.positions) && pattern.positions.length > 0 && Array.isArray(pattern.positions[0])
+                ? pattern.positions.flat()
+                : pattern.positions;
+            
+            return flatPositions.includes(idx);
         }
         
         function showWinnersModal() {
@@ -650,8 +666,11 @@
             document.getElementById('mode-display').textContent = patternInfo.name || data.type;
             
             // Actualizar visualización del patrón en el modal si está abierto
+            // Usar la función estandarizada para asegurar consistencia
             if (!document.getElementById('pattern-modal').classList.contains('hidden')) {
-                showPatternModal();
+                const pattern = patterns[currentPattern];
+                const grid = document.getElementById('pattern-grid');
+                grid.innerHTML = renderPatternGrid(pattern?.positions || []);
             }
         });
         
