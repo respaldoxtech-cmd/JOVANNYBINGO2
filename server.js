@@ -518,16 +518,27 @@ async function checkForAutomaticWinners() {
     const now = Date.now();
     if (now - gameSession.lastWinnerTime < gameSession.cooldown) return;
     
-    // Obtener todos los jugadores activos
+    // Obtener todos los jugadores activos conectados
     const connectedPlayers = Array.from(io.sockets.sockets.values())
         .filter(s => s.data.username && s.data.cardIds?.length > 0)
         .map(s => ({ username: s.data.username, cardIds: s.data.cardIds, socketId: s.id }));
     
+    // Obtener jugadores de la base de datos
     const dbPlayers = await getActivePlayersFromDB();
+    const connectedUsernames = new Set(connectedPlayers.map(p => p.username));
+    
+    // Filtrar jugadores de DB que no están conectados y tienen cartones válidos
     const dbPlayersList = dbPlayers
-        .filter(p => p.cardIds.some(id => takenCards.has(id)))
+        .filter(p => {
+            // Solo incluir si no está conectado y tiene cartones válidos
+            return !connectedUsernames.has(p.username) && 
+                   p.cardIds && 
+                   p.cardIds.length > 0 &&
+                   p.cardIds.some(id => takenCards.has(id));
+        })
         .map(p => ({ username: p.username, cardIds: p.cardIds, type: 'database' }));
     
+    // Combinar sin duplicados
     const allPlayers = [...connectedPlayers, ...dbPlayersList];
     
     for (const player of allPlayers) {
@@ -538,9 +549,10 @@ async function checkForAutomaticWinners() {
             if (!takenCards.has(cardId)) continue;
             
             const card = generateCard(cardId);
+            const hasWon = checkWin(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern);
             
-            if (checkWin(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern)) {
-                console.log(`🏆 ¡GANADOR! ${player.username} con cartón #${cardId}`);
+            if (hasWon) {
+                console.log(`🏆 ¡GANADOR AUTOMÁTICO! ${player.username} con cartón #${cardId} - Patrón: ${gameState.pattern}`);
                 
                 const winData = {
                     user: player.username,
@@ -558,7 +570,7 @@ async function checkForAutomaticWinners() {
                 gameState.last5Winners.unshift(winData);
                 if (gameState.last5Winners.length > 5) gameState.last5Winners.pop();
                 
-                updatePlayerStats(player.username, winData);
+                await updatePlayerStats(player.username, winData);
                 
                 io.emit('bingo_audio', { playSound: true });
                 io.emit('winner_announced', winData);
@@ -595,7 +607,7 @@ function resetWinnerManagement() {
 // ═══════════════════════════════════════════════════════════════
 // 🎯 FUNCIONES DE UTILIDAD
 // ═══════════════════════════════════════════════════════════════
-function getActivePlayers() {
+async function getActivePlayers() {
     const connected = Array.from(io.sockets.sockets.values())
         .filter(s => s.data.username)
         .map(s => ({
@@ -605,7 +617,28 @@ function getActivePlayers() {
             status: 'online'
         }));
     
-    return connected;
+    // También incluir jugadores de la DB que están activos pero no conectados
+    try {
+        const dbPlayers = await Player.find({ isActive: true }).lean();
+        const dbPlayersList = dbPlayers
+            .filter(p => {
+                // Solo incluir si no está ya en la lista de conectados
+                const isConnected = connected.some(c => c.name === p.username);
+                return !isConnected;
+            })
+            .map(p => ({
+                id: `db_${p._id}`,
+                name: p.username,
+                cardCount: p.cardIds?.length || 0,
+                status: 'offline',
+                cardIds: p.cardIds
+            }));
+        
+        return [...connected, ...dbPlayersList];
+    } catch (error) {
+        console.error('Error obteniendo jugadores de DB:', error);
+        return connected;
+    }
 }
 
 function getPendingPlayers() {
@@ -671,11 +704,15 @@ io.on('connection', (socket) => {
         ...gameState,
         patterns: Object.keys(BINGO_PATTERNS).map(k => ({
             id: k,
-            name: BINGO_PATTERNS[k].name
+            name: BINGO_PATTERNS[k].name,
+            description: BINGO_PATTERNS[k].description,
+            positions: BINGO_PATTERNS[k].positions
         }))
     });
     socket.emit('update_pending_players', getPendingPlayers());
-    socket.emit('update_players', getActivePlayers());
+    getActivePlayers().then(players => {
+        socket.emit('update_players', players);
+    });
     
     // ─────────────────────────────────────────────────────────────
     // JUGADOR: Unirse al juego
@@ -806,7 +843,10 @@ io.on('connection', (socket) => {
             pattern: gameState.pattern
         });
         
-        setTimeout(() => checkForAutomaticWinners(), 100);
+        // Verificar ganadores automáticos después de un breve delay
+        setTimeout(async () => {
+            await checkForAutomaticWinners();
+        }, 200);
     });
     
     // ─────────────────────────────────────────────────────────────
@@ -839,13 +879,30 @@ io.on('connection', (socket) => {
         gameState.pattern = data.type;
         gameState.customPattern = data.grid || [];
         
+        // Resetear ganadores cuando se cambia el patrón
+        resetWinnerManagement();
+        
         const patternInfo = BINGO_PATTERNS[data.type];
         console.log(`🎯 Patrón cambiado a: ${patternInfo?.name || data.type}`);
         
+        // Emitir a todos con información completa del patrón
         io.emit('pattern_changed', {
             type: data.type,
             name: patternInfo?.name || data.type,
+            description: patternInfo?.description || '',
+            positions: patternInfo?.positions || null,
             grid: data.grid
+        });
+        
+        // También actualizar el estado sincronizado
+        io.emit('sync_state', {
+            ...gameState,
+            patterns: Object.keys(BINGO_PATTERNS).map(k => ({
+                id: k,
+                name: BINGO_PATTERNS[k].name,
+                description: BINGO_PATTERNS[k].description,
+                positions: BINGO_PATTERNS[k].positions
+            }))
         });
     });
     
@@ -887,7 +944,10 @@ io.on('connection', (socket) => {
         
         pendingPlayers.delete(socketId);
         io.emit('update_pending_players', getPendingPlayers());
-        io.emit('update_players', getActivePlayers());
+        
+        // Actualizar lista de jugadores activos (ahora incluye DB)
+        const activePlayers = await getActivePlayers();
+        io.emit('update_players', activePlayers);
         
         console.log(`✅ Jugador aceptado: ${pending.username}`);
     });
@@ -930,11 +990,15 @@ io.on('connection', (socket) => {
             validIds.forEach(id => takenCards.add(id));
             await addPlayerToDB(name, validIds);
             
-            io.emit('update_players', getActivePlayers());
+            // Actualizar lista de jugadores activos (ahora incluye DB)
+            const activePlayers = await getActivePlayers();
+            io.emit('update_players', activePlayers);
+            
             socket.emit('admin_success', {
                 message: `Jugador "${name}" agregado con ${validIds.length} cartones`
             });
         } catch (error) {
+            console.error('Error agregando jugador:', error);
             socket.emit('admin_error', { message: 'Error agregando jugador' });
         }
     });
@@ -954,7 +1018,9 @@ io.on('connection', (socket) => {
             
             target.emit('kicked');
             target.disconnect();
-            io.emit('update_players', getActivePlayers());
+            getActivePlayers().then(players => {
+                io.emit('update_players', players);
+            });
         }
     });
     
@@ -981,7 +1047,9 @@ io.on('connection', (socket) => {
         
         io.emit('game_reset');
         io.emit('update_pending_players', getPendingPlayers());
-        io.emit('update_players', getActivePlayers());
+        getActivePlayers().then(players => {
+            io.emit('update_players', players);
+        });
         
         console.log('🔄 Nueva ronda iniciada');
     });
@@ -1054,7 +1122,9 @@ io.on('connection', (socket) => {
                 pattern: gameState.pattern
             });
             
-            setTimeout(() => checkForAutomaticWinners(), 100);
+            setTimeout(async () => {
+                await checkForAutomaticWinners();
+            }, 200);
         }, 5000);
         
         io.emit('auto_play_started');

@@ -478,9 +478,19 @@
         function isPatternCell(idx, patternType) {
             const pattern = patterns[patternType];
             if (!pattern?.positions) return false;
-            return pattern.positions.some(line => 
-                Array.isArray(line) ? line.includes(idx) : line === idx
-            );
+            
+            // Si positions es un array de arrays (líneas)
+            if (Array.isArray(pattern.positions) && pattern.positions.length > 0) {
+                if (Array.isArray(pattern.positions[0])) {
+                    // Es un array de líneas, aplanar
+                    const flatPositions = pattern.positions.flat();
+                    return flatPositions.includes(idx);
+                } else {
+                    // Es un array plano
+                    return pattern.positions.includes(idx);
+                }
+            }
+            return false;
         }
         
         function showWinnersModal() {
@@ -538,8 +548,15 @@
             document.getElementById('announcement-text').textContent = state.message;
             currentPattern = state.pattern;
             
+            // Sincronizar patrones recibidos con información completa
             if (state.patterns) {
-                state.patterns.forEach(p => patterns[p.id] = p);
+                state.patterns.forEach(p => {
+                    patterns[p.id] = {
+                        name: p.name,
+                        description: p.description,
+                        positions: p.positions
+                    };
+                });
             }
             
             const patternInfo = patterns[state.pattern];
@@ -616,8 +633,24 @@
         
         socket.on('pattern_changed', (data) => {
             currentPattern = data.type;
+            
+            // Actualizar información del patrón
+            if (!patterns[data.type]) {
+                patterns[data.type] = {};
+            }
+            patterns[data.type].name = data.name;
+            patterns[data.type].description = data.description;
+            if (data.positions) {
+                patterns[data.type].positions = data.positions;
+            }
+            
             const patternInfo = patterns[data.type] || { name: data.name };
             document.getElementById('mode-display').textContent = patternInfo.name || data.type;
+            
+            // Actualizar visualización del patrón en el modal si está abierto
+            if (!document.getElementById('pattern-modal').classList.contains('hidden')) {
+                showPatternModal();
+            }
         });
         
         socket.on('message_updated', (msg) => {

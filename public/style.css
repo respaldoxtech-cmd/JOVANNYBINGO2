@@ -1270,6 +1270,69 @@ input:focus {
     gap: var(--spacing-sm);
 }
 
+.pattern-display-large {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.pattern-preview-large {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--bg-surface);
+    border-radius: var(--radius-md);
+}
+
+.large-pattern-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    width: 200px;
+    height: 200px;
+}
+
+.large-pattern-cell {
+    aspect-ratio: 1;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    transition: all var(--transition-fast);
+}
+
+.large-pattern-cell.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+.large-pattern-cell.free {
+    background: linear-gradient(135deg, var(--warning), #d97706);
+    color: white;
+}
+
+.pattern-info {
+    text-align: center;
+}
+
+.pattern-name-large {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.pattern-desc-small {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
 .mini-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -1296,8 +1359,10 @@ input:focus {
     color: var(--text-secondary);
     padding: var(--spacing-sm) var(--spacing-md);
     border-radius: var(--radius-md);
-    font-size: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
     transition: all var(--transition-fast);
+    width: 100%;
 }
 
 .btn-change:hover {
@@ -1464,6 +1529,25 @@ input:focus {
 .player-cards {
     font-size: 0.75rem;
     color: var(--text-muted);
+}
+
+.status-badge {
+    font-size: 0.625rem;
+    margin-left: var(--spacing-xs);
+}
+
+.status-badge.online {
+    color: var(--success);
+}
+
+.status-badge.offline {
+    color: var(--text-muted);
+}
+
+.offline-note {
+    font-size: 0.625rem;
+    color: var(--text-muted);
+    font-style: italic;
 }
 
 .player-actions {

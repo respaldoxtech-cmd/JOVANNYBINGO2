@@ -74,12 +74,15 @@
             <!-- Patrón actual -->
             <div class="pattern-box">
                 <h4>🎯 Patrón Actual</h4>
-                <div class="pattern-display">
-                    <div class="pattern-preview">
-                        <div id="current-pattern-grid" class="mini-grid"></div>
-                        <span id="current-pattern-name">LÍNEA</span>
+                <div class="pattern-display-large">
+                    <div class="pattern-preview-large">
+                        <div id="current-pattern-grid" class="large-pattern-grid"></div>
+                        <div class="pattern-info">
+                            <span id="current-pattern-name" class="pattern-name-large">LÍNEA</span>
+                            <span id="current-pattern-desc" class="pattern-desc-small"></span>
+                        </div>
                     </div>
-                    <button onclick="showPatternSelector()" class="btn-change">Cambiar</button>
+                    <button onclick="showPatternSelector()" class="btn-change">Cambiar Patrón</button>
                 </div>
             </div>
         </section>
@@ -510,17 +513,33 @@
 
         function updatePatternDisplay() {
             const pattern = PATTERNS[currentPattern];
-            document.getElementById('current-pattern-name').textContent = 
-                pattern?.name || (currentPattern === 'custom' ? 'PERSONALIZADO' : currentPattern);
+            const nameEl = document.getElementById('current-pattern-name');
+            const descEl = document.getElementById('current-pattern-desc');
+            
+            nameEl.textContent = pattern?.name || (currentPattern === 'custom' ? 'PERSONALIZADO' : currentPattern);
+            descEl.textContent = pattern?.description || '';
             
             const grid = document.getElementById('current-pattern-grid');
             if (currentPattern === 'custom') {
                 grid.innerHTML = customGrid.map((active, i) => 
-                    `<div class="micro-cell ${active ? 'active' : ''} ${i === 12 ? 'free' : ''}"></div>`
+                    `<div class="large-pattern-cell ${active ? 'active' : ''} ${i === 12 ? 'free' : ''}">${i === 12 ? '★' : ''}</div>`
                 ).join('');
             } else if (pattern) {
-                grid.innerHTML = renderMiniGrid(pattern.positions);
+                grid.innerHTML = renderLargeGrid(pattern.positions);
+            } else {
+                grid.innerHTML = '';
             }
+        }
+        
+        function renderLargeGrid(positions) {
+            let html = '';
+            const flatPositions = positions.flat();
+            for (let i = 0; i < 25; i++) {
+                const isActive = flatPositions.includes(i);
+                const isFree = i === 12;
+                html += `<div class="large-pattern-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}">${isFree ? '★' : ''}</div>`;
+            }
+            return html;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -615,11 +634,11 @@
             list.innerHTML = players.map(p => `
                 <li class="player-item">
                     <div class="player-info">
-                        <span class="player-name">${p.name}</span>
+                        <span class="player-name">${p.name} <span class="status-badge ${p.status === 'online' ? 'online' : 'offline'}">${p.status === 'online' ? '🟢' : '⚫'}</span></span>
                         <span class="player-cards">${p.cardCount} cartón(es)</span>
                     </div>
                     <div class="player-actions">
-                        <button onclick="kickPlayer('${p.id}')" class="btn-kick" title="Expulsar">🚫</button>
+                        ${p.status === 'online' ? `<button onclick="kickPlayer('${p.id}')" class="btn-kick" title="Expulsar">🚫</button>` : '<span class="offline-note">Sin conexión</span>'}
                     </div>
                 </li>
             `).join('');
@@ -721,6 +740,18 @@
             calledNumbers = state.calledNumbers;
             currentPattern = state.pattern;
             
+            // Sincronizar patrones recibidos
+            if (state.patterns) {
+                state.patterns.forEach(p => {
+                    if (!PATTERNS[p.id]) {
+                        PATTERNS[p.id] = {};
+                    }
+                    PATTERNS[p.id].name = p.name;
+                    PATTERNS[p.id].description = p.description;
+                    PATTERNS[p.id].positions = p.positions;
+                });
+            }
+            
             document.getElementById('called-count').textContent = calledNumbers.length;
             document.getElementById('admin-message').value = state.message;
             
@@ -755,6 +786,17 @@
 
         socket.on('pattern_changed', (data) => {
             currentPattern = data.type;
+            if (data.grid) {
+                customGrid = data.grid;
+            }
+            // Actualizar PATTERNS con la información recibida
+            if (data.positions) {
+                if (!PATTERNS[data.type]) {
+                    PATTERNS[data.type] = {};
+                }
+                PATTERNS[data.type].name = data.name;
+                PATTERNS[data.type].positions = data.positions;
+            }
             updatePatternDisplay();
         });
 
