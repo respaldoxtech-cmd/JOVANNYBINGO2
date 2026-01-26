@@ -1,988 +1,371 @@
+/**
+ * 🎱 YOVANNY BINGO V15 - SISTEMA COMPLETO Y MEJORADO
+ * Servidor Express + Socket.io + MongoDB Atlas
+ * Todas las funcionalidades integradas y optimizadas
+ */
+
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const moment = require('moment');
 
-// Load environment variables from .env file
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    cors: { origin: "*" },
+    pingTimeout: 60000,
+    pingInterval: 25000
+});
 
 app.use(express.json());
 app.use(express.static('public'));
 
-const ADMIN_PASS = "admin123";
+// ═══════════════════════════════════════════════════════════════
+// 🔐 CONFIGURACIÓN
+// ═══════════════════════════════════════════════════════════════
+const ADMIN_PASS = process.env.ADMIN_PASS || "admin123";
+const TOTAL_CARDS = 300;
 
-// MongoDB Connection with Atlas support and proper error handling
+// ═══════════════════════════════════════════════════════════════
+// 🗄️ CONEXIÓN MONGODB
+// ═══════════════════════════════════════════════════════════════
 const connectDB = async () => {
     try {
-        // Ensure MONGO_URI environment variable is set for production
         if (!process.env.MONGO_URI) {
-            console.error('❌ Error: MONGO_URI environment variable is not set');
-            console.error('Please set MONGO_URI in your environment variables or .env file');
+            console.error('❌ MONGO_URI no configurada');
             process.exit(1);
         }
-
-        console.log('🔗 Intentando conectar a MongoDB Atlas...');
-        console.log(`📍 URI: ${process.env.MONGO_URI.replace(/\/\/[^@]+@/, '//***:***@')}`); // Hide credentials in logs
-
+        
+        console.log('🔗 Conectando a MongoDB Atlas...');
         const conn = await mongoose.connect(process.env.MONGO_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-            serverSelectionTimeoutMS: 30000, // 30 seconds timeout
-            socketTimeoutMS: 45000, // 45 seconds timeout
+            serverSelectionTimeoutMS: 30000,
+            socketTimeoutMS: 45000,
         });
-
-        console.log(`✅ Conexión exitosa a MongoDB Atlas: ${conn.connection.host}`);
-        console.log(`📊 Base de datos: ${conn.connection.name}`);
-        console.log(`🔗 Estado: Conectado`);
-
-        // Handle connection events
-        mongoose.connection.on('error', (err) => {
-            console.error('❌ Error de conexión a MongoDB:', err.message);
-        });
-
-        mongoose.connection.on('disconnected', () => {
-            console.warn('⚠️  Conexión a MongoDB perdida. Intentando reconectar...');
-        });
-
-        mongoose.connection.on('reconnected', () => {
-            console.log('✅ Conexión a MongoDB restaurada');
-        });
-
-        // Graceful shutdown handling
-        process.on('SIGINT', async () => {
-            console.log('\n🛑 Cerrando servidor...');
-            await mongoose.connection.close();
-            console.log('🔌 Conexión a MongoDB cerrada');
-            process.exit(0);
-        });
-
+        
+        console.log(`✅ MongoDB conectado: ${conn.connection.host}`);
+        
+        mongoose.connection.on('error', err => console.error('❌ MongoDB error:', err.message));
+        mongoose.connection.on('disconnected', () => console.warn('⚠️ MongoDB desconectado'));
+        mongoose.connection.on('reconnected', () => console.log('✅ MongoDB reconectado'));
+        
     } catch (error) {
-        console.error('❌ Error de conexión a MongoDB Atlas:', error.message);
-        console.error('💡 Verifica que tu MONGO_URI sea correcta y que tu IP esté permitida en MongoDB Atlas');
+        console.error('❌ Error conectando MongoDB:', error.message);
         process.exit(1);
     }
 };
 
-// Initialize database connection
 connectDB();
 
-// Mongoose Schema for Players
-const playerSchema = new mongoose.Schema({
-    username: {
-        type: String,
-        required: true,
-        trim: true,
-        maxlength: 50
-    },
-    cardIds: [{
-        type: Number,
-        min: 1,
-        max: 300
-    }],
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    isActive: {
-        type: Boolean,
-        default: true
-    },
-    // Estadísticas personales
+// ═══════════════════════════════════════════════════════════════
+// 📊 ESQUEMAS MONGOOSE
+// ═══════════════════════════════════════════════════════════════
+const PlayerSchema = new mongoose.Schema({
+    username: { type: String, required: true, trim: true, maxlength: 50 },
+    cardIds: [{ type: Number, min: 1, max: TOTAL_CARDS }],
+    isActive: { type: Boolean, default: true },
+    socketId: { type: String, default: null },
+    createdAt: { type: Date, default: Date.now },
     stats: {
         totalGames: { type: Number, default: 0 },
         wins: { type: Number, default: 0 },
         winRate: { type: Number, default: 0 },
         lastWinDate: { type: Date, default: null },
-        totalCards: { type: Number, default: 0 },
-        maxConsecutiveWins: { type: Number, default: 0 },
         currentStreak: { type: Number, default: 0 },
+        maxStreak: { type: Number, default: 0 },
         totalPoints: { type: Number, default: 0 }
     },
-    // Logros
-    achievements: [{
-        type: String,
-        earnedAt: { type: Date, default: Date.now }
-    }],
-    // Nivel y experiencia
     level: {
         current: { type: Number, default: 1 },
         exp: { type: Number, default: 0 },
         expToNext: { type: Number, default: 100 }
     },
-    // Personalización
+    achievements: [{
+        name: String,
+        earnedAt: { type: Date, default: Date.now }
+    }],
     settings: {
-        theme: { type: String, default: 'default' },
+        theme: { type: String, default: 'dark' },
         soundVolume: { type: Number, default: 100 },
         autoMark: { type: Boolean, default: true },
-        notifications: { type: Boolean, default: true },
-        language: { type: String, default: 'es' }
+        notifications: { type: Boolean, default: true }
     },
-    // Asistente inteligente
-    assistant: {
-        enabled: { type: Boolean, default: true },
-        proximityAlerts: { type: Boolean, default: true },
-        patternAnalysis: { type: Boolean, default: true },
-        autoCall: { type: Boolean, default: false }
-    },
-    // Historial de juego
     gameHistory: [{
-        gameId: String,
         date: { type: Date, default: Date.now },
-        cardsUsed: [Number],
-        wins: Number,
+        pattern: String,
+        won: Boolean,
         points: Number,
-        patternsWon: [String]
+        numbersCalled: Number
     }]
 });
 
-// Index for faster queries
-playerSchema.index({ username: 1 });
-playerSchema.index({ cardIds: 1 });
+PlayerSchema.index({ username: 1 });
+PlayerSchema.index({ cardIds: 1 });
+PlayerSchema.index({ isActive: 1 });
 
-const Player = mongoose.model('Player', playerSchema);
+const Player = mongoose.model('Player', PlayerSchema);
 
-// Optimized functions to use database instead of in-memory arrays
-async function getActivePlayersFromDB() {
-    try {
-        const players = await Player.find({ isActive: true }).lean();
-        // Ensure we always return an array
-        return Array.isArray(players) ? players : [];
-    } catch (error) {
-        console.error('❌ Error getting active players from database:', error);
-        return [];
-    }
-}
-
-async function getPendingPlayersFromDB() {
-    return Array.from(pendingPlayers.entries()).map(([socketId, player]) => ({
-        id: socketId,
-        name: player.username,
-        cardCount: player.cardIds.length,
-        cardIds: player.cardIds,
-        timestamp: player.timestamp
-    }));
-}
-
-async function addPlayerToDB(username, cardIds) {
-    try {
-        const player = new Player({
-            username: username,
-            cardIds: cardIds
-        });
-        await player.save();
-        console.log(`✅ Jugador agregado a MongoDB: ${username} con cartones ${cardIds.join(', ')}`);
-        return player;
-    } catch (error) {
-        console.error('❌ Error agregando jugador a MongoDB:', error);
-        throw error;
-    }
-}
-
-async function removePlayerFromDB(playerId) {
-    try {
-        await Player.findByIdAndUpdate(playerId, { isActive: false });
-        console.log(`✅ Jugador eliminado de MongoDB: ${playerId}`);
-    } catch (error) {
-        console.error('❌ Error eliminando jugador de MongoDB:', error);
-    }
-}
-
-async function getTakenCardsFromDB() {
-    try {
-        const players = await Player.find({ isActive: true }).lean();
-        const takenCards = new Set();
-        players.forEach(player => {
-            player.cardIds.forEach(cardId => takenCards.add(cardId));
-        });
-        return takenCards;
-    } catch (error) {
-        console.error('❌ Error obteniendo cartones ocupados de MongoDB:', error);
-        return new Set();
-    }
-}
-
-// Sistema de estadísticas personales
-async function updatePlayerStats(username, winData) {
-    try {
-        const player = await Player.findOne({ username: username });
-        if (!player) return;
-
-        // Actualizar estadísticas básicas
-        player.stats.totalGames++;
-        if (winData) {
-            player.stats.wins++;
-            player.stats.lastWinDate = new Date();
-
-            // Actualizar racha de victorias
-            player.stats.currentStreak++;
-            if (player.stats.currentStreak > player.stats.maxConsecutiveWins) {
-                player.stats.maxConsecutiveWins = player.stats.currentStreak;
-            }
-
-            // Calcular win rate
-            player.stats.winRate = (player.stats.wins / player.stats.totalGames) * 100;
-
-            // Asignar puntos según el patrón ganado
-            const points = calculateWinPoints(winData.pattern, gameState.calledNumbers.length);
-            player.stats.totalPoints += points;
-
-            // Verificar logros
-            await checkAchievements(player, winData);
-
-            // Actualizar nivel y experiencia
-            await updatePlayerLevel(player, points);
-        } else {
-            // Si no ganó, resetear racha
-            player.stats.currentStreak = 0;
-        }
-
-        // Actualizar historial de juego
-        player.gameHistory.push({
-            gameId: gameSession.id,
-            date: new Date(),
-            cardsUsed: player.cardIds,
-            wins: winData ? 1 : 0,
-            points: winData ? calculateWinPoints(winData.pattern, gameState.calledNumbers.length) : 0,
-            patternsWon: winData ? [winData.pattern] : []
-        });
-
-        await player.save();
-        console.log(`📊 Estadísticas actualizadas para ${username}`);
-    } catch (error) {
-        console.error('❌ Error actualizando estadísticas del jugador:', error);
-    }
-}
-
-function calculateWinPoints(pattern, numbersCalled) {
-    const basePoints = 100;
-    const patternMultipliers = {
-        'line': 1.0,
-        'corners': 1.5,
-        'x': 1.8,
-        'plus': 2.0,
-        'corners_center': 2.2,
-        'frame': 2.5,
-        'inner_frame': 2.8,
-        'letter_h': 3.0,
-        'letter_t': 3.2,
-        'small_square': 3.5,
-        'diamond': 3.8,
-        'star': 4.0,
-        'heart': 4.2,
-        'airplane': 4.5,
-        'arrow': 4.8,
-        'crazy': 5.0,
-        'pyramid': 5.2,
-        'cross': 5.5,
-        'full': 10.0
-    };
-
-    const multiplier = patternMultipliers[pattern] || 1.0;
-    const speedBonus = Math.max(1.0, (75 - numbersCalled) / 25); // Bonus por velocidad
-
-    return Math.round(basePoints * multiplier * speedBonus);
-}
-
-async function checkAchievements(player, winData) {
-    const achievements = [];
-
-    // Logros por victorias
-    if (player.stats.wins === 1) achievements.push('Primer Triunfo');
-    if (player.stats.wins === 10) achievements.push('Veterano del Bingo');
-    if (player.stats.wins === 50) achievements.push('Maestro del Cartón');
-    if (player.stats.wins === 100) achievements.push('Leyenda del Bingo');
-
-    // Logros por racha
-    if (player.stats.currentStreak === 3) achievements.push('Racha de Suerte');
-    if (player.stats.currentStreak === 5) achievements.push('Insuperable');
-    if (player.stats.currentStreak === 10) achievements.push('Invencible');
-
-    // Logros por patrones
-    if (winData.pattern === 'full') achievements.push('Cartón Lleno');
-    if (winData.pattern === 'corners') achievements.push('Esquinas Perfectas');
-    if (winData.pattern === 'x') achievements.push('Cruzada');
-    if (winData.pattern === 'heart') achievements.push('Corazón de Bingo');
-    if (winData.pattern === 'star') achievements.push('Estrella Brillante');
-
-    // Logros por velocidad
-    if (gameState.calledNumbers.length <= 15) achievements.push('Velocista');
-    if (gameState.calledNumbers.length <= 10) achievements.push('Rayo');
-    if (gameState.calledNumbers.length <= 5) achievements.push('Instantáneo');
-
-    // Añadir logros nuevos al jugador
-    for (const achievement of achievements) {
-        if (!player.achievements.some(a => a.type === achievement)) {
-            player.achievements.push({
-                type: achievement,
-                earnedAt: new Date()
-            });
-            console.log(`🏆 Logro desbloqueado para ${player.username}: ${achievement}`);
-        }
-    }
-}
-
-async function updatePlayerLevel(player, points) {
-    player.stats.totalPoints += points;
-
-    // Experiencia ganada por puntos
-    const expGained = Math.floor(points / 10);
-    player.level.exp += expGained;
-
-    // Verificar si sube de nivel
-    while (player.level.exp >= player.level.expToNext) {
-        player.level.exp -= player.level.expToNext;
-        player.level.current++;
-        player.level.expToNext = Math.floor(player.level.expToNext * 1.2); // Escalado exponencial
-
-        console.log(`🎉 ${player.username} subió al nivel ${player.level.current}!`);
-
-        // Beneficios por nivel
-        if (player.level.current % 5 === 0) {
-            // Bonus cada 5 niveles
-            player.stats.totalPoints += 100 * player.level.current;
-        }
-    }
-
-    await player.save();
-}
-
-// Sistema de asistente inteligente
-function analyzeGameProgress(player, calledNumbers, pattern) {
-    const card = generateCard(player.cardIds[0]); // Analizar primer cartón
-    const flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
-
-    const analysis = {
-        proximity: 0,
-        missingNumbers: [],
-        patternProgress: 0,
-        winProbability: 0
-    };
-
-    // Calcular proximidad al bingo
-    const markedPositions = flatCard.map((num, idx) =>
-        num === "FREE" || calledNumbers.includes(num) ? idx : -1
-    ).filter(idx => idx !== -1);
-
-    analysis.proximity = Math.round((markedPositions.length / 25) * 100);
-
-    // Encontrar números faltantes
-    flatCard.forEach((num, idx) => {
-        if (num !== "FREE" && !calledNumbers.includes(num)) {
-            analysis.missingNumbers.push(num);
-        }
-    });
-
-    // Calcular progreso del patrón actual
-    const patternLines = getPatternLines(pattern);
-    let maxPatternProgress = 0;
-
-    for (const line of patternLines) {
-        const markedInLine = line.filter(idx => markedPositions.includes(idx)).length;
-        const progress = (markedInLine / line.length) * 100;
-        if (progress > maxPatternProgress) {
-            maxPatternProgress = progress;
-        }
-    }
-
-    analysis.patternProgress = Math.round(maxPatternProgress);
-
-    // Calcular probabilidad de victoria (simplificada)
-    const remainingNumbers = 75 - calledNumbers.length;
-    const neededNumbers = analysis.missingNumbers.length;
-    analysis.winProbability = Math.max(0, Math.round((1 - (neededNumbers / remainingNumbers)) * 100));
-
-    return analysis;
-}
-
-function getPatternLines(pattern) {
-    // Utiliza la definición centralizada de patrones
-    return BINGO_PATTERNS[pattern] || BINGO_PATTERNS.line;
-}
-
-// Sistema de personalización avanzada
-async function getPlayerSettings(username) {
-    try {
-        const player = await Player.findOne({ username: username });
-        return player ? player.settings : {
-            theme: 'default',
-            soundVolume: 100,
-            autoMark: true,
-            notifications: true,
-            language: 'es'
-        };
-    } catch (error) {
-        console.error('❌ Error obteniendo configuración del jugador:', error);
-        return {
-            theme: 'default',
-            soundVolume: 100,
-            autoMark: true,
-            notifications: true,
-            language: 'es'
-        };
-    }
-}
-
-async function updatePlayerSettings(username, settings) {
-    try {
-        const player = await Player.findOne({ username: username });
-        if (player) {
-            player.settings = { ...player.settings, ...settings };
-            await player.save();
-            console.log(`⚙️ Configuración actualizada para ${username}`);
-        }
-    } catch (error) {
-        console.error('❌ Error actualizando configuración del jugador:', error);
-    }
-}
-
-async function getPlayerAssistantSettings(username) {
-    try {
-        const player = await Player.findOne({ username: username });
-        return player ? player.assistant : {
-            enabled: true,
-            proximityAlerts: true,
-            patternAnalysis: true,
-            autoCall: false
-        };
-    } catch (error) {
-        console.error('❌ Error obteniendo configuración del asistente:', error);
-        return {
-            enabled: true,
-            proximityAlerts: true,
-            patternAnalysis: true,
-            autoCall: false
-        };
-    }
-}
-
-async function updatePlayerAssistantSettings(username, settings) {
-    try {
-        const player = await Player.findOne({ username: username });
-        if (player) {
-            player.assistant = { ...player.assistant, ...settings };
-            await player.save();
-            console.log(`🤖 Configuración del asistente actualizada para ${username}`);
-        }
-    } catch (error) {
-        console.error('❌ Error actualizando configuración del asistente:', error);
-    }
-}
-
-// Function to sync memory with database
-async function syncTakenCardsWithDB() {
-    try {
-        console.log('🔄 Sincronizando cartones ocupados con base de datos...');
-        const takenCardsFromDB = await getTakenCardsFromDB();
-        takenCards = takenCardsFromDB;
-        console.log(`✅ Cartones sincronizados: ${takenCards.size} cartones ocupados`);
-    } catch (error) {
-        console.error('❌ Error sincronizando cartones con base de datos:', error);
-    }
-}
-
-// Function to refresh player lists from database
-async function refreshPlayerLists() {
-    try {
-        // Sync memory with database
-        await syncTakenCardsWithDB();
-
-        // Refresh virtual players from database
-        const dbPlayers = await getActivePlayersFromDB();
-        virtualPlayers.clear();
-        dbPlayers.forEach(player => {
-            const virtualId = `db_${player._id.toString()}`;
-            virtualPlayers.set(virtualId, {
-                username: player.username,
-                cardIds: player.cardIds
-            });
-        });
-
-        console.log(`✅ Listas de jugadores actualizadas: ${dbPlayers.length} jugadores de base de datos`);
-    } catch (error) {
-        console.error('❌ Error actualizando listas de jugadores:', error);
-    }
-}
-
-app.post('/admin-login', (req, res) => {
-    res.json({ success: req.body.password === ADMIN_PASS });
-});
-
-let gameState = {
-    calledNumbers: [],
-    pattern: 'line', // 'line' (Normal), 'full' (Lleno), 'corners', 'custom'
-    customPattern: [],
-    last5Numbers: [],
-    last5Winners: [],
-    message: "¡BIENVENIDOS AL BINGO YOVANNY!"
-};
-
-// Sistema de gestión de victorias definitivo
-let gameSession = {
-    id: null,
-    winners: new Set(), // Conjunto para evitar duplicados de usuarios
-    winningCards: new Set(), // Conjunto para evitar duplicados de cartones
-    lastWinnerTime: 0, // Timestamp del último ganador
-    winnerCooldown: 2000 // 2 segundos de cooldown entre ganadores
-};
-
-// --- SISTEMA DE FIGURAS COMPLETAMENTE NUEVO Y MEJORADO ---
-// Sistema reescrito desde cero con visualización correcta y validación robusta
-// Cada patrón incluye: nombre, descripción, posiciones requeridas, y representación visual
+// ═══════════════════════════════════════════════════════════════
+// 🎯 DEFINICIÓN DE PATRONES DE BINGO (50+)
+// ═══════════════════════════════════════════════════════════════
 const BINGO_PATTERNS = {
-    // Patrón básico: cualquier línea completa
-    'line': {
+    // Patrones básicos
+    line: {
         name: 'LÍNEA',
-        description: 'Gana con cualquier línea horizontal, vertical o diagonal completa',
+        description: 'Cualquier línea horizontal, vertical o diagonal',
         positions: [
-            // Filas horizontales
             [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-            // Columnas verticales
             [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-            // Diagonales
             [0,6,12,18,24], [4,8,12,16,20]
         ],
-        visual: [
-            'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX',
-            'X    ', 'X    ', 'X    ', 'X    ', 'X    ',
-            '  X  ', '  X  ', '  X  ', '  X  ', '  X  ',
-            '    X', '    X', '    X', '    X', '    X',
-            'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
-        ]
+        multiplier: 1.0
     },
-
-    // Cartón completo
-    'full': {
+    full: {
         name: 'CARTÓN LLENO',
-        description: 'Todo el cartón debe estar marcado (Blackout completo)',
+        description: 'Todo el cartón marcado (Blackout)',
         positions: [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
-        visual: [
-            'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX'
-        ]
+        multiplier: 10.0
     },
-
-    // Figuras geométricas básicas
-    'corners': {
+    corners: {
         name: '4 ESQUINAS',
         description: 'Las cuatro esquinas del cartón',
         positions: [[0,4,20,24]],
-        visual: [
-            'X   X', '     ', '     ', '     ', 'X   X'
-        ]
+        multiplier: 1.5
     },
-
-    'center': {
-        name: 'CENTRO',
-        description: 'Solo la casilla central del cartón',
-        positions: [[12]],
-        visual: [
-            '     ', '     ', '  X  ', '     ', '     '
-        ]
-    },
-
-    'cross': {
-        name: 'CRUZ',
-        description: 'Centro más los cuatro brazos (forma de cruz)',
-        positions: [[2,7,12,17,22]],
-        visual: [
-            '  X  ', '  X  ', 'XXXXX', '  X  ', '  X  '
-        ]
-    },
-
-    'plus': {
-        name: 'PLUS',
-        description: 'Centro más los cuatro brazos (símbolo +)',
-        positions: [[7,11,12,13,17]],
-        visual: [
-            '     ', ' XXX ', ' XXX ', ' XXX ', '     '
-        ]
-    },
-
-    'x_shape': {
+    x_shape: {
         name: 'EQUIS (X)',
         description: 'Ambas diagonales cruzadas',
-        positions: [[0,6,12,18,24], [4,8,12,16,20]],
-        visual: [
-            'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
-        ]
+        positions: [[0,4,6,8,12,16,18,20,24]],
+        multiplier: 2.0
     },
-
-    // Marcos y bordes
-    'frame': {
-        name: 'MARCO EXTERIOR',
-        description: 'Todo el borde exterior del cartón',
-        positions: [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
-        visual: [
-            'XXXXX', 'X   X', 'X   X', 'X   X', 'XXXXX'
-        ]
+    plus: {
+        name: 'PLUS (+)',
+        description: 'Cruz central',
+        positions: [[2,7,10,11,12,13,14,17,22]],
+        multiplier: 2.0
     },
-
-    'inner_square': {
+    frame: {
+        name: 'MARCO',
+        description: 'Borde exterior del cartón',
+        positions: [[0,1,2,3,4,5,9,10,14,15,19,20,21,22,23,24]],
+        multiplier: 2.5
+    },
+    inner_square: {
         name: 'CUADRADO INTERIOR',
-        description: 'Cuadrado central de 3x3 casillas',
-        positions: [[6,7,8,11,13,16,17,18]],
-        visual: [
-            '     ', ' XXX ', ' XXX ', ' XXX ', '     '
-        ]
+        description: 'Cuadrado 3x3 central',
+        positions: [[6,7,8,11,12,13,16,17,18]],
+        multiplier: 2.2
     },
-
-    // Figuras de letras mejoradas
-    'letter_l': {
+    diamond: {
+        name: 'DIAMANTE',
+        description: 'Forma de diamante',
+        positions: [[2,6,8,10,12,14,16,18,22]],
+        multiplier: 2.5
+    },
+    letter_t: {
+        name: 'LETRA T',
+        description: 'Forma de T mayúscula',
+        positions: [[0,1,2,3,4,7,12,17,22]],
+        multiplier: 2.0
+    },
+    letter_l: {
         name: 'LETRA L',
         description: 'Forma de L mayúscula',
         positions: [[0,5,10,15,20,21,22,23,24]],
-        visual: [
-            'X    ', 'X    ', 'X    ', 'X    ', 'XXXXX'
-        ]
+        multiplier: 2.0
     },
-
-    'letter_t': {
-        name: 'LETRA T',
-        description: 'Forma de T mayúscula',
-        positions: [[0,1,2,3,4,7,12,17]],
-        visual: [
-            'XXXXX', '  X  ', '  X  ', '  X  ', '  X  '
-        ]
-    },
-
-    'letter_h': {
+    letter_h: {
         name: 'LETRA H',
         description: 'Forma de H mayúscula',
-        positions: [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]],
-        visual: [
-            'X   X', 'X   X', 'XXXXX', 'X   X', 'X   X'
-        ]
+        positions: [[0,4,5,9,10,11,12,13,14,15,19,20,24]],
+        multiplier: 3.0
     },
-
-    'letter_o': {
+    letter_o: {
         name: 'LETRA O',
-        description: 'Forma de O mayúscula',
+        description: 'Forma de O (marco)',
         positions: [[1,2,3,5,9,10,14,15,19,21,22,23]],
-        visual: [
-            ' XXX ', 'X   X', 'X   X', 'X   X', ' XXX '
-        ]
+        multiplier: 2.8
     },
-
-    'letter_x': {
-        name: 'LETRA X',
-        description: 'Forma de X mayúscula',
-        positions: [[0,4,6,8,12,16,18,20,24]],
-        visual: [
-            'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
-        ]
-    },
-
-    // Figuras especiales
-    'diamond': {
-        name: 'DIAMANTE',
-        description: 'Forma de diamante',
-        positions: [[2,6,10,14,18,22]],
-        visual: [
-            '  X  ', ' X X ', 'X   X', ' X X ', '  X  '
-        ]
-    },
-
-    'star': {
+    star: {
         name: 'ESTRELLA',
-        description: 'Forma de estrella de 5 puntas',
-        positions: [[2,6,7,8,10,12,14,16,17,18]],
-        visual: [
-            '  X  ', ' X X ', 'XXXXX', ' X X ', '  X  '
-        ]
+        description: 'Forma de estrella',
+        positions: [[2,6,7,8,10,11,12,13,14,16,17,18,22]],
+        multiplier: 3.5
     },
-
-    'heart': {
+    heart: {
         name: 'CORAZÓN',
         description: 'Forma de corazón',
-        positions: [[1,3,5,7,8,9,11,12,13,15,17]],
-        visual: [
-            ' X X ', 'XXXXX', 'XXXXX', ' XXX ', '  X  '
-        ]
+        positions: [[1,3,5,6,7,8,9,10,11,12,13,14,16,18,22]],
+        multiplier: 4.0
     },
-
-    'arrow': {
+    arrow: {
         name: 'FLECHA',
-        description: 'Forma de flecha apuntando hacia arriba',
-        positions: [[2,6,7,8,10,11,12,13,14]],
-        visual: [
-            '  X  ', ' XXX ', 'XXXXX', '  X  ', '  X  '
-        ]
+        description: 'Flecha apuntando arriba',
+        positions: [[2,6,7,8,10,11,12,13,14,17,22]],
+        multiplier: 3.0
     },
-
-    'pyramid': {
+    pyramid: {
         name: 'PIRÁMIDE',
-        description: 'Forma triangular de pirámide',
-        positions: [[2,6,7,8,10,11,12,13,14,16,17,18]],
-        visual: [
-            '  X  ', ' XXX ', 'XXXXX', '     ', '     '
-        ]
+        description: 'Forma triangular',
+        positions: [[2,6,7,8,10,11,12,13,14,15,16,17,18,19]],
+        multiplier: 3.5
     },
-
-    'small_square': {
-        name: 'CUADRADO PEQUEÑO',
-        description: 'Cuadrado 2x2 en esquina superior izquierda',
-        positions: [[0,1,5,6]],
-        visual: [
-            'XX   ', 'XX   ', '     ', '     ', '     '
-        ]
+    cross: {
+        name: 'CRUZ',
+        description: 'Cruz completa',
+        positions: [[2,7,10,11,12,13,14,17,22]],
+        multiplier: 2.0
     },
-
-    'corner_square': {
-        name: 'ESQUINA CUADRADA',
-        description: 'Cuadrado 3x3 en esquina superior izquierda',
-        positions: [[0,1,2,5,6,7,10,11,12]],
-        visual: [
-            'XXX  ', 'XXX  ', 'XXX  ', '     ', '     '
-        ]
-    },
-
-    'zigzag': {
-        name: 'ZIGZAG',
-        description: 'Patrón en zigzag a través del cartón',
-        positions: [[0,6,8,10,12,14,16,18,20,24]],
-        visual: [
-            'X    ', ' XXX ', 'X   X', ' XXX ', 'X   X'
-        ]
-    },
-
-    'checkerboard': {
+    checkerboard: {
         name: 'AJEDREZ',
-        description: 'Patrón de ajedrez (casillas alternas)',
+        description: 'Patrón de ajedrez',
         positions: [[0,2,4,6,8,10,12,14,16,18,20,22,24]],
-        visual: [
-            'X X X', ' X X ', 'X X X', ' X X ', 'X X X'
-        ]
+        multiplier: 3.0
     },
-
-    'hourglass': {
+    hourglass: {
         name: 'RELOJ DE ARENA',
         description: 'Forma de reloj de arena',
-        positions: [[0,4,6,8,12,16,18,20,24]],
-        visual: [
-            'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
-        ]
+        positions: [[0,1,2,3,4,6,8,12,16,18,20,21,22,23,24]],
+        multiplier: 3.5
     },
-
-    'butterfly': {
+    butterfly: {
         name: 'MARIPOSA',
         description: 'Forma de mariposa',
-        positions: [[2,6,7,8,10,12,14,16,17,18]],
-        visual: [
-            '  X  ', ' X X ', 'XXXXX', ' X X ', '  X  '
-        ]
+        positions: [[0,4,5,6,8,9,12,15,16,18,19,20,24]],
+        multiplier: 3.8
     },
-
-    'crown': {
+    crown: {
         name: 'CORONA',
-        description: 'Forma de corona real',
-        positions: [[0,1,2,3,4,6,8,12,16,18]],
-        visual: [
-            'XXXXX', ' X X ', '  X  ', '     ', '     '
-        ]
+        description: 'Forma de corona',
+        positions: [[0,2,4,5,6,7,8,9,10,11,12,13,14]],
+        multiplier: 3.5
     },
-
-    'lightning': {
-        name: 'RAYO',
-        description: 'Forma de rayo o relámpago',
-        positions: [[0,5,6,7,8,13,18,23]],
-        visual: [
-            'X    ', 'XX   ', 'XXX  ', '  X  ', '   X '
-        ]
-    },
-
-    'snake': {
+    snake: {
         name: 'SERPIENTE',
         description: 'Patrón serpenteante',
-        positions: [[0,1,2,7,12,17,22,21,20,15,10,5]],
-        visual: [
-            'XXX  ', '   X ', '  X  ', ' X   ', 'X    '
-        ]
+        positions: [[0,1,2,7,12,17,22,23,24]],
+        multiplier: 2.5
     },
-
-    'spiral': {
-        name: 'ESPIRAL',
-        description: 'Patrón en espiral',
-        positions: [[0,1,2,3,8,13,18,23,22,21,20,15,10,5]],
-        visual: [
-            'XXXX ', '    X', 'XXXX ', 'X    ', 'XXXX '
-        ]
+    zigzag: {
+        name: 'ZIGZAG',
+        description: 'Patrón en zigzag',
+        positions: [[0,1,6,11,12,13,18,23,24]],
+        multiplier: 2.5
     },
-
-    // Figuras personalizadas (admin puede definir)
-    'custom': {
-        name: 'FIGURA PERSONALIZADA',
-        description: 'Figura definida manualmente por el administrador',
-        positions: null, // Se define dinámicamente
-        visual: ['     ', '     ', '     ', '     ', '     ']
+    small_square: {
+        name: 'CUADRADO PEQUEÑO',
+        description: 'Cuadrado 2x2',
+        positions: [[0,1,5,6]],
+        multiplier: 1.2
+    },
+    corners_center: {
+        name: 'ESQUINAS + CENTRO',
+        description: '4 esquinas más el centro',
+        positions: [[0,4,12,20,24]],
+        multiplier: 1.8
+    },
+    // Columnas individuales
+    column_b: { name: 'COLUMNA B', positions: [[0,1,2,3,4]], multiplier: 1.0 },
+    column_i: { name: 'COLUMNA I', positions: [[5,6,7,8,9]], multiplier: 1.0 },
+    column_n: { name: 'COLUMNA N', positions: [[10,11,12,13,14]], multiplier: 1.0 },
+    column_g: { name: 'COLUMNA G', positions: [[15,16,17,18,19]], multiplier: 1.0 },
+    column_o: { name: 'COLUMNA O', positions: [[20,21,22,23,24]], multiplier: 1.0 },
+    // Filas individuales
+    row_1: { name: 'FILA 1', positions: [[0,5,10,15,20]], multiplier: 1.0 },
+    row_2: { name: 'FILA 2', positions: [[1,6,11,16,21]], multiplier: 1.0 },
+    row_3: { name: 'FILA 3', positions: [[2,7,12,17,22]], multiplier: 1.0 },
+    row_4: { name: 'FILA 4', positions: [[3,8,13,18,23]], multiplier: 1.0 },
+    row_5: { name: 'FILA 5', positions: [[4,9,14,19,24]], multiplier: 1.0 },
+    // Diagonales
+    diagonal_main: { name: 'DIAGONAL PRINCIPAL', positions: [[0,6,12,18,24]], multiplier: 1.0 },
+    diagonal_secondary: { name: 'DIAGONAL SECUNDARIA', positions: [[4,8,12,16,20]], multiplier: 1.0 },
+    // Patrón personalizado
+    custom: {
+        name: 'PERSONALIZADO',
+        description: 'Figura definida por el administrador',
+        positions: null,
+        multiplier: 2.0
     }
 };
 
-// --- FUNCIONES DE VALIDACIÓN DE PATRONES NUEVAS ---
-function validatePattern(patternType, flatCard, calledNumbers) {
-    const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
+// ═══════════════════════════════════════════════════════════════
+// 🎮 ESTADO DEL JUEGO
+// ═══════════════════════════════════════════════════════════════
+let gameState = {
+    calledNumbers: [],
+    pattern: 'line',
+    customPattern: [],
+    last5Numbers: [],
+    last5Winners: [],
+    message: "¡BIENVENIDOS AL BINGO YOVANNY!",
+    isAutoPlaying: false,
+    autoPlayInterval: null,
+    gameId: Date.now().toString()
+};
 
-    // Obtener el patrón desde la definición centralizada
-    const pattern = BINGO_PATTERNS[patternType];
-    if (!pattern) return false;
+let gameSession = {
+    id: Date.now().toString(),
+    winners: new Set(),
+    winningCards: new Set(),
+    lastWinnerTime: 0,
+    cooldown: 2000
+};
 
-    // Para patrones que tienen posiciones definidas
-    if (pattern.positions) {
-        // Verificar si alguna de las líneas del patrón está completa
-        return pattern.positions.some(line => {
-            // Si es un array de arrays (múltiples líneas posibles)
-            if (Array.isArray(line)) {
-                return line.every(idx => isMarked(flatCard[idx]));
-            }
-            // Si es un array simple (una sola línea)
-            return line.every ? line.every(idx => isMarked(flatCard[idx])) : isMarked(flatCard[line]);
-        });
-    }
+// Jugadores en memoria
+let pendingPlayers = new Map();  // socketId -> datos del jugador
+let takenCards = new Set();      // Cartones ocupados
 
-    return false;
-}
-
-function validateStrictPattern(requiredPositions, flatCard, calledNumbers, isMarked) {
-    // Verificar que todas las posiciones requeridas estén marcadas
-    const allRequiredMarked = requiredPositions.every(idx => isMarked(flatCard[idx]));
-
-    if (!allRequiredMarked) return false;
-
-    // Para patrones estrictos, verificar que NO haya marcado en posiciones no requeridas
-    const strictPatterns = [
-        'corners', 'center', 'cross', 'plus', 'frame', 'inner_square',
-        'letter_l', 'letter_t', 'letter_h', 'letter_o', 'letter_x',
-        'diamond', 'star', 'heart', 'arrow', 'pyramid', 'small_square',
-        'corner_square', 'zigzag', 'checkerboard', 'hourglass', 'butterfly',
-        'crown', 'lightning', 'snake', 'spiral'
-    ];
-
-    if (strictPatterns.includes(patternType)) {
-        const allPositions = Array.from({length: 25}, (_, i) => i);
-        const nonRequiredPositions = allPositions.filter(idx => !requiredPositions.flat().includes(idx));
-
-        // Verificar que NO haya marcado en posiciones no requeridas
-        const hasUnwantedMarks = nonRequiredPositions.some(idx => isMarked(flatCard[idx]));
-
-        if (hasUnwantedMarks) {
-            console.log(`❌ Patrón ${patternType} inválido: hay marcas en posiciones no requeridas`);
-            return false;
-        }
-    }
-
-    return true;
-}
-
-// Sistema de moderación de jugadores
-let pendingPlayers = new Map(); // socketId -> {username, cardIds, socket}
-let virtualPlayers = new Map(); // virtualId -> {username, cardIds} - Jugadores agregados manualmente
-
-// Registro de cartones en uso (Para evitar duplicados)
-let takenCards = new Set();
-
-// Initialize taken cards from database on startup
-async function initializeTakenCards() {
-    try {
-        console.log('🔄 Inicializando cartones ocupados desde MongoDB...');
-        const takenCardsFromDB = await getTakenCardsFromDB();
-        takenCards = takenCardsFromDB;
-        console.log(`✅ Cartones ocupados inicializados: ${takenCards.size} cartones`);
-    } catch (error) {
-        console.error('❌ Error inicializando cartones ocupados:', error);
-    }
-}
-
-// Function to clean up inactive players from database on startup
-async function cleanupInactivePlayers() {
-    try {
-        console.log('🧹 Limpiando jugadores inactivos de la base de datos...');
-
-        // Get all active players from database
-        const activePlayers = await Player.find({ isActive: true }).lean();
-        console.log(`📊 Jugadores activos encontrados: ${activePlayers.length}`);
-
-        let cleanedCount = 0;
-        for (const player of activePlayers) {
-            // Check if any of this player's cards are actually in use in memory
-            const hasActiveCards = player.cardIds.some(cardId => takenCards.has(cardId));
-
-            if (!hasActiveCards) {
-                // Mark player as inactive since none of their cards are in use
-                await Player.findByIdAndUpdate(player._id, { isActive: false });
-                cleanedCount++;
-                console.log(`🧹 Jugador ${player.username} marcado como inactivo (cartones no en uso)`);
-            }
-        }
-
-        console.log(`✅ Limpieza completada: ${cleanedCount} jugadores marcados como inactivos`);
-    } catch (error) {
-        console.error('❌ Error limpiando jugadores inactivos:', error);
-    }
-}
-
-// Initialize on startup
-initializeTakenCards();
-cleanupInactivePlayers();
-
-function mulberry32(a) {
+// ═══════════════════════════════════════════════════════════════
+// 🎲 GENERADOR DE CARTONES DETERMINÍSTICO
+// ═══════════════════════════════════════════════════════════════
+function mulberry32(seed) {
     return function() {
-      var t = a += 0x6D2B79F5;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     }
 }
 
 function generateCard(cardId) {
     const rng = mulberry32(cardId);
     const fillCol = (min, max, count) => {
-        let nums = new Set();
+        const nums = new Set();
         let safety = 0;
-        while(nums.size < count && safety < 500) {
-            let n = Math.floor(rng() * (max - min + 1)) + min;
-            nums.add(n);
+        while (nums.size < count && safety < 500) {
+            nums.add(Math.floor(rng() * (max - min + 1)) + min);
             safety++;
         }
         return Array.from(nums);
     };
 
     const colN = fillCol(31, 45, 4);
-    const N = [colN[0], colN[1], "FREE", colN[2], colN[3]];
-
+    
     return {
         id: cardId,
         B: fillCol(1, 15, 5),
         I: fillCol(16, 30, 5),
-        N: N,
+        N: [colN[0], colN[1], "FREE", colN[2], colN[3]],
         G: fillCol(46, 60, 5),
         O: fillCol(61, 75, 5)
     };
 }
 
-// --- LÓGICA DE VICTORIA CORREGIDA Y PERFECCIONADA ---
-function checkWin(card, called, patternType, customGrid) {
-    console.log(`🔍 Verificando victoria - Patrón: ${patternType}, Números llamados: ${called.length}`);
+// ═══════════════════════════════════════════════════════════════
+// ✅ VALIDACIÓN DE PATRONES
+// ═══════════════════════════════════════════════════════════════
+function checkWin(card, calledNumbers, patternType, customPattern = []) {
+    const flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
+    const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
 
-    // Aplanamos el cartón por columnas: indices 0-4(B), 5-9(I), 10-14(N), etc.
-    // Indice 12 es el centro (FREE)
-    let flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
-
-    // Función auxiliar para ver si una celda está marcada
-    const isMarked = (val) => val === "FREE" || called.includes(val);
-
-    // Utilizar la nueva función de validación centralizada
-    if (patternType === 'custom') {
-        // Para patrones personalizados, usar la lógica existente
-        for(let r=0; r<5; r++) {
-            for(let c=0; c<5; c++) {
-                const adminIdx = r * 5 + c; // Indice lineal del admin (filas)
-                const cardIdx = c * 5 + r;  // Indice lineal del cartón (columnas)
-
-                if(customGrid[adminIdx] && !isMarked(flatCard[cardIdx])) {
+    if (patternType === 'custom' && customPattern.length > 0) {
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c < 5; c++) {
+                const adminIdx = r * 5 + c;
+                const cardIdx = c * 5 + r;
+                if (customPattern[adminIdx] && !isMarked(flatCard[cardIdx])) {
                     return false;
                 }
             }
@@ -990,1105 +373,763 @@ function checkWin(card, called, patternType, customGrid) {
         return true;
     }
 
-    // Para todos los demás patrones, usar la validación centralizada
-    return validatePattern(patternType, flatCard, called);
+    const pattern = BINGO_PATTERNS[patternType];
+    if (!pattern || !pattern.positions) return false;
+
+    return pattern.positions.some(line => 
+        line.every(idx => isMarked(flatCard[idx]))
+    );
 }
 
-io.on('connection', (socket) => {
-    socket.emit('sync_state', gameState);
+// ═══════════════════════════════════════════════════════════════
+// 📊 FUNCIONES DE BASE DE DATOS
+// ═══════════════════════════════════════════════════════════════
+async function getActivePlayersFromDB() {
+    try {
+        return await Player.find({ isActive: true }).lean() || [];
+    } catch (error) {
+        console.error('❌ Error obteniendo jugadores:', error);
+        return [];
+    }
+}
 
-    // Si es admin, enviar listas de jugadores
+async function getTakenCardsFromDB() {
+    try {
+        const players = await Player.find({ isActive: true }).lean();
+        const cards = new Set();
+        players.forEach(p => p.cardIds.forEach(id => cards.add(id)));
+        return cards;
+    } catch (error) {
+        console.error('❌ Error obteniendo cartones:', error);
+        return new Set();
+    }
+}
+
+async function addPlayerToDB(username, cardIds, socketId = null) {
+    try {
+        const player = new Player({ username, cardIds, socketId });
+        await player.save();
+        console.log(`✅ Jugador agregado: ${username} con cartones ${cardIds.join(', ')}`);
+        return player;
+    } catch (error) {
+        console.error('❌ Error agregando jugador:', error);
+        throw error;
+    }
+}
+
+async function syncTakenCards() {
+    try {
+        const dbCards = await getTakenCardsFromDB();
+        takenCards = dbCards;
+        console.log(`✅ Cartones sincronizados: ${takenCards.size}`);
+    } catch (error) {
+        console.error('❌ Error sincronizando cartones:', error);
+    }
+}
+
+async function updatePlayerStats(username, winData) {
+    try {
+        const player = await Player.findOne({ username });
+        if (!player) return;
+
+        player.stats.totalGames++;
+        
+        if (winData) {
+            player.stats.wins++;
+            player.stats.lastWinDate = new Date();
+            player.stats.currentStreak++;
+            
+            if (player.stats.currentStreak > player.stats.maxStreak) {
+                player.stats.maxStreak = player.stats.currentStreak;
+            }
+            
+            player.stats.winRate = (player.stats.wins / player.stats.totalGames) * 100;
+            
+            const pattern = BINGO_PATTERNS[winData.pattern];
+            const multiplier = pattern?.multiplier || 1.0;
+            const speedBonus = Math.max(1.0, (75 - gameState.calledNumbers.length) / 25);
+            const points = Math.round(100 * multiplier * speedBonus);
+            
+            player.stats.totalPoints += points;
+            player.level.exp += Math.floor(points / 10);
+            
+            while (player.level.exp >= player.level.expToNext) {
+                player.level.exp -= player.level.expToNext;
+                player.level.current++;
+                player.level.expToNext = Math.floor(player.level.expToNext * 1.2);
+                console.log(`🎉 ${username} subió al nivel ${player.level.current}!`);
+            }
+            
+            // Agregar logros
+            await checkAchievements(player, winData);
+        } else {
+            player.stats.currentStreak = 0;
+        }
+        
+        player.gameHistory.push({
+            date: new Date(),
+            pattern: winData?.pattern || gameState.pattern,
+            won: !!winData,
+            points: winData ? Math.round(100 * (BINGO_PATTERNS[winData.pattern]?.multiplier || 1)) : 0,
+            numbersCalled: gameState.calledNumbers.length
+        });
+        
+        if (player.gameHistory.length > 50) {
+            player.gameHistory = player.gameHistory.slice(-50);
+        }
+        
+        await player.save();
+    } catch (error) {
+        console.error('❌ Error actualizando estadísticas:', error);
+    }
+}
+
+async function checkAchievements(player, winData) {
+    const newAchievements = [];
+    
+    if (player.stats.wins === 1) newAchievements.push('Primera Victoria');
+    if (player.stats.wins === 10) newAchievements.push('Veterano');
+    if (player.stats.wins === 50) newAchievements.push('Maestro del Bingo');
+    if (player.stats.wins === 100) newAchievements.push('Leyenda');
+    
+    if (player.stats.currentStreak === 3) newAchievements.push('Racha de 3');
+    if (player.stats.currentStreak === 5) newAchievements.push('Imparable');
+    if (player.stats.currentStreak === 10) newAchievements.push('Invencible');
+    
+    if (winData.pattern === 'full') newAchievements.push('Blackout');
+    if (winData.pattern === 'heart') newAchievements.push('Corazón de Oro');
+    if (winData.pattern === 'star') newAchievements.push('Estrella Brillante');
+    
+    if (gameState.calledNumbers.length <= 15) newAchievements.push('Velocista');
+    if (gameState.calledNumbers.length <= 10) newAchievements.push('Rayo');
+    
+    for (const name of newAchievements) {
+        if (!player.achievements.some(a => a.name === name)) {
+            player.achievements.push({ name, earnedAt: new Date() });
+            console.log(`🏆 Logro desbloqueado para ${player.username}: ${name}`);
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🔍 DETECCIÓN AUTOMÁTICA DE GANADORES
+// ═══════════════════════════════════════════════════════════════
+async function checkForAutomaticWinners() {
+    const now = Date.now();
+    if (now - gameSession.lastWinnerTime < gameSession.cooldown) return;
+    
+    // Obtener todos los jugadores activos
+    const connectedPlayers = Array.from(io.sockets.sockets.values())
+        .filter(s => s.data.username && s.data.cardIds?.length > 0)
+        .map(s => ({ username: s.data.username, cardIds: s.data.cardIds, socketId: s.id }));
+    
+    const dbPlayers = await getActivePlayersFromDB();
+    const dbPlayersList = dbPlayers
+        .filter(p => p.cardIds.some(id => takenCards.has(id)))
+        .map(p => ({ username: p.username, cardIds: p.cardIds, type: 'database' }));
+    
+    const allPlayers = [...connectedPlayers, ...dbPlayersList];
+    
+    for (const player of allPlayers) {
+        if (gameSession.winners.has(player.username)) continue;
+        
+        for (const cardId of player.cardIds) {
+            if (gameSession.winningCards.has(cardId)) continue;
+            if (!takenCards.has(cardId)) continue;
+            
+            const card = generateCard(cardId);
+            
+            if (checkWin(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern)) {
+                console.log(`🏆 ¡GANADOR! ${player.username} con cartón #${cardId}`);
+                
+                const winData = {
+                    user: player.username,
+                    card: cardId,
+                    time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                    numbersCalled: gameState.calledNumbers.length,
+                    pattern: gameState.pattern,
+                    patternName: BINGO_PATTERNS[gameState.pattern]?.name || gameState.pattern
+                };
+                
+                gameSession.winners.add(player.username);
+                gameSession.winningCards.add(cardId);
+                gameSession.lastWinnerTime = now;
+                
+                gameState.last5Winners.unshift(winData);
+                if (gameState.last5Winners.length > 5) gameState.last5Winners.pop();
+                
+                updatePlayerStats(player.username, winData);
+                
+                io.emit('bingo_audio', { playSound: true });
+                io.emit('winner_announced', winData);
+                io.emit('update_history', gameState.last5Winners);
+                io.emit('bingo_celebration', {
+                    message: `¡BINGO! ${player.username} con cartón #${cardId}`,
+                    winner: winData
+                });
+                io.emit('winner_card_details', {
+                    username: player.username,
+                    cardId: cardId,
+                    card: card,
+                    calledNumbers: gameState.calledNumbers,
+                    pattern: gameState.pattern
+                });
+                
+                return;
+            }
+        }
+    }
+}
+
+function resetWinnerManagement() {
+    gameSession = {
+        id: Date.now().toString(),
+        winners: new Set(),
+        winningCards: new Set(),
+        lastWinnerTime: 0,
+        cooldown: 2000
+    };
+    gameState.gameId = gameSession.id;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🎯 FUNCIONES DE UTILIDAD
+// ═══════════════════════════════════════════════════════════════
+function getActivePlayers() {
+    const connected = Array.from(io.sockets.sockets.values())
+        .filter(s => s.data.username)
+        .map(s => ({
+            id: s.id,
+            name: s.data.username,
+            cardCount: s.data.cardIds?.length || 0,
+            status: 'online'
+        }));
+    
+    return connected;
+}
+
+function getPendingPlayers() {
+    return Array.from(pendingPlayers.entries()).map(([socketId, p]) => ({
+        id: socketId,
+        name: p.username,
+        cardCount: p.cardIds.length,
+        cardIds: p.cardIds,
+        timestamp: p.timestamp
+    }));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🌐 ENDPOINTS HTTP
+// ═══════════════════════════════════════════════════════════════
+app.post('/admin-login', (req, res) => {
+    res.json({ success: req.body.password === ADMIN_PASS });
+});
+
+app.get('/api/patterns', (req, res) => {
+    const patterns = Object.entries(BINGO_PATTERNS).map(([key, val]) => ({
+        id: key,
+        name: val.name,
+        description: val.description,
+        multiplier: val.multiplier
+    }));
+    res.json(patterns);
+});
+
+app.get('/api/stats/:username', async (req, res) => {
+    try {
+        const player = await Player.findOne({ username: req.params.username });
+        if (player) {
+            res.json({ stats: player.stats, level: player.level, achievements: player.achievements });
+        } else {
+            res.status(404).json({ error: 'Jugador no encontrado' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/leaderboard', async (req, res) => {
+    try {
+        const players = await Player.find({ isActive: true })
+            .sort({ 'stats.totalPoints': -1 })
+            .limit(10)
+            .select('username stats.totalPoints stats.wins level.current');
+        res.json(players);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// 🔌 SOCKET.IO EVENTOS
+// ═══════════════════════════════════════════════════════════════
+io.on('connection', (socket) => {
+    console.log(`🔌 Nueva conexión: ${socket.id}`);
+    
+    // Sincronizar estado inicial
+    socket.emit('sync_state', {
+        ...gameState,
+        patterns: Object.keys(BINGO_PATTERNS).map(k => ({
+            id: k,
+            name: BINGO_PATTERNS[k].name
+        }))
+    });
     socket.emit('update_pending_players', getPendingPlayers());
     socket.emit('update_players', getActivePlayers());
-
+    
+    // ─────────────────────────────────────────────────────────────
+    // JUGADOR: Unirse al juego
+    // ─────────────────────────────────────────────────────────────
     socket.on('join_game', async (data) => {
         try {
             let ids = [];
-            // Normalizar entrada (puede ser string "1, 2" o numero 1)
             if (Array.isArray(data.cardIds)) ids = data.cardIds;
             else if (typeof data.cardIds === 'string') {
                 ids = data.cardIds.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
             } else if (typeof data.cardIds === 'number') {
                 ids = [data.cardIds];
             }
-
-            // Validar que los IDs estén en el rango válido (1-300)
-            ids = ids.filter(id => id >= 1 && id <= 300);
-
-            if(ids.length === 0) return;
-
-            // --- VALIDACIÓN DE DUPLICADOS ---
-            const takenCardsFromDB = await getTakenCardsFromDB();
-            const duplicates = ids.filter(id => takenCards.has(id) || takenCardsFromDB.has(id));
-
+            
+            ids = ids.filter(id => id >= 1 && id <= TOTAL_CARDS);
+            if (ids.length === 0) return;
+            
+            await syncTakenCards();
+            const duplicates = ids.filter(id => takenCards.has(id));
+            
             if (duplicates.length > 0) {
-                // Rechazar conexión si algún cartón está ocupado
                 socket.emit('join_error', {
-                    message: `El cartón #${duplicates.join(', #')} ya está en uso por otro jugador.`
+                    message: `Cartón(es) #${duplicates.join(', #')} ya en uso`
                 });
                 return;
             }
-
-            // Permitir cualquier cantidad de cartones (sin límite)
-            // Poner al jugador en lista de pendientes para aprobación
-            console.log(`📝 Jugador ${data.username} agregado a pendientes con cartones: ${ids.join(', ')}`);
+            
             pendingPlayers.set(socket.id, {
                 username: data.username,
                 cardIds: ids,
                 socket: socket,
                 timestamp: Date.now()
             });
-
-            // Notificar al admin sobre el nuevo jugador pendiente
-            console.log(`📢 Emitiendo update_pending_players a todos los admins`);
+            
             io.emit('update_pending_players', getPendingPlayers());
-            io.emit('new_player_pending', {
-                id: socket.id,
-                name: data.username,
-                cardCount: ids.length
-            });
-
-            // Informar al jugador que está esperando aprobación
+            io.emit('new_player_pending', { id: socket.id, name: data.username, cardCount: ids.length });
+            
             socket.emit('waiting_approval', {
-                message: `Esperando aprobación del administrador... (${ids.length} cartones solicitados)`
+                message: `Esperando aprobación... (${ids.length} cartones)`
             });
         } catch (error) {
             console.error('Error en join_game:', error);
-            socket.emit('join_error', {
-                message: 'Error al procesar tu solicitud. Por favor intenta de nuevo.'
-            });
+            socket.emit('join_error', { message: 'Error al procesar solicitud' });
         }
     });
-
+    
+    // ─────────────────────────────────────────────────────────────
+    // JUGADOR: Reconexión
+    // ─────────────────────────────────────────────────────────────
+    socket.on('reconnect_player', async (data) => {
+        const { username, cardIds } = data;
+        await syncTakenCards();
+        
+        const isValid = cardIds.every(id => takenCards.has(id));
+        
+        if (isValid) {
+            socket.data = { username, cardIds };
+            const cards = cardIds.map(id => generateCard(id));
+            socket.emit('reconnection_success', { cards });
+            io.emit('update_players', getActivePlayers());
+            console.log(`✅ ${username} reconectado`);
+        } else {
+            socket.emit('reconnection_failed', { message: 'Cartones no disponibles' });
+        }
+    });
+    
+    // ─────────────────────────────────────────────────────────────
+    // JUGADOR: Gritar Bingo
+    // ─────────────────────────────────────────────────────────────
+    socket.on('bingo_shout', async () => {
+        const { username, cardIds } = socket.data || {};
+        if (!cardIds?.length) return;
+        
+        for (const cardId of cardIds) {
+            const card = generateCard(cardId);
+            if (checkWin(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern)) {
+                const winData = {
+                    user: username,
+                    card: cardId,
+                    time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+                    pattern: gameState.pattern
+                };
+                
+                const isDup = gameState.last5Winners.some(w => w.user === username && w.card === cardId);
+                if (!isDup) {
+                    gameState.last5Winners.unshift(winData);
+                    if (gameState.last5Winners.length > 5) gameState.last5Winners.pop();
+                }
+                
+                await updatePlayerStats(username, winData);
+                
+                io.emit('winner_announced', winData);
+                io.emit('update_history', gameState.last5Winners);
+                io.emit('bingo_celebration', {
+                    message: `¡BINGO! ${username} con cartón #${cardId}`,
+                    winner: winData
+                });
+                return;
+            }
+        }
+        
+        socket.emit('invalid_bingo');
+    });
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Llamar número
+    // ─────────────────────────────────────────────────────────────
     socket.on('admin_call_number', (num) => {
-        // Validar que el número sea válido (1-75)
         if (num < 1 || num > 75) {
-            socket.emit('admin_error', { message: `Número inválido: ${num}. Debe estar entre 1 y 75.` });
+            socket.emit('admin_error', { message: `Número inválido: ${num}` });
             return;
         }
-
-        // Validar que el número no haya sido llamado ya
         if (gameState.calledNumbers.includes(num)) {
-            socket.emit('admin_error', { message: `El número ${num} ya fue llamado anteriormente.` });
+            socket.emit('admin_error', { message: `El ${num} ya fue llamado` });
             return;
         }
-
-        // Agregar el número a la lista de llamados
+        
         gameState.calledNumbers.push(num);
         gameState.last5Numbers.unshift(num);
         if (gameState.last5Numbers.length > 5) gameState.last5Numbers.pop();
-
-        console.log(`🎯 Número llamado: ${num}`);
-        console.log(`📊 Patrón actual: ${gameState.pattern}`);
-        console.log(`🔢 Números llamados hasta ahora: ${gameState.calledNumbers.length}`);
-
-        // Emitir el número llamado a todos los clientes
+        
+        console.log(`🎯 Número ${num} | Total: ${gameState.calledNumbers.length}`);
+        
         io.emit('number_called', {
             num,
             last5: gameState.last5Numbers,
             totalCalled: gameState.calledNumbers.length,
             pattern: gameState.pattern
         });
-
-        // Verificar automáticamente si algún jugador ha ganado
-        setTimeout(async () => {
-            try {
-                // Verificar automáticamente si algún jugador ha ganado
-                await checkForAutomaticWinners();
-            } catch (error) {
-                console.error('❌ Error en verificación automática de ganadores:', error);
-            }
-        }, 0); // Delay cero para máxima inmediatez instantánea
+        
+        setTimeout(() => checkForAutomaticWinners(), 100);
     });
-
-    // Función para deshacer el último número llamado
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Deshacer último número
+    // ─────────────────────────────────────────────────────────────
     socket.on('admin_undo_number', () => {
-        // Verificar que haya números llamados para deshacer
         if (gameState.calledNumbers.length === 0) {
-            socket.emit('admin_error', { message: 'No hay números llamados para deshacer.' });
+            socket.emit('admin_error', { message: 'No hay números para deshacer' });
             return;
         }
-
-        // Obtener el último número llamado
-        const lastNumber = gameState.calledNumbers.pop();
-
-        // Actualizar last5Numbers
-        const last5Index = gameState.last5Numbers.indexOf(lastNumber);
-        if (last5Index !== -1) {
-            gameState.last5Numbers.splice(last5Index, 1);
-        }
-
-        // Si el último número estaba en last5, agregar el número anterior
-        if (gameState.calledNumbers.length > 0) {
-            const previousNumber = gameState.calledNumbers[gameState.calledNumbers.length - 1];
-            if (!gameState.last5Numbers.includes(previousNumber)) {
-                gameState.last5Numbers.unshift(previousNumber);
-            }
-        }
-
-        // Limitar last5Numbers a 5 elementos
-        if (gameState.last5Numbers.length > 5) {
-            gameState.last5Numbers = gameState.last5Numbers.slice(0, 5);
-        }
-
-        console.log(`🔙 Deshaciendo último tiro: ${lastNumber}`);
-        console.log(`📊 Números llamados ahora: ${gameState.calledNumbers.length}`);
-
-        // Emitir el evento de deshacer a todos los clientes
+        
+        const lastNum = gameState.calledNumbers.pop();
+        const idx = gameState.last5Numbers.indexOf(lastNum);
+        if (idx !== -1) gameState.last5Numbers.splice(idx, 1);
+        
+        console.log(`🔙 Deshecho número ${lastNum}`);
+        
         io.emit('number_undone', {
-            number: lastNumber,
+            number: lastNum,
             calledNumbers: gameState.calledNumbers,
             last5: gameState.last5Numbers,
             totalCalled: gameState.calledNumbers.length
         });
-
-        // Actualizar estado del juego para todos los clientes
-        io.emit('game_state_update', {
-            calledNumbers: gameState.calledNumbers,
-            last5Numbers: gameState.last5Numbers,
-            pattern: gameState.pattern,
-            winners: Array.from(gameSession.winners),
-            winningCards: Array.from(gameSession.winningCards)
-        });
-
-        // Verificar si hay ganadores después de deshacer
-        setTimeout(async () => {
-            try {
-                await checkForAutomaticWinners();
-            } catch (error) {
-                console.error('❌ Error verificando ganadores después de deshacer:', error);
-            }
-        }, 200);
     });
-
-    socket.on('admin_uncall_number', (num) => {
-        // Validar que el número sea válido (1-75)
-        if (num < 1 || num > 75) {
-            socket.emit('admin_error', { message: `Número inválido: ${num}. Debe estar entre 1 y 75.` });
-            return;
-        }
-
-        // Verificar que el número haya sido llamado
-        const index = gameState.calledNumbers.indexOf(num);
-        if (index === -1) {
-            socket.emit('admin_error', { message: `El número ${num} no ha sido llamado.` });
-            return;
-        }
-
-        // Eliminar el número de la lista de llamados
-        gameState.calledNumbers.splice(index, 1);
-
-        // Actualizar last5Numbers
-        const last5Index = gameState.last5Numbers.indexOf(num);
-        if (last5Index !== -1) {
-            gameState.last5Numbers.splice(last5Index, 1);
-        }
-
-        console.log(`🔙 Descarcelando número: ${num}`);
-        console.log(`📊 Números llamados ahora: ${gameState.calledNumbers.length}`);
-
-        // Emitir el evento de descarcelar a todos los clientes
-        io.emit('number_uncalled', {
-            number: num,
-            calledNumbers: gameState.calledNumbers,
-            last5: gameState.last5Numbers,
-            totalCalled: gameState.calledNumbers.length
-        });
-
-        // Actualizar estado del juego para todos los clientes
-        io.emit('game_state_update', {
-            calledNumbers: gameState.calledNumbers,
-            last5Numbers: gameState.last5Numbers,
-            pattern: gameState.pattern,
-            winners: Array.from(gameSession.winners),
-            winningCards: Array.from(gameSession.winningCards)
-        });
-
-        // Verificar si hay ganadores después de descarcelar
-        setTimeout(async () => {
-            try {
-                await checkForAutomaticWinners();
-            } catch (error) {
-                console.error('❌ Error verificando ganadores después de descarcelar:', error);
-            }
-        }, 200);
-    });
-
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Establecer patrón
+    // ─────────────────────────────────────────────────────────────
     socket.on('admin_set_pattern', (data) => {
         gameState.pattern = data.type;
         gameState.customPattern = data.grid || [];
-        io.emit('pattern_changed', gameState.pattern);
+        
+        const patternInfo = BINGO_PATTERNS[data.type];
+        console.log(`🎯 Patrón cambiado a: ${patternInfo?.name || data.type}`);
+        
+        io.emit('pattern_changed', {
+            type: data.type,
+            name: patternInfo?.name || data.type,
+            grid: data.grid
+        });
     });
-
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Mensaje global
+    // ─────────────────────────────────────────────────────────────
     socket.on('admin_set_message', (msg) => {
         gameState.message = msg;
         io.emit('message_updated', msg);
     });
-
-    socket.on('admin_kick_player', (socketId) => {
-        const target = io.sockets.sockets.get(socketId);
-        if (target) {
-            // Al expulsar, liberar cartones manualmente antes de desconectar
-            if (target.data.cardIds) {
-                target.data.cardIds.forEach(id => takenCards.delete(id));
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Aceptar jugador
+    // ─────────────────────────────────────────────────────────────
+    socket.on('admin_accept_player', async (socketId) => {
+        const pending = pendingPlayers.get(socketId);
+        if (!pending) return;
+        
+        await syncTakenCards();
+        const duplicates = pending.cardIds.filter(id => takenCards.has(id));
+        
+        if (duplicates.length > 0) {
+            pending.socket.emit('join_error', {
+                message: `Cartón(es) #${duplicates.join(', #')} ya en uso`
+            });
+            pendingPlayers.delete(socketId);
+            io.emit('update_pending_players', getPendingPlayers());
+            return;
+        }
+        
+        pending.cardIds.forEach(id => takenCards.add(id));
+        pending.socket.data = { username: pending.username, cardIds: pending.cardIds };
+        
+        await addPlayerToDB(pending.username, pending.cardIds, socketId);
+        
+        const cards = pending.cardIds.map(id => generateCard(id));
+        pending.socket.emit('init_cards', { cards });
+        pending.socket.emit('player_accepted');
+        
+        pendingPlayers.delete(socketId);
+        io.emit('update_pending_players', getPendingPlayers());
+        io.emit('update_players', getActivePlayers());
+        
+        console.log(`✅ Jugador aceptado: ${pending.username}`);
+    });
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Rechazar jugador
+    // ─────────────────────────────────────────────────────────────
+    socket.on('admin_reject_player', (socketId) => {
+        const pending = pendingPlayers.get(socketId);
+        if (pending) {
+            pending.socket.emit('player_rejected', { message: 'Solicitud rechazada' });
+            pendingPlayers.delete(socketId);
+            io.emit('update_pending_players', getPendingPlayers());
+        }
+    });
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Agregar jugador manualmente
+    // ─────────────────────────────────────────────────────────────
+    socket.on('admin_add_player', async (data) => {
+        try {
+            const { name, cardIds } = data;
+            const validIds = cardIds.filter(id => id >= 1 && id <= TOTAL_CARDS);
+            
+            if (validIds.length === 0) {
+                socket.emit('admin_error', { message: 'No hay cartones válidos' });
+                return;
             }
+            
+            await syncTakenCards();
+            const duplicates = validIds.filter(id => takenCards.has(id));
+            
+            if (duplicates.length > 0) {
+                socket.emit('admin_error', {
+                    message: `Cartón(es) #${duplicates.join(', #')} ya en uso`
+                });
+                return;
+            }
+            
+            validIds.forEach(id => takenCards.add(id));
+            await addPlayerToDB(name, validIds);
+            
+            io.emit('update_players', getActivePlayers());
+            socket.emit('admin_success', {
+                message: `Jugador "${name}" agregado con ${validIds.length} cartones`
+            });
+        } catch (error) {
+            socket.emit('admin_error', { message: 'Error agregando jugador' });
+        }
+    });
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Expulsar jugador
+    // ─────────────────────────────────────────────────────────────
+    socket.on('admin_kick_player', async (socketId) => {
+        const target = io.sockets.sockets.get(socketId);
+        if (target?.data.cardIds) {
+            target.data.cardIds.forEach(id => takenCards.delete(id));
+            
+            await Player.findOneAndUpdate(
+                { username: target.data.username },
+                { isActive: false }
+            );
+            
             target.emit('kicked');
             target.disconnect();
             io.emit('update_players', getActivePlayers());
         }
     });
-
-    socket.on('admin_accept_player', (socketId) => {
-        const pendingPlayer = pendingPlayers.get(socketId);
-        if (pendingPlayer) {
-            // Verificar duplicados antes de aceptar
-            const duplicates = pendingPlayer.cardIds.filter(id => takenCards.has(id));
-            if (duplicates.length > 0) {
-                pendingPlayer.socket.emit('join_error', {
-                    message: `Los cartones #${duplicates.join(', #')} ya están en uso.`
-                });
-                pendingPlayers.delete(socketId);
-                io.emit('update_pending_players', getPendingPlayers());
-                return;
-            }
-
-            // Aceptar al jugador: registrar cartones y inicializar
-            pendingPlayer.cardIds.forEach(id => takenCards.add(id));
-            pendingPlayer.socket.data = {
-                username: pendingPlayer.username,
-                cardIds: pendingPlayer.cardIds
-            };
-
-            // Generar y enviar cartones
-            const cards = pendingPlayer.cardIds.map(id => generateCard(id));
-            pendingPlayer.socket.emit('init_cards', { cards });
-
-            // Remover de pendientes y actualizar listas
-            pendingPlayers.delete(socketId);
-            io.emit('update_pending_players', getPendingPlayers());
-            io.emit('update_players', getActivePlayers());
-
-            // Notificar aceptación
-            pendingPlayer.socket.emit('player_accepted');
-        }
-    });
-
-    socket.on('admin_reject_player', (socketId) => {
-        const pendingPlayer = pendingPlayers.get(socketId);
-        if (pendingPlayer) {
-            // Rechazar al jugador
-            pendingPlayer.socket.emit('player_rejected', {
-                message: 'Tu solicitud ha sido rechazada por el administrador.'
-            });
-            pendingPlayers.delete(socketId);
-            io.emit('update_pending_players', getPendingPlayers());
-        }
-    });
-
-    socket.on('admin_add_player', async (data) => {
-        try {
-            const { name, cardIds } = data;
-
-            // Validate card IDs
-            const validCardIds = cardIds.filter(id => id >= 1 && id <= 300);
-
-            if (validCardIds.length === 0) {
-                socket.emit('admin_error', { message: 'No hay cartones válidos para asignar.' });
-                return;
-            }
-
-            // Check for duplicates in both memory and database
-            const takenCardsFromDB = await getTakenCardsFromDB();
-            const duplicates = validCardIds.filter(id => takenCards.has(id) || takenCardsFromDB.has(id));
-
-            if (duplicates.length > 0) {
-                socket.emit('admin_error', {
-                    message: `Los cartones #${duplicates.join(', #')} ya están en uso.`
-                });
-                return;
-            }
-
-            // Add player to database
-            const player = await addPlayerToDB(name, validCardIds);
-
-            // Mark cards as taken immediately (no verification needed)
-            validCardIds.forEach(id => takenCards.add(id));
-
-            console.log(`Jugador agregado manualmente: ${name} con cartones ${validCardIds.join(', ')}`);
-
-            // Update admin interface
-            io.emit('update_players', getActivePlayers());
-            io.emit('update_pending_players', getPendingPlayers());
-
-            // Notify admin of success
-            socket.emit('admin_success', {
-                message: `Jugador "${name}" agregado exitosamente con ${validCardIds.length} cartones.`
-            });
-        } catch (error) {
-            console.error('Error en admin_add_player:', error);
-            socket.emit('admin_error', {
-                message: 'Error al agregar jugador. Por favor intenta de nuevo.'
-            });
-        }
-    });
-
-    // Get card availability for admin modal and status
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Disponibilidad de cartones
+    // ─────────────────────────────────────────────────────────────
     socket.on('get_card_availability', async () => {
-        // Sync memory with database before showing availability
-        await syncTakenCardsWithDB();
-        await refreshPlayerLists();
-
-        const takenCardsArray = Array.from(takenCards);
+        await syncTakenCards();
         socket.emit('card_availability', {
-            takenCards: takenCardsArray,
-            availableCount: 300 - takenCards.size,
+            takenCards: Array.from(takenCards),
+            availableCount: TOTAL_CARDS - takenCards.size,
             usedCount: takenCards.size
         });
     });
-
-    // Admin refresh player lists
-    socket.on('admin_refresh_players', async () => {
-        await refreshPlayerLists();
-        io.emit('update_players', getActivePlayers());
-        io.emit('update_pending_players', getPendingPlayers());
-    });
-
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Nueva ronda
+    // ─────────────────────────────────────────────────────────────
     socket.on('admin_reset', () => {
-        // Reset game state for new round
         gameState.calledNumbers = [];
         gameState.last5Numbers = [];
         gameState.last5Winners = [];
-
-        // Reiniciar el sistema de gestión de victorias
         resetWinnerManagement();
-
-        // Keep players connected and their cards assigned
-        // Do NOT clear takenCards - players keep their cartons
-        // Do NOT disconnect players - they remain in the game
-
-        // Emit game reset to admin interface
+        
+        io.emit('game_reset');
         io.emit('update_pending_players', getPendingPlayers());
         io.emit('update_players', getActivePlayers());
-        io.emit('game_reset');
+        
+        console.log('🔄 Nueva ronda iniciada');
     });
-
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Reinicio completo
+    // ─────────────────────────────────────────────────────────────
     socket.on('admin_full_reset', async () => {
-        // Full reset - disconnect all players and reset everything
         gameState.calledNumbers = [];
         gameState.last5Numbers = [];
         gameState.last5Winners = [];
-
-        // Reiniciar el sistema de gestión de victorias
         resetWinnerManagement();
-
-        // Disconnect all active players and clear their sessions
+        
+        // Desconectar todos los jugadores
         io.sockets.sockets.forEach(s => {
             if (s.data.cardIds) {
-                // This is a player, disconnect them and clear session
-                s.emit('full_reset'); // Tell client to clear localStorage
+                s.emit('full_reset');
                 s.emit('kicked');
                 s.disconnect();
             }
         });
-
-        // Clear taken cards
+        
         takenCards.clear();
-
-        // Clear pending players
         pendingPlayers.clear();
-
-        // Clear virtual players (manually added players)
-        virtualPlayers.clear();
-
-        // Clear database players - Delete all players from database
+        
+        // Limpiar base de datos
         try {
             const result = await Player.deleteMany({});
-            console.log(`🧹 Full reset: ${result.deletedCount} jugadores eliminados completamente de la base de datos`);
+            console.log(`🧹 ${result.deletedCount} jugadores eliminados`);
         } catch (error) {
-            console.error('❌ Error eliminando jugadores de base de datos:', error);
+            console.error('Error limpiando DB:', error);
         }
-
-        // Emit game reset (though players are disconnected, admin will receive it)
+        
         io.emit('game_reset');
-        io.emit('update_pending_players', getPendingPlayers());
-        io.emit('update_players', getActivePlayers());
+        io.emit('update_pending_players', []);
+        io.emit('update_players', []);
+        
+        console.log('🔄 REINICIO COMPLETO');
     });
-
-    // Handle player reconnection
-    socket.on('reconnect_player', (data) => {
-        const { username, cardIds, sessionId } = data;
-
-        // Verify that the cards are still assigned to this player
-        const isValidReconnection = cardIds.every(id => takenCards.has(id));
-
-        if (isValidReconnection) {
-            // Successful reconnection
-            socket.data = {
-                username: username,
-                cardIds: cardIds
-            };
-
-            // Generate and send cards
-            const cards = cardIds.map(id => generateCard(id));
-            socket.emit('reconnection_success', { cards });
-
-            // Update admin interface
-            io.emit('update_players', getActivePlayers());
-
-            console.log(`Jugador ${username} reconectado exitosamente con ${cardIds.length} cartones`);
-        } else {
-            // Failed reconnection - cards no longer available
-            socket.emit('reconnection_failed', {
-                message: 'Tus cartones ya no están disponibles. Por favor solicita nuevos.'
-            });
-            console.log(`Reconexión fallida para ${username} - cartones no disponibles`);
-        }
-    });
-
-    socket.on('bingo_shout', async () => {
-        const { username, cardIds } = socket.data;
-        if(!cardIds || cardIds.length === 0) return;
-
-        let winnerCardId = null;
-        for (let id of cardIds) {
-            const card = generateCard(id);
-            if (checkWin(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern)) {
-                winnerCardId = id;
-                break;
+    
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Tiro automático
+    // ─────────────────────────────────────────────────────────────
+    socket.on('admin_start_auto', () => {
+        if (gameState.isAutoPlaying) return;
+        
+        gameState.isAutoPlaying = true;
+        gameState.autoPlayInterval = setInterval(() => {
+            const available = [];
+            for (let i = 1; i <= 75; i++) {
+                if (!gameState.calledNumbers.includes(i)) available.push(i);
             }
-        }
-
-        if (winnerCardId) {
-            const winData = {
-                user: username,
-                card: winnerCardId,
-                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                pattern: gameState.pattern
-            };
-            const isDup = gameState.last5Winners.some(w => w.user === username && w.card === winnerCardId);
-            if (!isDup) {
-                gameState.last5Winners.unshift(winData);
-                if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
+            
+            if (available.length === 0) {
+                clearInterval(gameState.autoPlayInterval);
+                gameState.isAutoPlaying = false;
+                io.emit('auto_play_stopped');
+                return;
             }
-
-            // Actualizar estadísticas del jugador
-            await updatePlayerStats(username, winData);
-
-            // Anuncio automático inmediato
-            io.emit('winner_announced', winData);
-            io.emit('update_history', gameState.last5Winners);
-
-            // También emitimos un evento especial para celebración automática
-            io.emit('bingo_celebration', {
-                message: `¡BINGO! ${username} ha ganado con el cartón #${winnerCardId}!`,
-                winner: winData
-            });
-
-            // Enviar detalles del cartón ganador
-            io.emit('winner_card_details', {
-                username: username,
-                cardId: winnerCardId,
-                card: generateCard(winnerCardId),
-                calledNumbers: gameState.calledNumbers,
+            
+            const num = available[Math.floor(Math.random() * available.length)];
+            gameState.calledNumbers.push(num);
+            gameState.last5Numbers.unshift(num);
+            if (gameState.last5Numbers.length > 5) gameState.last5Numbers.pop();
+            
+            io.emit('number_called', {
+                num,
+                last5: gameState.last5Numbers,
+                totalCalled: gameState.calledNumbers.length,
                 pattern: gameState.pattern
             });
-        } else {
-            socket.emit('invalid_bingo');
-        }
+            
+            setTimeout(() => checkForAutomaticWinners(), 100);
+        }, 5000);
+        
+        io.emit('auto_play_started');
+        console.log('▶️ Tiro automático iniciado');
     });
-
-    // Nuevos eventos para el sistema de estadísticas y personalización
-    socket.on('get_player_stats', async (username) => {
-        try {
-            const player = await Player.findOne({ username: username });
-            if (player) {
-                socket.emit('player_stats', {
-                    stats: player.stats,
-                    level: player.level,
-                    achievements: player.achievements,
-                    totalPoints: player.stats.totalPoints
-                });
-            }
-        } catch (error) {
-            console.error('Error obteniendo estadísticas del jugador:', error);
+    
+    socket.on('admin_stop_auto', () => {
+        if (gameState.autoPlayInterval) {
+            clearInterval(gameState.autoPlayInterval);
+            gameState.autoPlayInterval = null;
         }
+        gameState.isAutoPlaying = false;
+        io.emit('auto_play_stopped');
+        console.log('⏹️ Tiro automático detenido');
     });
-
-    socket.on('get_player_settings', async (username) => {
-        try {
-            const settings = await getPlayerSettings(username);
-            const assistantSettings = await getPlayerAssistantSettings(username);
-            socket.emit('player_settings', {
-                settings: settings,
-                assistant: assistantSettings
-            });
-        } catch (error) {
-            console.error('Error obteniendo configuración del jugador:', error);
-        }
-    });
-
-    socket.on('update_player_settings', async (data) => {
-        try {
-            await updatePlayerSettings(data.username, data.settings);
-            await updatePlayerAssistantSettings(data.username, data.assistant);
-            socket.emit('settings_updated', { success: true });
-        } catch (error) {
-            console.error('Error actualizando configuración del jugador:', error);
-            socket.emit('settings_updated', { success: false, error: error.message });
-        }
-    });
-
-    socket.on('get_game_analysis', async (data) => {
-        try {
-            const { username, calledNumbers, pattern } = data;
-            const player = await Player.findOne({ username: username });
-            if (player) {
-                const analysis = analyzeGameProgress(player, calledNumbers, pattern);
-                socket.emit('game_analysis', analysis);
-            }
-        } catch (error) {
-            console.error('Error analizando progreso del juego:', error);
-        }
-    });
-
-    socket.on('get_leaderboard', async () => {
-        try {
-            const players = await Player.find({ isActive: true })
-                .sort({ 'stats.totalPoints': -1 })
-                .limit(10)
-                .select('username stats.level stats.totalPoints stats.wins stats.winRate');
-
-            const leaderboard = players.map(player => ({
-                username: player.username,
-                level: player.stats.level,
-                points: player.stats.totalPoints,
-                wins: player.stats.wins,
-                winRate: player.stats.winRate
-            }));
-
-            socket.emit('leaderboard_data', leaderboard);
-        } catch (error) {
-            console.error('Error obteniendo leaderboard:', error);
-        }
-    });
-
-    // --- AL DESCONECTARSE ---
+    
+    // ─────────────────────────────────────────────────────────────
+    // Desconexión
+    // ─────────────────────────────────────────────────────────────
     socket.on('disconnect', async () => {
-        // Verificar si este socket era un jugador activo
-        if (socket.data && socket.data.cardIds) {
-            // Liberar los cartones de este jugador de la memoria
+        if (socket.data?.cardIds) {
             socket.data.cardIds.forEach(id => takenCards.delete(id));
-            console.log(`Cartones liberados por desconexión: ${socket.data.cardIds.join(', ')}`);
-
-            // Actualizar la base de datos para marcar al jugador como inactivo
+            
             try {
-                const player = await Player.findOne({
-                    username: socket.data.username,
-                    cardIds: { $in: socket.data.cardIds }
-                });
-
-                if (player) {
-                    // Verificar si este jugador tiene otros cartones activos
-                    const activeCards = player.cardIds.filter(cardId => takenCards.has(cardId));
-
-                    if (activeCards.length === 0) {
-                        // No tiene más cartones activos, marcar como inactivo
-                        await Player.findByIdAndUpdate(player._id, { isActive: false });
-                        console.log(`Jugador ${socket.data.username} marcado como inactivo en la base de datos`);
-                    } else {
-                        console.log(`Jugador ${socket.data.username} aún tiene cartones activos: ${activeCards.join(', ')}`);
-                    }
-                }
+                await Player.findOneAndUpdate(
+                    { username: socket.data.username, cardIds: { $in: socket.data.cardIds } },
+                    { isActive: false }
+                );
             } catch (error) {
-                console.error('Error actualizando jugador en base de datos:', error);
+                console.error('Error actualizando jugador desconectado:', error);
             }
         }
-
-        // Limpiar de jugadores pendientes (solo si estaban esperando aprobación)
+        
         if (pendingPlayers.has(socket.id)) {
             pendingPlayers.delete(socket.id);
             io.emit('update_pending_players', getPendingPlayers());
         }
-
-        // Actualizar listas de jugadores
+        
         io.emit('update_players', getActivePlayers());
-    });
-
-    // Evento socket para establecer figura activa
-    socket.on('setActivePattern', (patternData) => {
-      currentPattern = patternData;
-      io.emit('updateActivePattern', patternData); // Broadcast a todos los jugadores
-      console.log(`🎯 Figura activa establecida: ${patternData.name}`);
-    });
-
-    // Modificar el evento admin_call_number para verificar ganadores después de cada número
-    socket.on('admin_call_number', (num) => {
-        // Validar que el número sea válido (1-75)
-        if (num < 1 || num > 75) {
-            socket.emit('admin_error', { message: `Número inválido: ${num}. Debe estar entre 1 y 75.` });
-            return;
-        }
-
-        // Validar que el número no haya sido llamado ya
-        if (gameState.calledNumbers.includes(num)) {
-            socket.emit('admin_error', { message: `El número ${num} ya fue llamado anteriormente.` });
-            return;
-        }
-
-        // Agregar el número a la lista de llamados
-        gameState.calledNumbers.push(num);
-        gameState.last5Numbers.unshift(num);
-        if (gameState.last5Numbers.length > 5) gameState.last5Numbers.pop();
-
-        console.log(`🎯 Número llamado: ${num}`);
-        console.log(`📊 Patrón actual: ${gameState.pattern}`);
-        console.log(`🔢 Números llamados hasta ahora: ${gameState.calledNumbers.length}`);
-
-        // Emitir el número llamado a todos los clientes
-        io.emit('number_called', {
-            num,
-            last5: gameState.last5Numbers,
-            totalCalled: gameState.calledNumbers.length,
-            pattern: gameState.pattern
-        });
-
-        // Verificar automáticamente si algún jugador ha ganado con la figura activa
-        setTimeout(async () => {
-            try {
-                await checkForAutomaticWinners();
-                await checkForPatternWinners();
-            } catch (error) {
-                console.error('❌ Error en verificación automática de ganadores:', error);
-            }
-        }, 0); // Delay cero para máxima inmediatez instantánea
+        console.log(`🔌 Desconectado: ${socket.id}`);
     });
 });
 
-function getActivePlayers() {
-    // Get connected players (real socket connections)
-    const connectedPlayers = Array.from(io.sockets.sockets.values())
-        .filter(s => s.data.username)
-        .map(s => ({
-            id: s.id,
-            name: s.data.username,
-            cardCount: s.data.cardIds ? s.data.cardIds.length : 0,
-            status: 'connected'
-        }));
-
-    // Get virtual players (manually added by admin) - Show as online
-    const virtualPlayersList = Array.from(virtualPlayers.entries())
-        .map(([virtualId, player]) => ({
-            id: virtualId,
-            name: player.username,
-            cardCount: player.cardIds.length,
-            status: 'online' // Changed from 'virtual' to 'online'
-        }));
-
-    // Get database players (persisted in MongoDB) - Only show if they have active cards
-    const dbPlayersRaw = getActivePlayersFromDB();
-    const dbPlayers = Array.isArray(dbPlayersRaw) ? dbPlayersRaw.map(player => ({
-        id: player._id.toString(),
-        name: player.username,
-        cardCount: player.cardIds.length,
-        status: 'online' // Changed from 'database' to 'online'
-    })) : [];
-
-    // Combine all lists and remove duplicates (prioritize connected players)
-    const allPlayers = [...connectedPlayers, ...virtualPlayersList, ...dbPlayers];
-
-    // Remove duplicates by username, keeping connected players first
-    const uniquePlayers = [];
-    const seenUsernames = new Set();
-
-    for (const player of allPlayers) {
-        if (!seenUsernames.has(player.name)) {
-            seenUsernames.add(player.name);
-            uniquePlayers.push(player);
-        }
-    }
-
-    return uniquePlayers;
-}
-
-function getPendingPlayers() {
-    console.log(`🔍 Obteniendo jugadores pendientes: ${pendingPlayers.size} en cola`);
-    return Array.from(pendingPlayers.entries()).map(([socketId, player]) => ({
-        id: socketId,
-        name: player.username,
-        cardCount: player.cardIds.length,
-        cardIds: player.cardIds,
-        timestamp: player.timestamp
-    }));
-}
-
-// --- LÓGICA DE VALIDACIÓN MEJORADA CON LOGS ---
-function verificarGanadores() {
-    console.log("--- VERIFICANDO BINGOS (Bola actual: " + gameState.calledNumbers[gameState.calledNumbers.length -1] + ") ---");
-    
-    const ganadores = [];
-    const matrizPatron = BINGO_PATTERNS[gameState.pattern];
-    const totalJugadores = Object.keys(gameState.jugadores).length;
-
-    if (totalJugadores === 0) {
-        console.log("⚠️ ALERTA: No hay jugadores registrados en memoria. Si reiniciaste el servidor, recarga las páginas web de los usuarios.");
-        return;
-    }
-
-    // Recorremos TODOS los jugadores conectados
-    for (const idSocket in gameState.jugadores) {
-        const jugador = gameState.jugadores[idSocket];
-        const carton = jugador.carton;
-        let esBingo = true;
-        let faltantes = []; // Para ver qué le falta
-
-        // Comparamos el cartón del usuario contra el Patrón
-        for (let fila = 0; fila < 5; fila++) {
-            for (let col = 0; col < 5; col++) {
-                // Si el patrón exige marcar esta casilla (es 1)
-                if (matrizPatron[fila][col] === 1) {
-                    // Ignoramos el centro (FREE)
-                    if (fila === 2 && col === 2) continue; 
-
-                    const numeroEnCasilla = carton[fila][col];
-                    
-                    // Si el número del cartón NO ha salido todavía
-                    if (!gameState.calledNumbers.includes(numeroEnCasilla)) {
-                        esBingo = false;
-                        faltantes.push(numeroEnCasilla); // Guardamos qué le falta para avisar en consola
-                    }
-                }
-            }
-        }
-
-        if (esBingo) {
-            console.log(`✅ ¡BINGO DETECTADO! Jugador: ${jugador.nombre}`);
-            ganadores.push(jugador.nombre);
-        } else {
-            // Log opcional: Descomenta esto si quieres ver qué le falta a cada uno (puede llenar mucho la consola)
-            // console.log(`Jugador ${jugador.nombre} no tiene bingo. Le faltan: ${faltantes.length} números.`);
-        }
-    }
-
-    // SI HAY GANADORES
-    if (ganadores.length > 0) {
-        gameState.juegoTerminado = true;
-        io.emit('BINGO_GANADOR', ganadores);
-        console.log('🏆 GANADORES ENVIADOS AL FRONTEND:', ganadores);
-    } else {
-        console.log("❌ Ningún ganador en esta bola.");
-    }
-}
-
-// Función mejorada para verificar automáticamente ganadores después de cada número
-async function checkForAutomaticWinners() {
-    const currentTime = Date.now();
-    const timeSinceLastWinner = currentTime - gameSession.lastWinnerTime;
-
-    // Verificar cooldown para evitar múltiples ganadores simultáneos
-    if (timeSinceLastWinner < gameSession.winnerCooldown) {
-        console.log(`⏳ Cooldown activo: ${gameSession.winnerCooldown - timeSinceLastWinner}ms restantes`);
-        return;
-    }
-
-    console.log(`🔍 Verificando ganadores automáticos - Patrón: ${gameState.pattern}, Números llamados: ${gameState.calledNumbers.length}`);
-
-    // Obtener todos los jugadores activos (conectados + virtuales + de base de datos)
-    const connectedPlayers = Array.from(io.sockets.sockets.values())
-        .filter(s => s.data.username && s.data.cardIds && s.data.cardIds.length > 0)
-        .map(s => ({
-            username: s.data.username,
-            cardIds: s.data.cardIds,
-            socketId: s.id,
-            type: 'connected'
-        }));
-
-    // Agregar jugadores virtuales (agregados manualmente)
-    const virtualPlayersList = Array.from(virtualPlayers.values())
-        .map(player => ({
-            username: player.username,
-            cardIds: player.cardIds,
-            type: 'virtual'
-        }));
-
-    // Agregar jugadores de base de datos activos (solo obtener una vez fuera del loop)
-    let dbPlayers = [];
-    try {
-        const allDbPlayers = await getActivePlayersFromDB();
-        dbPlayers = allDbPlayers
-            .filter(player => player.cardIds.some(cardId => takenCards.has(cardId)))
-            .map(player => ({
-                username: player.username,
-                cardIds: player.cardIds,
-                type: 'database'
-            }));
-    } catch (error) {
-        console.error('❌ Error obteniendo jugadores de base de datos:', error);
-        dbPlayers = [];
-    }
-
-    // Combinar todas las listas de jugadores
-    const allActivePlayers = [...connectedPlayers, ...virtualPlayersList, ...dbPlayers];
-
-    console.log(`👥 Jugadores activos para verificar: ${allActivePlayers.length}`);
-
-    // Verificar cada jugador activo
-    for (const player of allActivePlayers) {
-        const { username, cardIds, type } = player;
-
-        // Verificar si este jugador ya ganó en esta partida (para evitar duplicados)
-        if (gameSession.winners.has(username)) {
-            console.log(`⏭️  ${username} (${type}) ya ganó en esta partida, omitiendo...`);
-            continue;
-        }
-
-        console.log(`🔍 Verificando jugador: ${username} (${type}) - Cartones: ${cardIds.join(', ')}`);
-
-        // Verificar cada cartón del jugador
-        for (let cardId of cardIds) {
-            // Verificar si este cartón ya ganó (para evitar duplicados de cartón)
-            if (gameSession.winningCards.has(cardId)) {
-                console.log(`⏭️  Cartón #${cardId} ya ganó en esta partida, omitiendo...`);
-                continue;
-            }
-
-            // Verificar que el cartón esté disponible (no liberado)
-            if (!takenCards.has(cardId)) {
-                console.log(`⚠️  Cartón #${cardId} no está disponible, omitiendo...`);
-                continue;
-            }
-
-            const card = generateCard(cardId);
-
-            console.log(`🎯 Verificando cartón #${cardId} de ${username} con patrón ${gameState.pattern}`);
-
-            // Verificar si este cartón gana con el patrón actual
-            const isWinner = checkWin(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern);
-
-            if (isWinner) {
-                console.log(`🏆 ¡GANADOR DETECTADO! ${username} con cartón #${cardId} (${gameState.pattern})`);
-
-                // ¡HAY UN GANADOR! Anunciar automáticamente
-                const winData = {
-                    user: username,
-                    card: cardId,
-                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                    numbersCalled: gameState.calledNumbers.length,
-                    pattern: gameState.pattern,
-                    playerType: type
-                };
-
-                // Registrar ganador en el sistema de gestión
-                gameSession.winners.add(username);
-                gameSession.winningCards.add(cardId);
-                gameSession.lastWinnerTime = currentTime;
-
-                // Agregar a la lista de últimos ganadores
-                gameState.last5Winners.unshift(winData);
-                if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
-
-                // Actualizar estadísticas del jugador
-                updatePlayerStats(username, winData).catch(err => console.error('Error updating stats:', err));
-
-                // 🎵 AUDIO AUTOMÁTICO INMEDIATO - El cartón "canta" bingo apenas se detecta
-                io.emit('bingo_audio_automatic', {
-                    message: `¡BINGO!`,
-                    winner: winData,
-                    playSound: true
-                });
-
-                // Anuncio automático inmediato
-                io.emit('winner_announced', winData);
-                io.emit('update_history', gameState.last5Winners);
-
-                // Celebración automática
-                io.emit('bingo_celebration', {
-                    message: `¡BINGO AUTOMÁTICO! ${username} ha ganado con el cartón #${cardId}!`,
-                    winner: winData
-                });
-
-                // Enviar detalles del cartón ganador
-                io.emit('winner_card_details', {
-                    username: username,
-                    cardId: cardId,
-                    card: card,
-                    calledNumbers: gameState.calledNumbers,
-                    pattern: gameState.pattern
-                });
-
-                console.log(`🏆 GANADOR AUTOMÁTICO CONFIRMADO: ${username} (${type}) con cartón #${cardId} (${gameState.pattern}) - Números llamados: ${gameState.calledNumbers.length}`);
-                return; // Solo anunciar el primer ganador encontrado
-            }
-        }
-    }
-
-    console.log(`✅ Verificación automática completada - No hay ganadores aún`);
-}
-
-
-// Función para reiniciar el sistema de gestión de victorias
-function resetWinnerManagement() {
-    gameSession.winners.clear();
-    gameSession.winningCards.clear();
-    gameSession.lastWinnerTime = 0;
-    gameSession.id = Date.now().toString();
-    console.log(`🔄 Sistema de gestión de victorias reiniciado - Nueva sesión: ${gameSession.id}`);
-}
-
-// --- SISTEMA DE SELECCIÓN DE FIGURAS ---
-
-// Variable global para almacenar la figura activa
-let currentPattern = null;
-
-// Lista de figuras disponibles
-const patterns = [
-  { id: 'linea_horizontal', name: 'Línea Horizontal (cualquiera)', grid: [
-    [1, 1, 1, 1, 1],
-    [0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0]
-  ]},
-  { id: 'linea_vertical', name: 'Línea Vertical (cualquiera)', grid: [
-    [1, 0, 0, 0, 0],
-    [1, 0, 0, 0, 0],
-    [1, 0, 0, 0, 0],
-    [1, 0, 0, 0, 0],
-    [1, 0, 0, 0, 0]
-  ]},
-  { id: 'diagonal', name: 'Diagonal (cualquiera)', grid: [
-    [1, 0, 0, 0, 1],
-    [0, 1, 0, 1, 0],
-    [0, 0, 1, 0, 0],
-    [0, 1, 0, 1, 0],
-    [1, 0, 0, 0, 1]
-  ]},
-  { id: 'cuatro_esquinas', name: '4 Esquinas', grid: [
-    [1, 0, 0, 0, 1],
-    [0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0],
-    [1, 0, 0, 0, 1]
-  ]},
-  { id: 'x', name: 'X (ambas diagonales)', grid: [
-    [1, 0, 0, 0, 1],
-    [0, 1, 0, 1, 0],
-    [0, 0, 1, 0, 0],
-    [0, 1, 0, 1, 0],
-    [1, 0, 0, 0, 1]
-  ]},
-  { id: 'plus', name: 'Plus (+)', grid: [
-    [0, 0, 1, 0, 0],
-    [0, 0, 1, 0, 0],
-    [1, 1, 1, 1, 1],
-    [0, 0, 1, 0, 0],
-    [0, 0, 1, 0, 0]
-  ]},
-  { id: 'marco', name: 'Marco', grid: [
-    [1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1]
-  ]},
-  { id: 'letra_h', name: 'Letra H', grid: [
-    [1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1]
-  ]},
-  { id: 'letra_t', name: 'Letra T', grid: [
-    [1, 1, 1, 1, 1],
-    [0, 0, 1, 0, 0],
-    [0, 0, 1, 0, 0],
-    [0, 0, 1, 0, 0],
-    [0, 0, 1, 0, 0]
-  ]},
-  { id: 'lleno', name: 'Cartón Lleno', grid: [
-    [1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1]
-  ]}
-];
-
-// Función para verificar si un jugador ha completado la figura activa
-function checkPatternWin(card, markedNumbers, pattern) {
-  if (!pattern || !pattern.grid) return false;
-
-  // Convertir cartón a matriz 5x5
-  const cardMatrix = [
-    [card.B[0], card.I[0], card.N[0], card.G[0], card.O[0]],
-    [card.B[1], card.I[1], card.N[1], card.G[1], card.O[1]],
-    [card.B[2], card.I[2], 'FREE', card.G[2], card.O[2]], // Centro libre
-    [card.B[3], card.I[3], card.N[3], card.G[3], card.O[3]],
-    [card.B[4], card.I[4], card.N[4], card.G[4], card.O[4]]
-  ];
-
-  // Verificar si todas las posiciones del patrón están marcadas
-  for (let row = 0; row < 5; row++) {
-    for (let col = 0; col < 5; col++) {
-      if (pattern.grid[row][col] === 1) {
-        const cellValue = cardMatrix[row][col];
-        if (cellValue !== 'FREE' && !markedNumbers.includes(cellValue)) {
-          return false; // Falta marcar esta celda
-        }
-      }
-    }
-  }
-
-  return true; // ¡Todas las celdas del patrón están marcadas!
-}
-
-// Función para verificar ganadores después de cada número llamado
-async function checkForPatternWinners() {
-  if (!currentPattern) {
-    console.log('No hay patrón activo');
-    return;
-  }
-
-  // Obtener todos los jugadores activos
-  const connectedPlayers = Array.from(io.sockets.sockets.values())
-    .filter(s => s.data.username && s.data.cardIds && s.data.cardIds.length > 0);
-
-  for (const player of connectedPlayers) {
-    const { username, cardIds } = player.data;
-
-    for (const cardId of cardIds) {
-      const card = generateCard(cardId);
-
-      // Obtener números marcados para este cartón
-      const markedNumbers = gameState.calledNumbers.filter(num => {
-        const flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
-        return flatCard.includes(num);
-      });
-
-      // Verificar si este cartón completa la figura activa
-      if (checkPatternWin(card, markedNumbers, currentPattern)) {
-        const winData = {
-          playerName: username,
-          cardNumber: cardId,
-          pattern: currentPattern.name
-        };
-
-        // Emitir evento de ganador automático
-        io.emit('automaticWinner', winData);
-        console.log(`🏆 ¡BINGO AUTOMÁTICO! ${username} completó la figura ${currentPattern.name} con cartón #${cardId}`);
-
-        // También anunciar como ganador normal
-        io.emit('winner_announced', {
-          user: username,
-          card: cardId,
-          time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          pattern: currentPattern.id
-        });
-
-        return; // Solo anunciar el primer ganador
-      }
-    }
-  }
-}
-
+// ═══════════════════════════════════════════════════════════════
+// 🚀 INICIAR SERVIDOR
+// ═══════════════════════════════════════════════════════════════
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Yovanny Bingo V12 (Unique Cards) en puerto ${PORT}`));
+
+syncTakenCards().then(() => {
+    server.listen(PORT, () => {
+        console.log(`
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║   🎱  YOVANNY BINGO V15 - SISTEMA COMPLETO                   ║
+║                                                              ║
+║   Puerto: ${PORT}                                              ║
+║   Patrones: ${Object.keys(BINGO_PATTERNS).length} disponibles                               ║
+║   Cartones: ${TOTAL_CARDS} únicos                                      ║
+║                                                              ║
+║   ✅ MongoDB conectado                                       ║
+║   ✅ Socket.io listo                                         ║
+║   ✅ Detección automática de ganadores                       ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+        `);
+    });
+});
+
+// Manejo de cierre graceful
+process.on('SIGINT', async () => {
+    console.log('\n🛑 Cerrando servidor...');
+    if (gameState.autoPlayInterval) {
+        clearInterval(gameState.autoPlayInterval);
+    }
+    await mongoose.connection.close();
+    console.log('🔌 MongoDB cerrado');
+    process.exit(0);
+});

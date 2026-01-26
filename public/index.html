@@ -3,1554 +3,733 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Yovanny Bingo Online</title>
+    <title>Yovanny Bingo - Juega Online</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="fixes.js"></script>
-
-    <!-- Audio System -->
-    <script>
-        // Audio System for Bingo Sounds
-        class BingoAudio {
-            constructor() {
-                this.audioContext = null;
-                this.sounds = {};
-                this.enabled = true;
-                this.init();
-            }
-
-            init() {
-                try {
-                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    this.createSounds();
-                } catch (e) {
-                    console.warn('Web Audio API not supported');
-                    this.enabled = false;
-                }
-            }
-
-            createSounds() {
-                // Bingo Celebration Sound
-                this.sounds.bingo = () => this.createBingoSound();
-
-                // New Player Join Sound
-                this.sounds.playerJoin = () => this.createPlayerJoinSound();
-
-                // Button Click Sound
-                this.sounds.buttonClick = () => this.createButtonClickSound();
-
-                // Number Draw Sound
-                this.sounds.numberDraw = () => this.createNumberDrawSound();
-            }
-
-            createTone(frequency, duration, type = 'sine', volume = 0.3) {
-                if (!this.enabled) return;
-
-                const oscillator = this.audioContext.createOscillator();
-                const gainNode = this.audioContext.createGain();
-
-                oscillator.connect(gainNode);
-                gainNode.connect(this.audioContext.destination);
-
-                oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
-                oscillator.type = type;
-
-                gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-                gainNode.gain.linearRampToValueAtTime(volume, this.audioContext.currentTime + 0.01);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
-
-                oscillator.start();
-                oscillator.stop(this.audioContext.currentTime + duration);
-            }
-
-            createBingoSound() {
-                // Triumphant fanfare-like sound
-                const now = this.audioContext.currentTime;
-
-                // C4, E4, G4 chord
-                this.createTone(261.63, 0.8, 'triangle', 0.4); // C4
-                setTimeout(() => this.createTone(329.63, 0.8, 'triangle', 0.4), 100); // E4
-                setTimeout(() => this.createTone(392.00, 1.0, 'triangle', 0.4), 200); // G4
-
-                // Higher celebration notes
-                setTimeout(() => this.createTone(523.25, 0.3, 'sine', 0.3), 800); // C5
-                setTimeout(() => this.createTone(659.25, 0.3, 'sine', 0.3), 900); // E5
-                setTimeout(() => this.createTone(783.99, 0.5, 'sine', 0.3), 1000); // G5
-            }
-
-            createPlayerJoinSound() {
-                // Pleasant notification sound
-                this.createTone(440, 0.15, 'sine', 0.2); // A4
-                setTimeout(() => this.createTone(554.37, 0.15, 'sine', 0.2), 150); // C#5
-                setTimeout(() => this.createTone(659.25, 0.2, 'sine', 0.2), 300); // E5
-            }
-
-            createButtonClickSound() {
-                // Short click sound
-                this.createTone(800, 0.05, 'square', 0.1);
-            }
-
-            createNumberDrawSound() {
-                // Ball rolling/dropping sound
-                const now = this.audioContext.currentTime;
-
-                // Quick descending tones
-                this.createTone(600, 0.1, 'sawtooth', 0.2);
-                setTimeout(() => this.createTone(500, 0.1, 'sawtooth', 0.2), 50);
-                setTimeout(() => this.createTone(400, 0.15, 'sawtooth', 0.25), 100);
-            }
-
-            play(soundName) {
-                if (this.enabled && this.sounds[soundName]) {
-                    // Resume audio context if suspended (required by browsers)
-                    if (this.audioContext.state === 'suspended') {
-                        this.audioContext.resume();
-                    }
-                    this.sounds[soundName]();
-                }
-            }
-
-            toggle() {
-                this.enabled = !this.enabled;
-                return this.enabled;
-            }
-        }
-
-        // Initialize audio system
-        const bingoAudio = new BingoAudio();
-    </script>
 </head>
 <body class="player-app">
-
+    <!-- Marca de agua -->
     <div class="watermark-layer"></div>
 
-    <div id="login-screen" class="login-wrapper active">
-        <!-- Botón de Admin en esquina superior derecha -->
-        <button onclick="goToAdmin()" class="admin-access-btn" title="Panel de Administrador">
-            🔧
-        </button>
-        <div class="login-container glass-effect">
-            <div class="brand-area">
-                <img src="logo.png" alt="Yovanny Bingo" class="brand-logo">
-            </div>
-            <div class="form-group">
-                <label>Nombre de Jugador</label>
-                <input type="text" id="username" placeholder="Tu Apodo" autocomplete="off" maxlength="15">
-            </div>
-            <div class="form-group">
-                <label>Selecciona tus Cartones</label>
-
-                <div class="card-picker-ui">
-                    <div class="picker-controls">
-                        <input type="number" id="manual-input" placeholder="#" min="1" max="300">
-                        <button onclick="addManualCard()" class="btn-add">+</button>
-                        <button onclick="addRandomCard()" class="btn-random">🎲</button>
-                    </div>
-                    <small class="hint-text">Elige del 1 al 300</small>
-
-                    <div id="selected-list" class="chips-container"></div>
-                </div>
-            </div>
-            <div id="login-error" style="color: #ef4444; font-size: 0.9rem; margin-top: 10px; display: none; font-weight: bold;"></div>
-
-            <button onclick="joinGame()" class="btn-primary full-width">INGRESAR A SALA</button>
-        </div>
-    </div>
-
+    <!-- Ticker de anuncios -->
     <div class="global-announcement">
         <div class="marquee-content">
             <span class="announce-icon">🔴 EN VIVO:</span>
-            <span id="announcement-text">BIENVENIDOS A LA SALA DE BINGO YOVANNY... ESPERANDO INSTRUCCIONES...</span>
+            <span id="announcement-text">BIENVENIDOS AL BINGO YOVANNY - ESPERANDO INICIO DEL JUEGO...</span>
         </div>
     </div>
 
-    <div id="game-screen" class="app-shell hidden">
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- PANTALLA DE LOGIN -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="login-screen" class="screen active">
+        <button onclick="goToAdmin()" class="admin-access-btn" title="Panel Admin">⚙️</button>
+        
+        <div class="login-container glass-card">
+            <div class="brand-area">
+                <img src="logo.svg" alt="Yovanny Bingo" class="brand-logo">
+                <h1 class="brand-title">BINGO YOVANNY</h1>
+                <p class="brand-subtitle">¡La suerte está de tu lado!</p>
+            </div>
+            
+            <div class="form-group">
+                <label>👤 Tu nombre</label>
+                <input type="text" id="username" placeholder="Escribe tu apodo..." maxlength="20" autocomplete="off">
+            </div>
+            
+            <div class="form-group">
+                <label>🎫 Selecciona tus cartones</label>
+                <div class="card-picker">
+                    <div class="picker-controls">
+                        <input type="number" id="manual-input" placeholder="#" min="1" max="300">
+                        <button onclick="addManualCard()" class="btn-add" title="Agregar">➕</button>
+                        <button onclick="addRandomCard()" class="btn-random" title="Aleatorio">🎲</button>
+                    </div>
+                    <small class="hint">Cartones disponibles: 1-300</small>
+                    <div id="selected-list" class="chips-container">
+                        <span class="empty-hint">Ningún cartón seleccionado</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="login-error" class="error-msg"></div>
+            
+            <button onclick="joinGame()" class="btn-primary btn-glow">
+                🎱 ENTRAR AL JUEGO
+            </button>
+            
+            <p class="login-footer">Al entrar, aceptas las reglas del juego</p>
+        </div>
+    </div>
 
-        <header class="app-header glass-effect">
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- PANTALLA DE ESPERA -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="waiting-screen" class="screen">
+        <div class="waiting-container glass-card">
+            <div class="loader-ring"></div>
+            <h2>⏳ Esperando Aprobación</h2>
+            <p>El administrador está revisando tu solicitud...</p>
+            <p id="waiting-info" class="waiting-info"></p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- PANTALLA DE JUEGO -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="game-screen" class="screen">
+        <!-- Header -->
+        <header class="game-header glass-card">
             <div class="header-left">
-                <div class="avatar-circle"><span id="user-initial">Y</span></div>
-                <div class="user-meta">
-                    <span id="player-name-display" class="user-name">Usuario</span>
-                    <span class="user-status">En línea</span>
+                <div class="avatar"><span id="user-initial">?</span></div>
+                <div class="user-info">
+                    <span id="player-name" class="user-name">Jugador</span>
+                    <span class="user-status">🟢 En línea</span>
                 </div>
             </div>
+            
             <div class="header-center">
-                <div class="current-ball-display">
-                    <div class="ball-label">BOLA</div>
-                    <div id="current-number" class="ball-value">--</div>
+                <div class="current-ball">
+                    <span class="ball-label">BOLA</span>
+                    <span id="current-number" class="ball-number">--</span>
                 </div>
             </div>
+            
             <div class="header-right">
                 <div class="mode-badge" onclick="showPatternModal()">
                     <span class="mode-label">MODO</span>
-                    <strong id="mode-display">FULL</strong>
+                    <span id="mode-display" class="mode-value">LÍNEA</span>
                 </div>
             </div>
         </header>
 
-        <div class="history-bar">
-            <span class="history-label">Yovanny Bingo:</span>
-            <div id="player-last-5" class="history-track"></div>
+        <!-- Historial de números -->
+        <div class="history-bar glass-card">
+            <span class="history-label">Últimos:</span>
+            <div id="last-numbers" class="history-balls"></div>
+            <span id="total-called" class="total-called">0/75</span>
         </div>
 
+        <!-- Área de cartones -->
         <main class="cards-area">
-            <div id="cards-container" class="cards-scroll-view"></div>
+            <div id="cards-container" class="cards-grid"></div>
         </main>
 
-        <nav class="bottom-nav glass-effect">
-            <button onclick="toggleHistory()" class="nav-item">
-                <span class="icon">🏆</span>
-                <span class="label">Ganadores</span>
+        <!-- Barra inferior -->
+        <nav class="bottom-nav glass-card">
+            <button onclick="showWinnersModal()" class="nav-btn">
+                <span class="nav-icon">🏆</span>
+                <span class="nav-label">Ganadores</span>
             </button>
-            <div class="fab-container">
-                <button onclick="shoutBingo()" class="btn-fab pulse" id="bingo-btn">BINGO</button>
+            
+            <div class="fab-wrapper">
+                <button onclick="shoutBingo()" class="btn-bingo pulse" id="bingo-btn">
+                    BINGO
+                </button>
             </div>
-            <button onclick="logoutUser()" class="nav-item">
-                <span class="icon">🚪</span>
-                <span class="label">Salir</span>
+            
+            <button onclick="showStatsModal()" class="nav-btn">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Stats</span>
             </button>
         </nav>
-
-
     </div>
 
-    <div id="history-modal" class="modal-backdrop hidden">
-        <div class="modal-card slide-up">
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- MODALES -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    
+    <!-- Modal de ganadores -->
+    <div id="winners-modal" class="modal hidden">
+        <div class="modal-content glass-card slide-up">
             <div class="modal-header">
-                <h3>Ganadores Recientes</h3>
-                <button onclick="toggleHistory()" class="btn-close">✕</button>
+                <h3>🏆 Ganadores Recientes</h3>
+                <button onclick="hideModal('winners-modal')" class="btn-close">✕</button>
             </div>
-            <ul id="history-list" class="data-list"></ul>
+            <ul id="winners-list" class="winners-list">
+                <li class="empty">No hay ganadores aún</li>
+            </ul>
         </div>
     </div>
 
-    <div id="pattern-modal" class="modal-backdrop hidden">
-        <div class="modal-card slide-up">
+    <!-- Modal de patrón -->
+    <div id="pattern-modal" class="modal hidden">
+        <div class="modal-content glass-card slide-up">
             <div class="modal-header">
-                <h3>Figura Actual: <span id="pattern-title"></span></h3>
-                <button onclick="hidePatternModal()" class="btn-close">✕</button>
+                <h3>🎯 Patrón Actual</h3>
+                <button onclick="hideModal('pattern-modal')" class="btn-close">✕</button>
             </div>
-            <div id="pattern-display" class="pattern-display">
-                <!-- Mini bingo card will be inserted here -->
+            <div class="pattern-display">
+                <h4 id="pattern-name">LÍNEA</h4>
+                <div id="pattern-grid" class="pattern-grid"></div>
+                <p id="pattern-description" class="pattern-desc"></p>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Figura Personalizada -->
-    <div id="custom-pattern-modal" class="modal-backdrop hidden">
-        <div class="modal-card slide-up">
+    <!-- Modal de estadísticas -->
+    <div id="stats-modal" class="modal hidden">
+        <div class="modal-content glass-card slide-up">
             <div class="modal-header">
-                <h3>Figura Personalizada</h3>
-                <button onclick="hideCustomPatternModal()" class="btn-close">✕</button>
+                <h3>📊 Mis Estadísticas</h3>
+                <button onclick="hideModal('stats-modal')" class="btn-close">✕</button>
             </div>
-            <div id="custom-pattern-display" class="custom-pattern-display">
-                <!-- Mini bingo card para figura personalizada -->
-            </div>
-            <div class="modal-actions" style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
-                <button onclick="hideCustomPatternModal()" class="btn-secondary">Cerrar</button>
+            <div id="stats-content" class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-value" id="stat-games">0</span>
+                    <span class="stat-label">Partidas</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="stat-wins">0</span>
+                    <span class="stat-label">Victorias</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="stat-rate">0%</span>
+                    <span class="stat-label">Win Rate</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="stat-level">1</span>
+                    <span class="stat-label">Nivel</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="winner-overlay" class="fullscreen-overlay hidden">
-        <div class="winner-box zoom-in">
-            <div class="icon-trophy">🏆</div>
-            <h2>¡BINGO!</h2>
-            <h3 id="winner-name-announce">Nombre</h3>
-            <p>Cartón <span id="winner-card-announce">#00</span></p>
-            <button onclick="closeOverlay()" class="btn-primary">Continuar</button>
+    <!-- Overlay de victoria -->
+    <div id="winner-overlay" class="overlay hidden">
+        <div class="winner-celebration">
+            <div class="trophy-icon">🏆</div>
+            <h2 class="winner-title">¡BINGO!</h2>
+            <h3 id="winner-name" class="winner-name">Jugador</h3>
+            <p class="winner-card">Cartón <span id="winner-card-id">#00</span></p>
+            <button onclick="hideOverlay()" class="btn-primary">Continuar</button>
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- JAVASCRIPT -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
     <script>
-        // --- SISTEMA DE FIGURAS COMPLETAMENTE NUEVO Y MEJORADO ---
-        // Sistema reescrito desde cero con visualización correcta y validación robusta
-        const BINGO_PATTERNS = {
-    // Patrón básico: cualquier línea completa
-    'line': {
-        name: 'LÍNEA',
-        description: 'Gana con cualquier línea horizontal, vertical o diagonal completa',
-        positions: [
-            // Filas horizontales
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-            // Columnas verticales
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-            // Diagonales
-            [0,6,12,18,24], [4,8,12,16,20]
-        ],
-        visual: [
-            'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX',
-            'X    ', 'X    ', 'X    ', 'X    ', 'X    ',
-            '  X  ', '  X  ', '  X  ', '  X  ', '  X  ',
-            '    X', '    X', '    X', '    X', '    X',
-            'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
-        ]
-    },
-
-            // Cartón completo
-            'full': {
-                name: 'CARTÓN LLENO',
-                description: 'Todo el cartón debe estar marcado (Blackout completo)',
-                positions: [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
-                visual: [
-                    'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX', 'XXXXX'
-                ]
-            },
-
-            // Figuras geométricas básicas
-            'corners': {
-                name: '4 ESQUINAS',
-                description: 'Las cuatro esquinas del cartón',
-                positions: [[0,4,20,24]],
-                visual: [
-                    'X   X', '     ', '     ', '     ', 'X   X'
-                ]
-            },
-
-            'center': {
-                name: 'CENTRO',
-                description: 'Solo la casilla central del cartón',
-                positions: [[12]],
-                visual: [
-                    '     ', '     ', '  X  ', '     ', '     '
-                ]
-            },
-
-            'cross': {
-                name: 'CRUZ',
-                description: 'Centro más los cuatro brazos (forma de cruz)',
-                positions: [[2,7,12,17,22]],
-                visual: [
-                    '  X  ', '  X  ', 'XXXXX', '  X  ', '  X  '
-                ]
-            },
-
-            'plus': {
-                name: 'PLUS',
-                description: 'Centro más los cuatro brazos (símbolo +)',
-                positions: [[7,11,12,13,17]],
-                visual: [
-                    '     ', ' XXX ', ' XXX ', ' XXX ', '     '
-                ]
-            },
-
-            'x_shape': {
-                name: 'EQUIS (X)',
-                description: 'Ambas diagonales cruzadas',
-                positions: [[0,6,12,18,24], [4,8,12,16,20]],
-                visual: [
-                    'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
-                ]
-            },
-
-            // Marcos y bordes
-            'frame': {
-                name: 'MARCO EXTERIOR',
-                description: 'Todo el borde exterior del cartón',
-                positions: [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]],
-                visual: [
-                    'XXXXX', 'X   X', 'X   X', 'X   X', 'XXXXX'
-                ]
-            },
-
-            'inner_square': {
-                name: 'CUADRADO INTERIOR',
-                description: 'Cuadrado central de 3x3 casillas',
-                positions: [[6,7,8,11,13,16,17,18]],
-                visual: [
-                    '     ', ' XXX ', ' XXX ', ' XXX ', '     '
-                ]
-            },
-
-            // Figuras de letras mejoradas
-            'letter_l': {
-                name: 'LETRA L',
-                description: 'Forma de L mayúscula',
-                positions: [[0,5,10,15,20,21,22,23,24]],
-                visual: [
-                    'X    ', 'X    ', 'X    ', 'X    ', 'XXXXX'
-                ]
-            },
-
-            'letter_t': {
-                name: 'LETRA T',
-                description: 'Forma de T mayúscula',
-                positions: [[0,1,2,3,4,7,12,17]],
-                visual: [
-                    'XXXXX', '  X  ', '  X  ', '  X  ', '  X  '
-                ]
-            },
-
-            'letter_h': {
-                name: 'LETRA H',
-                description: 'Forma de H mayúscula',
-                positions: [[0,5,10,15,20,2,7,12,17,22,4,9,14,19,24]],
-                visual: [
-                    'X   X', 'X   X', 'XXXXX', 'X   X', 'X   X'
-                ]
-            },
-
-            'letter_o': {
-                name: 'LETRA O',
-                description: 'Forma de O mayúscula',
-                positions: [[1,2,3,5,9,10,14,15,19,21,22,23]],
-                visual: [
-                    ' XXX ', 'X   X', 'X   X', 'X   X', ' XXX '
-                ]
-            },
-
-            'letter_x': {
-                name: 'LETRA X',
-                description: 'Forma de X mayúscula',
-                positions: [[0,4,6,8,12,16,18,20,24]],
-                visual: [
-                    'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
-                ]
-            },
-
-            // Figuras especiales
-            'diamond': {
-                name: 'DIAMANTE',
-                description: 'Forma de diamante',
-                positions: [[2,6,10,14,18,22]],
-                visual: [
-                    '  X  ', ' X X ', 'X   X', ' X X ', '  X  '
-                ]
-            },
-
-            'star': {
-                name: 'ESTRELLA',
-                description: 'Forma de estrella de 5 puntas',
-                positions: [[2,6,7,8,10,12,14,16,17,18]],
-                visual: [
-                    '  X  ', ' X X ', 'XXXXX', ' X X ', '  X  '
-                ]
-            },
-
-            'heart': {
-                name: 'CORAZÓN',
-                description: 'Forma de corazón',
-                positions: [[1,3,5,7,8,9,11,12,13,15,17]],
-                visual: [
-                    ' X X ', 'XXXXX', 'XXXXX', ' XXX ', '  X  '
-                ]
-            },
-
-            'arrow': {
-                name: 'FLECHA',
-                description: 'Forma de flecha apuntando hacia arriba',
-                positions: [[2,6,7,8,10,11,12,13,14]],
-                visual: [
-                    '  X  ', ' XXX ', 'XXXXX', '  X  ', '  X  '
-                ]
-            },
-
-            'pyramid': {
-                name: 'PIRÁMIDE',
-                description: 'Forma triangular de pirámide',
-                positions: [[2,6,7,8,10,11,12,13,14,16,17,18]],
-                visual: [
-                    '  X  ', ' XXX ', 'XXXXX', '     ', '     '
-                ]
-            },
-
-            'small_square': {
-                name: 'CUADRADO PEQUEÑO',
-                description: 'Cuadrado 2x2 en esquina superior izquierda',
-                positions: [[0,1,5,6]],
-                visual: [
-                    'XX   ', 'XX   ', '     ', '     ', '     '
-                ]
-            },
-
-            'corner_square': {
-                name: 'ESQUINA CUADRADA',
-                description: 'Cuadrado 3x3 en esquina superior izquierda',
-                positions: [[0,1,2,5,6,7,10,11,12]],
-                visual: [
-                    'XXX  ', 'XXX  ', 'XXX  ', '     ', '     '
-                ]
-            },
-
-            'zigzag': {
-                name: 'ZIGZAG',
-                description: 'Patrón en zigzag a través del cartón',
-                positions: [[0,6,8,10,12,14,16,18,20,24]],
-                visual: [
-                    'X    ', ' XXX ', 'X   X', ' XXX ', 'X   X'
-                ]
-            },
-
-            'checkerboard': {
-                name: 'AJEDREZ',
-                description: 'Patrón de ajedrez (casillas alternas)',
-                positions: [[0,2,4,6,8,10,12,14,16,18,20,22,24]],
-                visual: [
-                    'X X X', ' X X ', 'X X X', ' X X ', 'X X X'
-                ]
-            },
-
-            'hourglass': {
-                name: 'RELOJ DE ARENA',
-                description: 'Forma de reloj de arena',
-                positions: [[0,4,6,8,12,16,18,20,24]],
-                visual: [
-                    'X   X', ' X X ', '  X  ', ' X X ', 'X   X'
-                ]
-            },
-
-            'butterfly': {
-                name: 'MARIPOSA',
-                description: 'Forma de mariposa',
-                positions: [[2,6,7,8,10,12,14,16,17,18]],
-                visual: [
-                    '  X  ', ' X X ', 'XXXXX', ' X X ', '  X  '
-                ]
-            },
-
-            'crown': {
-                name: 'CORONA',
-                description: 'Forma de corona real',
-                positions: [[0,1,2,3,4,6,8,12,16,18]],
-                visual: [
-                    'XXXXX', ' X X ', '  X  ', '     ', '     '
-                ]
-            },
-
-            'lightning': {
-                name: 'RAYO',
-                description: 'Forma de rayo o relámpago',
-                positions: [[0,5,6,7,8,13,18,23]],
-                visual: [
-                    'X    ', 'XX   ', 'XXX  ', '  X  ', '   X '
-                ]
-            },
-
-            'snake': {
-                name: 'SERPIENTE',
-                description: 'Patrón serpenteante',
-                positions: [[0,1,2,7,12,17,22,21,20,15,10,5]],
-                visual: [
-                    'XXX  ', '   X ', '  X  ', ' X   ', 'X    '
-                ]
-            },
-
-            'spiral': {
-                name: 'ESPIRAL',
-                description: 'Patrón en espiral',
-                positions: [[0,1,2,3,8,13,18,23,22,21,20,15,10,5]],
-                visual: [
-                    'XXXX ', '    X', 'XXXX ', 'X    ', 'XXXX '
-                ]
-            },
-
-            // Figuras personalizadas (admin puede definir)
-            'custom': {
-                name: 'FIGURA PERSONALIZADA',
-                description: 'Figura definida manualmente por el administrador',
-                positions: null, // Se define dinámicamente
-                visual: ['     ', '     ', '     ', '     ', '     ']
+        // ═══════════════════════════════════════════════════════════════
+        // SISTEMA DE AUDIO
+        // ═══════════════════════════════════════════════════════════════
+        class BingoAudio {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) { this.enabled = false; }
             }
-        };
+            
+            tone(freq, duration, type = 'sine', vol = 0.3) {
+                if (!this.enabled || !this.ctx) return;
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.frequency.value = freq;
+                osc.type = type;
+                gain.gain.setValueAtTime(0, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+            
+            numberDraw() {
+                this.tone(600, 0.1, 'sawtooth', 0.2);
+                setTimeout(() => this.tone(500, 0.1, 'sawtooth', 0.2), 50);
+                setTimeout(() => this.tone(400, 0.15, 'sawtooth', 0.25), 100);
+            }
+            
+            bingo() {
+                this.tone(261.63, 0.8, 'triangle', 0.4);
+                setTimeout(() => this.tone(329.63, 0.8, 'triangle', 0.4), 100);
+                setTimeout(() => this.tone(392.00, 1.0, 'triangle', 0.4), 200);
+                setTimeout(() => this.tone(523.25, 0.3, 'sine', 0.3), 800);
+                setTimeout(() => this.tone(659.25, 0.3, 'sine', 0.3), 900);
+                setTimeout(() => this.tone(783.99, 0.5, 'sine', 0.3), 1000);
+            }
+            
+            click() { this.tone(800, 0.05, 'square', 0.1); }
+            join() {
+                this.tone(440, 0.15, 'sine', 0.2);
+                setTimeout(() => this.tone(554, 0.15, 'sine', 0.2), 150);
+                setTimeout(() => this.tone(659, 0.2, 'sine', 0.2), 300);
+            }
+        }
+        
+        const audio = new BingoAudio();
 
+        // ═══════════════════════════════════════════════════════════════
+        // ESTADO Y CONEXIÓN
+        // ═══════════════════════════════════════════════════════════════
         const socket = io();
-        let myCards = []; // Cartones descargados
-        let selectedIds = []; // Cartones seleccionados en el login
-        let currentPattern = 'line'; // Patrón actual del juego
-        let currentCustomPatternGrid = null; // Para figuras personalizadas
-        let playerSession = null; // Datos de sesión persistente
+        let myCards = [];
+        let selectedIds = [];
+        let currentPattern = 'line';
+        let patterns = {};
+        let playerSession = null;
 
-
-
-        // Cargar sesión guardada al iniciar
-        function loadSavedSession() {
-            const saved = localStorage.getItem('yovanny_bingo_session');
+        // ═══════════════════════════════════════════════════════════════
+        // SESIÓN PERSISTENTE
+        // ═══════════════════════════════════════════════════════════════
+        function loadSession() {
+            const saved = localStorage.getItem('bingo_session');
             if (saved) {
                 try {
-                    playerSession = JSON.parse(saved);
-                    console.log('Sesión guardada encontrada:', playerSession);
-                    return playerSession;
-                } catch (e) {
-                    localStorage.removeItem('yovanny_bingo_session');
-                    return null;
+                    return JSON.parse(saved);
+                } catch(e) {
+                    localStorage.removeItem('bingo_session');
                 }
             }
             return null;
         }
-
-        // Guardar sesión actual
-        function saveSession(sessionData) {
-            playerSession = sessionData;
-            localStorage.setItem('yovanny_bingo_session', JSON.stringify(sessionData));
+        
+        function saveSession(data) {
+            playerSession = data;
+            localStorage.setItem('bingo_session', JSON.stringify(data));
         }
-
-        // Limpiar sesión
+        
         function clearSession() {
             playerSession = null;
-            localStorage.removeItem('yovanny_bingo_session');
+            localStorage.removeItem('bingo_session');
         }
 
-        // Intentar reconexión automática
-        function attemptAutoReconnect() {
-            const session = loadSavedSession();
-            if (session && session.status === 'approved') {
-                console.log('Intentando reconexión automática...');
-
-                // Mostrar pantalla de reconexión
-                document.getElementById('login-screen').classList.remove('active');
-                setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 300);
-
-                const reconnectScreen = document.createElement('div');
-                reconnectScreen.id = 'reconnect-screen';
-                reconnectScreen.className = 'login-wrapper active';
-                reconnectScreen.innerHTML = `
-                    <div class="login-container glass-effect" style="text-align: center;">
-                        <div style="font-size: 3rem; margin-bottom: 20px;">🔄</div>
-                        <h2>Reconectando...</h2>
-                        <p>Restaurando tu sesión de juego...</p>
-                        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 20px;">
-                            Usuario: ${session.username}<br>
-                            Cartones: ${session.cardIds.length}
-                        </p>
-                    </div>
-                `;
-                document.body.appendChild(reconnectScreen);
-
-                // Intentar reconectar
-                socket.emit('reconnect_player', {
-                    username: session.username,
-                    cardIds: session.cardIds,
-                    sessionId: session.sessionId
-                });
-
-                // Timeout por si falla la reconexión
-                setTimeout(() => {
-                    if (document.getElementById('reconnect-screen')) {
-                        document.getElementById('reconnect-screen').remove();
-                        document.getElementById('login-screen').classList.add('active');
-                        document.getElementById('login-screen').classList.remove('hidden');
-                        clearSession();
-                        alert('No se pudo reconectar. Por favor inicia sesión nuevamente.');
-                    }
-                }, 5000);
-            }
+        // ═══════════════════════════════════════════════════════════════
+        // UI: PANTALLAS
+        // ═══════════════════════════════════════════════════════════════
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
         }
+        
+        function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function hideOverlay() { document.getElementById('winner-overlay').classList.add('hidden'); }
 
-        // Manejar reconexión exitosa
-        socket.on('reconnection_success', (data) => {
-            // Remover pantalla de reconexión
-            const reconnectScreen = document.getElementById('reconnect-screen');
-            if(reconnectScreen) {
-                reconnectScreen.remove();
-            }
-
-            myCards = data.cards;
-            const user = playerSession.username;
-
-            // Ocultar login y mostrar juego
-            document.getElementById('login-screen').classList.remove('active');
-            setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 300);
-            document.getElementById('game-screen').classList.remove('hidden');
-
-            document.getElementById('player-name-display').innerText = user;
-            document.getElementById('user-initial').innerText = user.charAt(0).toUpperCase();
-
-            // 🎵 Sonido de entrada al juego
-            bingoAudio.play('playerJoin');
-
-            // Renderizar cartones
-            const container = document.getElementById('cards-container');
-            container.innerHTML = '';
-            data.cards.forEach(card => {
-                const cardEl = document.createElement('div');
-                cardEl.className = 'bingo-card';
-                cardEl.id = `card-visual-${card.id}`;
-
-                const head = document.createElement('div');
-                head.className = 'card-head';
-                head.innerHTML = `<span><b>Yovanny Bingo #${card.id}</b></span> <button class='btn-mini-dl' onclick='downloadSingleCard(${card.id})'>⬇</button>`;
-                cardEl.appendChild(head);
-
-                const grid = document.createElement('div');
-                grid.className = 'card-grid disable-clicks';
-
-                ['B','I','N','G','O'].forEach(l => {
-                    const cell = document.createElement('div');
-                    cell.className = `grid-header col-${l}`;
-                    cell.innerText = l;
-                    grid.appendChild(cell);
-                });
-
-                for(let i=0; i<5; i++) {
-                    const row = [card.B[i], card.I[i], card.N[i], card.G[i], card.O[i]];
-                    row.forEach(n => {
-                        const cell = document.createElement('div');
-                        cell.className = 'grid-cell';
-                        if(n === "FREE") {
-                            cell.classList.add('marked', 'free');
-                            cell.innerHTML = "★";
-                        } else {
-                            cell.innerText = n;
-                            cell.id = `c${card.id}-n${n}`;
-                            // Los jugadores NO pueden marcar/desmarcar manualmente
-                            // Solo el administrador puede llamar números
-                        }
-                        grid.appendChild(cell);
-                    });
-                }
-                cardEl.appendChild(grid);
-                container.appendChild(cardEl);
-            });
-
-            console.log(`Jugador ${user} reconectado exitosamente con ${data.cards.length} cartones`);
-        });
-
-        socket.on('reconnection_failed', (data) => {
-            // Remover pantalla de reconexión
-            const reconnectScreen = document.getElementById('reconnect-screen');
-            if(reconnectScreen) {
-                reconnectScreen.remove();
-            }
-
-            // Mostrar error y volver al login
-            document.getElementById('login-screen').classList.add('active');
-            document.getElementById('login-screen').classList.remove('hidden');
-            clearSession();
-            alert(data.message);
-        });
-
-        // Intentar reconexión automática al cargar la página
-        window.addEventListener('load', () => {
-            attemptAutoReconnect();
-        });
-
-        // Intentar reconexión cuando el socket se reconecta
-        socket.on('connect', () => {
-            // Si ya teníamos un cartón (significa que es una reconexión tras caída), recargamos
-            if (myCards.length > 0) {
-                console.log("Reconectado, recargando página para resincronizar...");
-                window.location.reload();
-            }
-        });
-
-        // Si el servidor se desconecta y vuelve a conectar, recargamos para evitar errores de sincronización
-        socket.on('disconnect', () => {
-            console.log("Desconectado del servidor...");
-        });
-
-        // --- LÓGICA DEL SELECTOR DE CARTONES ---
-
+        // ═══════════════════════════════════════════════════════════════
+        // UI: SELECTOR DE CARTONES
+        // ═══════════════════════════════════════════════════════════════
         function renderChips() {
             const container = document.getElementById('selected-list');
-            container.innerHTML = '';
-
             if (selectedIds.length === 0) {
-                container.innerHTML = '<span style="color:#666; font-size:0.8rem">Ningún cartón seleccionado</span>';
+                container.innerHTML = '<span class="empty-hint">Ningún cartón seleccionado</span>';
                 return;
             }
-
-            selectedIds.forEach(id => {
-                const chip = document.createElement('div');
-                chip.className = 'card-chip';
-                chip.innerHTML = `<span>#${id}</span> <button onclick="removeCard(${id})">×</button>`;
-                container.appendChild(chip);
-            });
+            container.innerHTML = selectedIds.map(id => 
+                `<div class="chip"><span>#${id}</span><button onclick="removeCard(${id})">×</button></div>`
+            ).join('');
         }
-
+        
         function addCardToSelection(id) {
             id = parseInt(id);
-            if (isNaN(id) || id < 1 || id > 300) return alert("El número debe estar entre 1 y 300");
-            if (selectedIds.includes(id)) return alert("Ya seleccionaste este cartón");
-
+            if (isNaN(id) || id < 1 || id > 300) {
+                showError('Número debe estar entre 1 y 300');
+                return;
+            }
+            if (selectedIds.includes(id)) {
+                showError('Ya seleccionaste este cartón');
+                return;
+            }
             selectedIds.push(id);
             renderChips();
+            audio.click();
         }
-
+        
         function removeCard(id) {
             selectedIds = selectedIds.filter(x => x !== id);
             renderChips();
         }
-
+        
         function addManualCard() {
             const input = document.getElementById('manual-input');
             addCardToSelection(input.value);
             input.value = '';
             input.focus();
         }
-
+        
         function addRandomCard() {
-            let rand;
-            let safety = 0;
+            let rand, safety = 0;
             do {
                 rand = Math.floor(Math.random() * 300) + 1;
                 safety++;
             } while (selectedIds.includes(rand) && safety < 500);
-
             addCardToSelection(rand);
         }
+        
+        function showError(msg) {
+            const el = document.getElementById('login-error');
+            el.textContent = msg;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
 
-        // --- LÓGICA DEL JUEGO ---
-
+        // ═══════════════════════════════════════════════════════════════
+        // JUEGO: UNIRSE
+        // ═══════════════════════════════════════════════════════════════
         function joinGame() {
-            const user = document.getElementById('username').value;
-            const errorDiv = document.getElementById('login-error');
-
-            if(!user) {
-                errorDiv.innerText = "Escribe tu nombre";
-                errorDiv.style.display = 'block';
-                return;
-            }
-            if(selectedIds.length === 0) {
-                errorDiv.innerText = "Selecciona al menos un cartón";
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            errorDiv.style.display = 'none';
-            // Enviamos el array selectedIds directamente
-            socket.emit('join_game', { username: user, cardIds: selectedIds });
-
-            // Mostrar pantalla de espera de aprobación
-            document.getElementById('login-screen').classList.remove('active');
-            setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 300);
-
-            // Crear pantalla de espera
-            const waitingScreen = document.createElement('div');
-            waitingScreen.id = 'waiting-screen';
-            waitingScreen.className = 'login-wrapper active';
-            waitingScreen.innerHTML = `
-                <div class="login-container glass-effect" style="text-align: center;">
-                    <div style="font-size: 3rem; margin-bottom: 20px;">⏳</div>
-                    <h2>Esperando Aprobación</h2>
-                    <p>El administrador está revisando tu solicitud...</p>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 20px;">
-                        Por favor espera mientras el admin aprueba tu ingreso.
-                    </p>
-                </div>
-            `;
-            document.body.appendChild(waitingScreen);
-        }
-
-        // --- MANEJO DE ERROR: CARTÓN OCUPADO ---
-        socket.on('join_error', (data) => {
-            const waitingScreen = document.getElementById('waiting-screen');
-            if(waitingScreen) {
-                // Mostrar el error en la pantalla de espera
-                waitingScreen.innerHTML = `
-                    <div class="login-container glass-effect" style="text-align: center;">
-                        <div style="font-size: 3rem; margin-bottom: 20px; color: #ef4444;">❌</div>
-                        <h2>Error de Ingreso</h2>
-                        <p>${data.message}</p>
-                        <button onclick="backToLogin()" class="btn-primary" style="margin-top: 20px;">Volver al Login</button>
-                    </div>
-                `;
-            } else {
-                // Fallback: mostrar en la pantalla de login
-                const errorDiv = document.getElementById('login-error');
-                errorDiv.innerText = data.message;
-                errorDiv.style.display = 'block';
-                document.querySelector('.login-container').animate([
-                    { transform: 'translateX(0)' },
-                    { transform: 'translateX(-10px)' },
-                    { transform: 'translateX(10px)' },
-                    { transform: 'translateX(0)' }
-                ], { duration: 300 });
-                document.getElementById('login-screen').classList.add('active');
-                document.getElementById('login-screen').classList.remove('hidden');
-            }
-        });
-
-        // Mensaje de espera de aprobación
-        socket.on('waiting_approval', (data) => {
-            // La pantalla de espera ya se creó en joinGame()
-            console.log(data.message);
-        });
-
-        // Jugador aceptado
-        socket.on('player_accepted', () => {
-            // Remover pantalla de espera
-            const waitingScreen = document.getElementById('waiting-screen');
-            if(waitingScreen) {
-                waitingScreen.remove();
-            }
+            const username = document.getElementById('username').value.trim();
+            if (!username) return showError('Escribe tu nombre');
+            if (selectedIds.length === 0) return showError('Selecciona al menos un cartón');
             
-            // Guardar sesión exitosa
-            const user = document.getElementById('username').value;
-            saveSession({
-                username: user,
-                cardIds: selectedIds,
-                status: 'approved',
-                sessionId: Date.now().toString()
-            });
+            socket.emit('join_game', { username, cardIds: selectedIds });
             
-            // El init_cards se manejará normalmente
-        });
-
-        // Actualizar la lógica para mostrar el modal correcto según el patrón
-        function showPatternModal() {
-            // Si es una figura personalizada, mostrar el modal de figura personalizada
-            if (currentPattern === 'custom') {
-                showCustomPatternModal();
-                return;
-            }
-
-            const modal = document.getElementById('pattern-modal');
-            const title = document.getElementById('pattern-title');
-            const display = document.getElementById('pattern-display');
-
-            // Set title
-            const map = {
-                'line': 'NORMAL (LÍNEA)',
-                'line_horizontal': 'LÍNEA HORIZONTAL',
-                'line_vertical': 'LÍNEA VERTICAL',
-                'line_diagonal': 'LÍNEA DIAGONAL',
-                'full': 'CARTÓN LLENO',
-                'corners': '4 ESQUINAS',
-                'x': 'X (DIAGONALES)',
-                'plus': 'PLUS (CENTRO + BRAZOS)',
-                'corners_center': 'ESQUINAS + CENTRO',
-                'frame': 'MARCO EXTERIOR',
-                'inner_frame': 'MARCO INTERIOR',
-                'letter_h': 'LETRA H',
-                'letter_t': 'LETRA T',
-                'small_square': 'CUADRADO PEQUEÑO',
-                'diamond': 'DIAMANTE',
-                'star': 'ESTRELLA',
-                'heart': 'CORAZÓN',
-                'airplane': 'AVIÓN',
-                'arrow': 'FLECHA',
-                'crazy': 'CRAZY (ZIGZAG)',
-                'pyramid': 'PIRÁMIDE',
-                'cross': 'CRUZ',
-                'custom': 'FIGURA MANUAL'
-            };
-            title.textContent = map[currentPattern] || currentPattern;
-
-            // Generate mini card
-            let html = '<div class="mini-bingo-card">';
-            html += '<div class="mini-grid">';
-            // Headers B I N G O
-            ['B','I','N','G','O'].forEach(l => {
-                html += `<div class="mini-header">${l}</div>`;
-            });
-            // 5x5 grid
-            for(let row=0; row<5; row++) {
-                for(let col=0; col<5; col++) {
-                    const idx = row + col*5;
-                    let classes = 'mini-cell';
-                    if(isWinningCell(idx, currentPattern)) classes += ' winning';
-                    if(idx === 12) classes += ' free';
-                    html += `<div class="${classes}">${idx === 12 ? '★' : ''}</div>`;
-                }
-            }
-            html += '</div></div>';
-
-            // Add explanations for each pattern
-            const explanations = {
-                'line': 'Gana cualquier línea: horizontal, vertical o diagonal',
-                'line_horizontal_1': 'Gana cuando se completa la fila 1',
-                'line_horizontal_2': 'Gana cuando se completa la fila 2',
-                'line_horizontal_3': 'Gana cuando se completa la fila 3',
-                'line_horizontal_4': 'Gana cuando se completa la fila 4',
-                'line_horizontal_5': 'Gana cuando se completa la fila 5',
-                'line_vertical_B': 'Gana cuando se completa la columna B',
-                'line_vertical_I': 'Gana cuando se completa la columna I',
-                'line_vertical_N': 'Gana cuando se completa la columna N',
-                'line_vertical_G': 'Gana cuando se completa la columna G',
-                'line_vertical_O': 'Gana cuando se completa la columna O',
-                'line_diagonal_main': 'Gana cuando se completa la diagonal principal',
-                'line_diagonal_secondary': 'Gana cuando se completa la diagonal secundaria',
-                'line_horizontal': 'Gana cualquier línea horizontal (filas)',
-                'line_vertical': 'Gana cualquier línea vertical (columnas)',
-                'line_diagonal': 'Gana cualquier línea diagonal',
-                'full': 'Todo el cartón marcado (Blackout)',
-                'corners': 'Las 4 esquinas del cartón',
-                'x': 'Ambas diagonales cruzadas (X)',
-                'plus': 'Centro más los 4 brazos (+)',
-                'corners_center': '4 esquinas más el centro',
-                'frame': 'Marco exterior del cartón',
-                'inner_frame': 'Marco interior (cuadrado central)',
-                'letter_h': 'Patrón en forma de H',
-                'letter_t': 'Patrón en forma de T',
-                'small_square': 'Cuadrado pequeño en esquina superior izquierda',
-                'diamond': 'Patrón en forma de diamante',
-                'star': 'Patrón en forma de estrella',
-                'heart': 'Patrón en forma de corazón',
-                'airplane': 'Patrón en forma de avión',
-                'arrow': 'Patrón en forma de flecha',
-                'crazy': 'Patrón en forma de zigzag',
-                'pyramid': 'Patrón en forma de pirámide',
-                'cross': 'Patrón en forma de cruz',
-                'custom': 'El administrador define la figura manualmente'
-            };
-
-            if(explanations[currentPattern]) {
-                html += `<p class="pattern-explanation">${explanations[currentPattern]}</p>`;
-            }
-
-            display.innerHTML = html;
-            modal.classList.remove('hidden');
+            document.getElementById('waiting-info').textContent = 
+                `${username} - ${selectedIds.length} cartón(es)`;
+            showScreen('waiting-screen');
         }
-
-        // Jugador rechazado
-        socket.on('player_rejected', (data) => {
-            // Remover pantalla de espera y mostrar mensaje de rechazo
-            const waitingScreen = document.getElementById('waiting-screen');
-            if(waitingScreen) {
-                waitingScreen.innerHTML = `
-                    <div class="login-container glass-effect" style="text-align: center;">
-                        <div style="font-size: 3rem; margin-bottom: 20px; color: #ef4444;">❌</div>
-                        <h2>Solicitud Rechazada</h2>
-                        <p>${data.message}</p>
-                        <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Intentar de Nuevo</button>
-                    </div>
-                `;
-            }
-        });
-
-        // Si entra con éxito, inicializamos la UI
-        socket.on('init_cards', ({ cards }) => {
-            myCards = cards;
-            const user = document.getElementById('username').value;
-
-            // Ocultar login y mostrar juego
-            document.getElementById('login-screen').classList.remove('active');
-            setTimeout(() => document.getElementById('login-screen').classList.add('hidden'), 300);
-            document.getElementById('game-screen').classList.remove('hidden');
-
-            document.getElementById('player-name-display').innerText = user;
-            document.getElementById('user-initial').innerText = user.charAt(0).toUpperCase();
-
-            // 🎵 Sonido de entrada al juego
-            bingoAudio.play('playerJoin');
-
-            // Renderizar cartones
-            const container = document.getElementById('cards-container');
-            container.innerHTML = '';
-            cards.forEach(card => {
-                const cardEl = document.createElement('div');
-                cardEl.className = 'bingo-card';
-                cardEl.id = `card-visual-${card.id}`;
-
-                const head = document.createElement('div');
-                head.className = 'card-head';
-                head.innerHTML = `<span><b>Yovanny Bingo #${card.id}</b></span> <button class='btn-mini-dl' onclick='downloadSingleCard(${card.id})'>⬇</button>`;
-                cardEl.appendChild(head);
-
-                const grid = document.createElement('div');
-                grid.className = 'card-grid disable-clicks';
-
-                ['B','I','N','G','O'].forEach(l => {
-                    const cell = document.createElement('div');
-                    cell.className = `grid-header col-${l}`;
-                    cell.innerText = l;
-                    grid.appendChild(cell);
-                });
-
-                for(let i=0; i<5; i++) {
-                    const row = [card.B[i], card.I[i], card.N[i], card.G[i], card.O[i]];
-                    row.forEach(n => {
-                        const cell = document.createElement('div');
-                        cell.className = 'grid-cell';
-                        if(n === "FREE") {
-                            cell.classList.add('marked', 'free');
-                            cell.innerHTML = "★";
-                        } else {
-                            cell.innerText = n;
-                            cell.id = `c${card.id}-n${n}`;
-
-                        }
-                        grid.appendChild(cell);
-                    });
-                }
-                cardEl.appendChild(grid);
-                container.appendChild(cardEl);
-            });
-        });
-
-        socket.on('kicked', () => { alert("Has sido expulsado."); location.reload(); });
-
-        socket.on('sync_state', (s) => {
-            document.getElementById('announcement-text').innerText = s.message;
-            updateMode(s.pattern);
-            updateHistory(s.last5Winners);
-            updateLast5(s.last5Numbers);
-            s.calledNumbers.forEach(markNumberInAllCards);
-        });
-
-
-
-        socket.on('number_called', (data) => {
-            const { num, last5, totalCalled, pattern } = data;
-
-            // Actualizar patrón si cambió
-            if (pattern && pattern !== currentPattern) {
-                currentPattern = pattern;
-                updateMode(pattern);
-            }
-
-            // 🎵 Sonido al sacar número
-            bingoAudio.play('numberDraw');
-
-            const ball = document.getElementById('current-number');
-            ball.style.transform = "scale(0.8)";
-            setTimeout(() => {
-                ball.innerText = num;
-                ball.style.transform = "scale(1)";
-            }, 150);
-
-            markNumberInAllCards(num);
-            updateLast5(last5);
-            if(navigator.vibrate) navigator.vibrate(50);
-
-            // Mostrar progreso en consola
-            console.log(`🎯 Número llamado: ${num} | Total: ${totalCalled} | Patrón: ${currentPattern}`);
-
-            // Verificar victoria automática después de marcar el número
-            setTimeout(() => {
-                checkAutomaticBingo();
-            }, 0); // Delay cero para máxima inmediatez instantánea
-        });
-
-
-
-        socket.on('message_updated', (msg) => document.getElementById('announcement-text').innerText = msg);
-        socket.on('pattern_changed', (data) => {
-            if (typeof data === 'string') {
-                updateMode(data);
-            } else {
-                currentPattern = data.type;
-                currentCustomPatternGrid = data.grid || null;
-                updateMode(data.type);
-            }
-        });
         
-        socket.on('winner_announced', (data) => {
-            document.getElementById('winner-name-announce').innerText = data.user;
-            document.getElementById('winner-card-announce').innerText = `#${data.card}`;
-            document.getElementById('winner-overlay').classList.remove('hidden');
-            confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
-
-
-        });
-
-        // 🎵 AUDIO AUTOMÁTICO INMEDIATO - El cartón "canta" bingo apenas se detecta
-        socket.on('bingo_audio_automatic', (data) => {
-            console.log('🎵 ¡BINGO DETECTADO! Reproduciendo audio automático...');
-
-            // 🎵 AUDIO INMEDIATO - El cartón canta bingo automáticamente
-            bingoAudio.play('bingo');
-
-            // Vibración inmediata para todos los dispositivos
-            if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
-
-            // Confetti inmediato para celebración visual
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-
-            // Mostrar mensaje de bingo inmediato en el anuncio
-            const originalMessage = document.getElementById('announcement-text').innerText;
-            document.getElementById('announcement-text').innerText = `¡BINGO AUTOMÁTICO! ${data.winner.user} con cartón #${data.winner.card}`;
-
-            // Restaurar mensaje después de 8 segundos
-            setTimeout(() => {
-                document.getElementById('announcement-text').innerText = originalMessage;
-            }, 8000);
-        });
-
-        // Celebración automática cuando alguien gana
-        socket.on('bingo_celebration', (data) => {
-            // 🎵 Sonido adicional de celebración (ya se reprodujo el automático)
-            // bingoAudio.play('bingo'); // Ya se reprodujo arriba
-
-            // Mostrar mensaje de celebración en el anuncio
-            const originalMessage = document.getElementById('announcement-text').innerText;
-            document.getElementById('announcement-text').innerText = data.message;
-
-            // Efectos de celebración adicionales para todos los jugadores
-            if(navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
-
-            // Confetti más moderado para otros jugadores
-            setTimeout(() => {
-                confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
-            }, 500);
-
-            // Restaurar mensaje original después de 10 segundos
-            setTimeout(() => {
-                document.getElementById('announcement-text').innerText = originalMessage;
-            }, 10000);
-        });
-
-        socket.on('update_history', (h) => updateHistory(h));
-        
-        socket.on('invalid_bingo', () => {
-            const btn = document.querySelector('.btn-fab');
-            btn.style.background = "#ef4444";
-            btn.innerText = "Error";
-            setTimeout(() => { 
-                btn.style.background = ""; 
-                btn.innerText = "BINGO"; 
-            }, 1000);
-        });
-
-        socket.on('game_reset', () => {
-            document.querySelectorAll('.grid-cell').forEach(c => c.classList.remove('marked'));
-            document.getElementById('current-number').innerText = "--";
-            document.getElementById('winner-overlay').classList.add('hidden');
-            updateLast5([]);
-        });
-
-        function markNumberInAllCards(num) {
-            myCards.forEach(card => {
-                const el = document.getElementById(`c${card.id}-n${num}`);
-                if(el) el.classList.add('marked');
-            });
-        }
-
-        function updateLast5(arr) {
-            document.getElementById('player-last-5').innerHTML = arr.map(n => `<div class="hist-ball">${n}</div>`).join('');
-        }
-        function updateMode(p) {
-            currentPattern = p; // Actualizar patrón actual para bingo automático
-
-            // Usar el nuevo sistema de figuras centralizado
-            const patternData = BINGO_PATTERNS[p];
-            if (patternData) {
-                document.getElementById('mode-display').innerText = patternData.name;
-            } else {
-                document.getElementById('mode-display').innerText = p;
-            }
-        }
-        function updateHistory(l) {
-            document.getElementById('history-list').innerHTML = l.length ? l.map(w => `<li><span class="t-name">${w.user}</span> <span class="t-card">#${w.card}</span></li>`).join('') : '<li class="empty">Lista vacía</li>';
-        }
-
-        function toggleHistory() { document.getElementById('history-modal').classList.toggle('hidden'); }
-        function shoutBingo() { socket.emit('bingo_shout'); }
-        function closeOverlay() { document.getElementById('winner-overlay').classList.add('hidden'); }
-
-        // Función para mostrar el modal de patrón
-        function showPatternModal() {
-            const modal = document.getElementById('pattern-modal');
-            const title = document.getElementById('pattern-title');
-            const display = document.getElementById('pattern-display');
-
-            // Obtener el patrón actual
-            const patternData = BINGO_PATTERNS[currentPattern];
-            if (patternData) {
-                title.textContent = patternData.name;
-            } else {
-                title.textContent = currentPattern;
-            }
-
-            // Generate mini card
-            let html = '<div class="mini-bingo-card">';
-            html += '<div class="mini-grid">';
-            // Headers B I N G O
-            ['B','I','N','G','O'].forEach(l => {
-                html += `<div class="mini-header">${l}</div>`;
-            });
-            // 5x5 grid
-            for(let row=0; row<5; row++) {
-                for(let col=0; col<5; col++) {
-                    const idx = row + col*5;
-                    let classes = 'mini-cell';
-                    if(isWinningCell(idx, currentPattern)) classes += ' winning';
-                    if(idx === 12) classes += ' free';
-                    html += `<div class="${classes}">${idx === 12 ? '★' : ''}</div>`;
-                }
-            }
-            html += '</div></div>';
-
-            // Add description for the pattern
-            if (patternData && patternData.description) {
-                html += `<p class="pattern-explanation">${patternData.description}</p>`;
-            }
-
-            display.innerHTML = html;
-            modal.classList.remove('hidden');
-        }
-
-        function isWinningCell(idx, pattern) {
-            // Usar el nuevo sistema de figuras centralizado
-            const patternData = BINGO_PATTERNS[pattern];
-            if (!patternData || !patternData.positions) return false;
-
-            // Verificar si alguna de las líneas del patrón contiene este índice
-            return patternData.positions.some(line => {
-                if (Array.isArray(line)) {
-                    return line.includes(idx);
-                }
-                return line === idx;
-            });
-        }
-
-        function hidePatternModal() {
-            document.getElementById('pattern-modal').classList.add('hidden');
-        }
-
-        // Función para mostrar el modal de figura personalizada
-        function showCustomPatternModal() {
-            const modal = document.getElementById('custom-pattern-modal');
-            const display = document.getElementById('custom-pattern-display');
-
-            // Generar mini card para figura personalizada
-            let html = '<div class="mini-bingo-card">';
-            html += '<div class="mini-grid">';
-            // Headers B I N G O
-            ['B','I','N','G','O'].forEach(l => {
-                html += `<div class="mini-header">${l}</div>`;
-            });
-            // 5x5 grid
-            for(let row=0; row<5; row++) {
-                for(let col=0; col<5; col++) {
-                    const idx = row + col*5;
-                    let classes = 'mini-cell';
-                    // Para figuras personalizadas, usar el grid actual
-                    if(currentCustomPatternGrid && currentCustomPatternGrid[idx]) {
-                        classes += ' winning';
-                    }
-                    if(idx === 12) classes += ' free';
-                    html += `<div class="${classes}">${idx === 12 ? '★' : ''}</div>`;
-                }
-            }
-            html += '</div></div>';
-
-            display.innerHTML = html;
-            modal.classList.remove('hidden');
-        }
-
-        function hideCustomPatternModal() {
-            document.getElementById('custom-pattern-modal').classList.add('hidden');
-        }
-
-
-
-        // Función para salir del juego
-        function logoutUser() {
-            if(confirm("¿Estás seguro de que quieres salir del juego? Perderás tu progreso actual y tus cartones serán liberados.")) {
-                // Limpiar sesión guardada
-                clearSession();
-                
-                // Desconectar del socket
-                socket.disconnect();
-                
-                // Recargar la página para volver al login
-                location.reload();
-            }
-        }
-
-        // Función para volver al login desde error
-        function backToLogin() {
-            const waitingScreen = document.getElementById('waiting-screen');
-            if(waitingScreen) waitingScreen.remove();
-            document.getElementById('login-screen').classList.add('active');
-            document.getElementById('login-screen').classList.remove('hidden');
-        }
-
-        // Función para ir al panel de admin
         function goToAdmin() {
             window.location.href = '/admin-login.html';
         }
 
-        // --- VERIFICACIÓN AUTOMÁTICA DE BINGO ---
-        function checkAutomaticBingo() {
-            // Solo verificar si tenemos cartones y estamos conectados
-            if(!myCards || myCards.length === 0) return;
-
-            // Obtener números llamados actuales (de los elementos marcados)
-            const calledNumbers = [];
-            document.querySelectorAll('.grid-cell.marked').forEach(cell => {
-                if(cell.innerText && cell.innerText !== '★') {
-                    calledNumbers.push(parseInt(cell.innerText));
-                }
-            });
-
-            // Usar el patrón actual sincronizado desde el servidor
-            for(let card of myCards) {
-                if(checkCardWin(card, calledNumbers, currentPattern)) {
-                    // ¡BINGO AUTOMÁTICO! Emitir el grito automáticamente
-                    console.log(`¡BINGO AUTOMÁTICO! Cartón ${card.id} completado con patrón ${currentPattern}`);
-                    socket.emit('bingo_shout');
-                    return; // Solo el primer cartón que gane
-                }
-            }
+        // ═══════════════════════════════════════════════════════════════
+        // JUEGO: GRITAR BINGO
+        // ═══════════════════════════════════════════════════════════════
+        function shoutBingo() {
+            socket.emit('bingo_shout');
+            audio.click();
         }
 
-        // Función auxiliar para verificar victoria (usando el nuevo sistema centralizado)
-        function checkCardWin(card, calledNumbers, pattern) {
-            console.log(`🔍 Verificando victoria cliente - Patrón: ${pattern}, Números llamados: ${calledNumbers.length}`);
-
-            // Aplanar el cartón por columnas: índices 0-4(B), 5-9(I), 10-14(N), etc.
-            // Índice 12 es el centro (FREE)
-            let flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
-
-            // Función auxiliar para ver si una celda está marcada
-            const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
-
-            // Usar el nuevo sistema de validación centralizada
-            return validatePattern(pattern, flatCard, calledNumbers);
-        }
-
-        // Función de validación centralizada (igual que en el servidor)
-        function validatePattern(patternType, flatCard, calledNumbers) {
-            const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
-
-            // Obtener el patrón desde la definición centralizada
-            const pattern = BINGO_PATTERNS[patternType];
-            if (!pattern) return false;
-
-            // Para patrones que tienen posiciones definidas
-            if (pattern.positions) {
-                // Verificar si alguna de las líneas del patrón está completa
-                return pattern.positions.some(line => {
-                    // Si es un array de arrays (múltiples líneas posibles)
-                    if (Array.isArray(line)) {
-                        return line.every(idx => isMarked(flatCard[idx]));
-                    }
-                    // Si es un array simple (una sola línea)
-                    return line.every ? line.every(idx => isMarked(flatCard[idx])) : isMarked(flatCard[line]);
-                });
-            }
-
-            return false;
-        }
-        
-        // --- FUNCIÓN DE DESCARGA INTELIGENTE ---
-        
-        // 1. Descargar UN SOLO cartón (cuando clickean el icono del cartón)
-        async function downloadSingleCard(cardId) {
-            const cardElement = document.getElementById(`card-visual-${cardId}`);
-            if(!cardElement) return;
-
-            // Ocultar botón de descarga temporalmente para la foto
-            const btn = cardElement.querySelector('.btn-mini-dl');
-            if(btn) btn.style.display = 'none';
-
-            await captureAndSave(cardElement, `Yovanny-Bingo-Carton-${cardId}.png`);
-
-            // Restaurar botón
-            if(btn) btn.style.display = 'flex';
-        }
-
-        // 2. Descargar TODOS los cartones (Botón del Dock)
-        async function downloadAllCards() {
-            if(myCards.length === 0) return alert("No tienes cartones.");
+        // ═══════════════════════════════════════════════════════════════
+        // JUEGO: RENDERIZAR CARTONES
+        // ═══════════════════════════════════════════════════════════════
+        function renderCards(cards) {
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
             
-            const mainBtn = document.querySelector('.nav-item span.label');
-            const originalText = mainBtn.innerText;
-            mainBtn.innerText = "Guardando...";
-
-            // Iterar y descargar uno por uno con un pequeño delay para no bloquear
-            for (let i = 0; i < myCards.length; i++) {
-                await downloadSingleCard(myCards[i].id);
-                // Pequeña pausa para que el navegador procese la descarga
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-
-            mainBtn.innerText = originalText;
+            cards.forEach(card => {
+                const cardEl = document.createElement('div');
+                cardEl.className = 'bingo-card';
+                cardEl.id = `card-${card.id}`;
+                
+                cardEl.innerHTML = `
+                    <div class="card-header">
+                        <span class="card-title">Cartón #${card.id}</span>
+                        <button class="btn-download" onclick="downloadCard(${card.id})" title="Descargar">⬇️</button>
+                    </div>
+                    <div class="card-grid">
+                        ${['B','I','N','G','O'].map(l => 
+                            `<div class="grid-header col-${l}">${l}</div>`
+                        ).join('')}
+                        ${[0,1,2,3,4].map(row => 
+                            ['B','I','N','G','O'].map(col => {
+                                const val = card[col][row];
+                                const isFree = val === "FREE";
+                                const id = isFree ? '' : `id="c${card.id}-n${val}"`;
+                                return `<div class="grid-cell ${isFree ? 'marked free' : ''}" ${id}>${isFree ? '★' : val}</div>`;
+                            }).join('')
+                        ).join('')}
+                    </div>
+                `;
+                
+                container.appendChild(cardEl);
+            });
+        }
+        
+        function markNumber(num) {
+            myCards.forEach(card => {
+                const el = document.getElementById(`c${card.id}-n${num}`);
+                if (el && !el.classList.contains('marked')) {
+                    el.classList.add('marked');
+                }
+            });
+        }
+        
+        function updateLastNumbers(arr) {
+            document.getElementById('last-numbers').innerHTML = 
+                arr.map(n => `<div class="history-ball">${n}</div>`).join('');
+        }
+        
+        function updateTotalCalled(total) {
+            document.getElementById('total-called').textContent = `${total}/75`;
         }
 
-        // Función auxiliar de captura
-        async function captureAndSave(element, filename) {
-            // Guardar estilos originales
-            const originalBg = element.style.background;
-            const originalColor = element.style.color;
-            const originalBorder = element.style.border;
-
-            // Aplicar estilos "Modo Impresión" (Alto Contraste) para que se vea bien la imagen
-            element.style.background = "#ffffff";
-            element.style.color = "#000000";
-            element.style.border = "3px solid #000000";
-            element.style.borderRadius = "8px";
-
-            // Cambiar colores de celdas para alto contraste
-            const cells = element.querySelectorAll('.grid-cell');
-            cells.forEach(c => {
-                c.style.border = "2px solid #333333";
-                c.style.backgroundColor = "#ffffff"; // Fondo blanco
-                c.style.color = "#000000"; // Texto negro
-                c.style.fontWeight = "900";
-                c.style.fontSize = "1.4rem";
-                if(c.classList.contains('marked')) {
-                    c.style.backgroundColor = "#000000"; // Marca negra
-                    c.style.color = "#ffffff"; // Texto blanco
-                    c.style.border = "2px solid #000000";
+        // ═══════════════════════════════════════════════════════════════
+        // MODALES
+        // ═══════════════════════════════════════════════════════════════
+        function showPatternModal() {
+            const pattern = patterns[currentPattern];
+            document.getElementById('pattern-name').textContent = pattern?.name || currentPattern;
+            document.getElementById('pattern-description').textContent = pattern?.description || '';
+            
+            const grid = document.getElementById('pattern-grid');
+            grid.innerHTML = '';
+            
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const idx = col * 5 + row;
+                    const isActive = isPatternCell(idx, currentPattern);
+                    const isFree = idx === 12;
+                    grid.innerHTML += `<div class="pattern-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}">${isFree ? '★' : ''}</div>`;
                 }
-                if(c.classList.contains('free')) {
-                    c.style.color = "#ff6b35"; // Color especial para FREE
-                    c.style.fontSize = "1.8rem";
-                }
-            });
-
-            // Cambiar colores de headers de columnas
-            const headers = element.querySelectorAll('.grid-header');
-            headers.forEach(h => {
-                h.style.backgroundColor = "#e74c3c"; // Rojo fuerte
-                h.style.color = "#ffffff";
-                h.style.border = "2px solid #c0392b";
-                h.style.fontWeight = "900";
-            });
-
-            // Cambiar el título del cartón
-            const title = element.querySelector('.card-head span');
-            if(title) {
-                title.style.color = "#000000";
-                title.style.fontWeight = "900";
-                title.style.fontSize = "1.1rem";
             }
+            
+            showModal('pattern-modal');
+        }
+        
+        function isPatternCell(idx, patternType) {
+            const pattern = patterns[patternType];
+            if (!pattern?.positions) return false;
+            return pattern.positions.some(line => 
+                Array.isArray(line) ? line.includes(idx) : line === idx
+            );
+        }
+        
+        function showWinnersModal() {
+            showModal('winners-modal');
+        }
+        
+        function showStatsModal() {
+            socket.emit('get_player_stats', playerSession?.username);
+            showModal('stats-modal');
+        }
+        
+        function updateWinnersList(winners) {
+            const list = document.getElementById('winners-list');
+            if (!winners?.length) {
+                list.innerHTML = '<li class="empty">No hay ganadores aún</li>';
+                return;
+            }
+            list.innerHTML = winners.map(w => 
+                `<li><span class="winner-user">🏆 ${w.user}</span><span class="winner-info">#${w.card} - ${w.time}</span></li>`
+            ).join('');
+        }
 
+        // ═══════════════════════════════════════════════════════════════
+        // DESCARGA DE CARTONES
+        // ═══════════════════════════════════════════════════════════════
+        async function downloadCard(cardId) {
+            const el = document.getElementById(`card-${cardId}`);
+            if (!el) return;
+            
+            const btn = el.querySelector('.btn-download');
+            if (btn) btn.style.display = 'none';
+            
             try {
-                const canvas = await html2canvas(element, {
-                    scale: 3, // Mayor calidad
-                    backgroundColor: "#ffffff",
-                    useCORS: true,
-                    logging: false,
-                    width: element.offsetWidth,
-                    height: element.offsetHeight
+                const canvas = await html2canvas(el, {
+                    scale: 3,
+                    backgroundColor: '#ffffff',
+                    useCORS: true
                 });
-
+                
                 const link = document.createElement('a');
-                link.download = filename;
-                link.href = canvas.toDataURL("image/png");
+                link.download = `Bingo-Carton-${cardId}.png`;
+                link.href = canvas.toDataURL('image/png');
                 link.click();
-
-            } catch (err) {
-                console.error("Error al guardar", err);
-            } finally {
-                // Restaurar estilos originales (Modo App Oscuro)
-                element.style.background = originalBg;
-                element.style.color = originalColor;
-                element.style.border = originalBorder;
-                element.style.borderRadius = "";
-
-                // Restaurar celdas
-                cells.forEach(c => {
-                    c.style.border = "";
-                    c.style.backgroundColor = "";
-                    c.style.color = "";
-                    c.style.fontWeight = "";
-                    c.style.fontSize = "";
-                });
-
-                // Restaurar headers
-                headers.forEach(h => {
-                    h.style.backgroundColor = "";
-                    h.style.color = "";
-                    h.style.border = "";
-                    h.style.fontWeight = "";
-                });
-
-                // Restaurar título
-                if(title) {
-                    title.style.color = "";
-                    title.style.fontWeight = "";
-                    title.style.fontSize = "";
-                }
+            } catch(e) {
+                console.error('Error descargando:', e);
             }
+            
+            if (btn) btn.style.display = '';
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SOCKET EVENTS
+        // ═══════════════════════════════════════════════════════════════
+        socket.on('sync_state', (state) => {
+            document.getElementById('announcement-text').textContent = state.message;
+            currentPattern = state.pattern;
+            
+            if (state.patterns) {
+                state.patterns.forEach(p => patterns[p.id] = p);
+            }
+            
+            const patternInfo = patterns[state.pattern];
+            document.getElementById('mode-display').textContent = patternInfo?.name || state.pattern;
+            
+            updateWinnersList(state.last5Winners);
+            updateLastNumbers(state.last5Numbers);
+            state.calledNumbers.forEach(markNumber);
+            updateTotalCalled(state.calledNumbers.length);
+        });
+        
+        socket.on('waiting_approval', (data) => {
+            document.getElementById('waiting-info').textContent = data.message;
+        });
+        
+        socket.on('join_error', (data) => {
+            showScreen('login-screen');
+            showError(data.message);
+        });
+        
+        socket.on('player_accepted', () => {
+            audio.join();
+        });
+        
+        socket.on('player_rejected', (data) => {
+            showScreen('login-screen');
+            showError(data.message || 'Solicitud rechazada');
+        });
+        
+        socket.on('init_cards', (data) => {
+            myCards = data.cards;
+            const username = document.getElementById('username').value.trim();
+            
+            saveSession({
+                username,
+                cardIds: selectedIds,
+                status: 'approved'
+            });
+            
+            document.getElementById('player-name').textContent = username;
+            document.getElementById('user-initial').textContent = username.charAt(0).toUpperCase();
+            
+            renderCards(data.cards);
+            showScreen('game-screen');
+        });
+        
+        socket.on('number_called', (data) => {
+            audio.numberDraw();
+            
+            const ball = document.getElementById('current-number');
+            ball.classList.add('animate');
+            ball.textContent = data.num;
+            setTimeout(() => ball.classList.remove('animate'), 300);
+            
+            markNumber(data.num);
+            updateLastNumbers(data.last5);
+            updateTotalCalled(data.totalCalled);
+            
+            if (navigator.vibrate) navigator.vibrate(50);
+        });
+        
+        socket.on('number_undone', (data) => {
+            document.getElementById('current-number').textContent = 
+                data.calledNumbers.length > 0 ? data.calledNumbers[data.calledNumbers.length - 1] : '--';
+            
+            myCards.forEach(card => {
+                const el = document.getElementById(`c${card.id}-n${data.number}`);
+                if (el) el.classList.remove('marked');
+            });
+            
+            updateLastNumbers(data.last5);
+            updateTotalCalled(data.totalCalled);
+        });
+        
+        socket.on('pattern_changed', (data) => {
+            currentPattern = data.type;
+            const patternInfo = patterns[data.type] || { name: data.name };
+            document.getElementById('mode-display').textContent = patternInfo.name || data.type;
+        });
+        
+        socket.on('message_updated', (msg) => {
+            document.getElementById('announcement-text').textContent = msg;
+        });
+        
+        socket.on('winner_announced', (data) => {
+            document.getElementById('winner-name').textContent = data.user;
+            document.getElementById('winner-card-id').textContent = `#${data.card}`;
+            document.getElementById('winner-overlay').classList.remove('hidden');
+            
+            confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+        });
+        
+        socket.on('bingo_audio', () => {
+            audio.bingo();
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        });
+        
+        socket.on('bingo_celebration', (data) => {
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.7 } });
+        });
+        
+        socket.on('update_history', updateWinnersList);
+        
+        socket.on('invalid_bingo', () => {
+            const btn = document.getElementById('bingo-btn');
+            btn.style.background = '#ef4444';
+            btn.textContent = '❌';
+            setTimeout(() => {
+                btn.style.background = '';
+                btn.textContent = 'BINGO';
+            }, 1000);
+        });
+        
+        socket.on('game_reset', () => {
+            document.querySelectorAll('.grid-cell').forEach(c => {
+                if (!c.classList.contains('free')) c.classList.remove('marked');
+            });
+            document.getElementById('current-number').textContent = '--';
+            document.getElementById('winner-overlay').classList.add('hidden');
+            updateLastNumbers([]);
+            updateTotalCalled(0);
+        });
+        
+        socket.on('full_reset', () => {
+            clearSession();
+        });
+        
+        socket.on('kicked', () => {
+            clearSession();
+            alert('Has sido expulsado del juego');
+            location.reload();
+        });
+        
+        socket.on('reconnection_success', (data) => {
+            myCards = data.cards;
+            document.getElementById('player-name').textContent = playerSession.username;
+            document.getElementById('user-initial').textContent = playerSession.username.charAt(0).toUpperCase();
+            renderCards(data.cards);
+            showScreen('game-screen');
+            audio.join();
+        });
+        
+        socket.on('reconnection_failed', () => {
+            clearSession();
+            showScreen('login-screen');
+        });
+        
+        socket.on('player_stats', (data) => {
+            if (data.stats) {
+                document.getElementById('stat-games').textContent = data.stats.totalGames || 0;
+                document.getElementById('stat-wins').textContent = data.stats.wins || 0;
+                document.getElementById('stat-rate').textContent = `${Math.round(data.stats.winRate || 0)}%`;
+            }
+            if (data.level) {
+                document.getElementById('stat-level').textContent = data.level.current || 1;
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // INICIALIZACIÓN
+        // ═══════════════════════════════════════════════════════════════
+        window.addEventListener('load', () => {
+            const session = loadSession();
+            if (session?.status === 'approved') {
+                playerSession = session;
+                socket.emit('reconnect_player', {
+                    username: session.username,
+                    cardIds: session.cardIds
+                });
+                showScreen('waiting-screen');
+                document.getElementById('waiting-info').textContent = 'Reconectando...';
+                
+                setTimeout(() => {
+                    if (!document.getElementById('game-screen').classList.contains('active')) {
+                        clearSession();
+                        showScreen('login-screen');
+                    }
+                }, 5000);
+            }
+        });
+        
+        // Enter para agregar cartón
+        document.getElementById('manual-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addManualCard();
+        });
+        
+        // Enter para unirse
+        document.getElementById('username').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && selectedIds.length > 0) joinGame();
+        });
     </script>
 </body>
 </html>
