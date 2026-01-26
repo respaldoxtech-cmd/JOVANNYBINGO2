@@ -1613,6 +1613,55 @@ io.on('connection', (socket) => {
         // Actualizar listas de jugadores
         io.emit('update_players', getActivePlayers());
     });
+
+    // Evento socket para establecer figura activa
+    socket.on('setActivePattern', (patternData) => {
+      currentPattern = patternData;
+      io.emit('updateActivePattern', patternData); // Broadcast a todos los jugadores
+      console.log(`🎯 Figura activa establecida: ${patternData.name}`);
+    });
+
+    // Modificar el evento admin_call_number para verificar ganadores después de cada número
+    socket.on('admin_call_number', (num) => {
+        // Validar que el número sea válido (1-75)
+        if (num < 1 || num > 75) {
+            socket.emit('admin_error', { message: `Número inválido: ${num}. Debe estar entre 1 y 75.` });
+            return;
+        }
+
+        // Validar que el número no haya sido llamado ya
+        if (gameState.calledNumbers.includes(num)) {
+            socket.emit('admin_error', { message: `El número ${num} ya fue llamado anteriormente.` });
+            return;
+        }
+
+        // Agregar el número a la lista de llamados
+        gameState.calledNumbers.push(num);
+        gameState.last5Numbers.unshift(num);
+        if (gameState.last5Numbers.length > 5) gameState.last5Numbers.pop();
+
+        console.log(`🎯 Número llamado: ${num}`);
+        console.log(`📊 Patrón actual: ${gameState.pattern}`);
+        console.log(`🔢 Números llamados hasta ahora: ${gameState.calledNumbers.length}`);
+
+        // Emitir el número llamado a todos los clientes
+        io.emit('number_called', {
+            num,
+            last5: gameState.last5Numbers,
+            totalCalled: gameState.calledNumbers.length,
+            pattern: gameState.pattern
+        });
+
+        // Verificar automáticamente si algún jugador ha ganado con la figura activa
+        setTimeout(async () => {
+            try {
+                await checkForAutomaticWinners();
+                await checkForPatternWinners();
+            } catch (error) {
+                console.error('❌ Error en verificación automática de ganadores:', error);
+            }
+        }, 0); // Delay cero para máxima inmediatez instantánea
+    });
 });
 
 function getActivePlayers() {
@@ -1992,13 +2041,6 @@ function checkPatternWin(card, markedNumbers, pattern) {
   return true; // ¡Todas las celdas del patrón están marcadas!
 }
 
-// Evento socket para establecer figura activa
-socket.on('setActivePattern', (patternData) => {
-  currentPattern = patternData;
-  io.emit('updateActivePattern', patternData); // Broadcast a todos los jugadores
-  console.log(`🎯 Figura activa establecida: ${patternData.name}`);
-});
-
 // Función para verificar ganadores después de cada número llamado
 async function checkForPatternWinners() {
   if (!currentPattern) {
@@ -2047,48 +2089,6 @@ async function checkForPatternWinners() {
     }
   }
 }
-
-// Modificar el evento admin_call_number para verificar ganadores después de cada número
-socket.on('admin_call_number', (num) => {
-    // Validar que el número sea válido (1-75)
-    if (num < 1 || num > 75) {
-        socket.emit('admin_error', { message: `Número inválido: ${num}. Debe estar entre 1 y 75.` });
-        return;
-    }
-
-    // Validar que el número no haya sido llamado ya
-    if (gameState.calledNumbers.includes(num)) {
-        socket.emit('admin_error', { message: `El número ${num} ya fue llamado anteriormente.` });
-        return;
-    }
-
-    // Agregar el número a la lista de llamados
-    gameState.calledNumbers.push(num);
-    gameState.last5Numbers.unshift(num);
-    if (gameState.last5Numbers.length > 5) gameState.last5Numbers.pop();
-
-    console.log(`🎯 Número llamado: ${num}`);
-    console.log(`📊 Patrón actual: ${gameState.pattern}`);
-    console.log(`🔢 Números llamados hasta ahora: ${gameState.calledNumbers.length}`);
-
-    // Emitir el número llamado a todos los clientes
-    io.emit('number_called', {
-        num,
-        last5: gameState.last5Numbers,
-        totalCalled: gameState.calledNumbers.length,
-        pattern: gameState.pattern
-    });
-
-    // Verificar automáticamente si algún jugador ha ganado con la figura activa
-    setTimeout(async () => {
-        try {
-            await checkForAutomaticWinners();
-            await checkForPatternWinners();
-        } catch (error) {
-            console.error('❌ Error en verificación automática de ganadores:', error);
-        }
-    }, 0); // Delay cero para máxima inmediatez instantánea
-});
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Yovanny Bingo V12 (Unique Cards) en puerto ${PORT}`));
