@@ -691,29 +691,32 @@ io.on('connection', (socket) => {
     
     // Chat Global
     socket.on('send_chat', (text) => {
-        let username = socket.data.username;
-        
-        // FIX: Si el socket perdió la data (reinicio/reconexión), buscar en el mapa de jugadores
-        if (!username) {
-            for (const [name, p] of players.entries()) {
-                if (p.id === socket.id) {
-                    username = name;
-                    socket.data.username = name; // Restaurar para la próxima
-                    break;
-                }
+        if (!text || !text.trim()) return;
+
+        let username = null;
+        // Siempre buscar al jugador por socket.id para máxima fiabilidad
+        for (const [name, p] of players.entries()) {
+            if (p.id === socket.id && (p.status === 'connected' || p.status === 'virtual')) {
+                username = name;
+                break;
             }
         }
 
-        if (!username || !text || !text.trim()) return;
-        
-        const msgId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-        io.emit('chat_message', {
-            id: msgId,
-            user: username,
-            text: text.trim(),
-            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-            isAdmin: false
-        });
+        if (username) {
+            const msgId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+            
+            console.log(`💬 Chat [Local Lookup]: ${username}: ${text}`);
+
+            io.emit('chat_message', {
+                id: msgId,
+                user: username,
+                text: text.trim(),
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                isAdmin: false
+            });
+        } else {
+            console.warn(`⚠️ Mensaje de chat de un socket local desconocido: ${socket.id}`);
+        }
     });
 
     // Admin Chat
