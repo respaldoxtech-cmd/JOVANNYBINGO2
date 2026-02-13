@@ -17,6 +17,17 @@
         }
         .grid-cell { cursor: pointer; transition: all 0.2s ease; }
         .grid-cell.pop-anim { animation: pop-highlight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        
+        @keyframes gold-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); border-color: #ffd700; }
+            50% { box-shadow: 0 0 20px 10px rgba(255, 215, 0, 0); border-color: #ffed4a; }
+            100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); border-color: #ffd700; }
+        }
+        .bingo-card.near-win {
+            animation: gold-pulse 1.5s infinite;
+            border: 2px solid #ffd700 !important;
+            z-index: 10;
+        }
     </style>
 </head>
 <body class="player-app">
@@ -423,6 +434,17 @@
         let currentPattern = 'line';
         let patterns = {};
         let playerSession = null;
+        
+        const WINNING_PATTERNS = {
+            'line': [
+                [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24], // Cols
+                [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24], // Rows
+                [0,6,12,18,24], [4,8,12,16,20] // Diagonals
+            ],
+            'full': [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
+            'corners': [[0,4,20,24]],
+            'x': [[0,6,12,18,24], [4,8,12,16,20]]
+        };
 
         function loadSession() {
             const saved = localStorage.getItem('bingo_session');
@@ -716,6 +738,7 @@
                 `;
                 
                 container.appendChild(cardEl);
+                checkCardProximity(card);
             });
             
             // Actualizar contador de cartones
@@ -744,8 +767,43 @@
                         el.classList.add('pop-anim');
                     }
                     if (!el.classList.contains('marked')) el.classList.add('marked');
+                    checkCardProximity(card);
                 }
             });
+        }
+        
+        function checkCardProximity(card) {
+            const cardEl = document.getElementById(`card-${card.id}`);
+            if (!cardEl) return;
+
+            const flatValues = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
+            let sets = WINNING_PATTERNS[currentPattern];
+            
+            // Fallback para patrones dinámicos o no definidos en WINNING_PATTERNS
+            if (!sets && patterns[currentPattern]?.positions) {
+                 sets = [patterns[currentPattern].positions];
+            }
+            
+            if (!sets) {
+                cardEl.classList.remove('near-win');
+                return;
+            }
+
+            let isNearWin = false;
+            for (const set of sets) {
+                let missing = 0;
+                for (const idx of set) {
+                    const val = flatValues[idx];
+                    if (val === "FREE") continue;
+                    const cell = document.getElementById(`c${card.id}-n${val}`);
+                    if (!cell || !cell.classList.contains('marked')) missing++;
+                    if (missing > 1) break;
+                }
+                if (missing === 1) { isNearWin = true; break; }
+            }
+
+            if (isNearWin) cardEl.classList.add('near-win');
+            else cardEl.classList.remove('near-win');
         }
         
         function updateLastNumbers(arr) {
@@ -945,6 +1003,7 @@
             updateLastNumbers(state.last5Numbers);
             state.calledNumbers.forEach(n => markNumber(n, false));
             updateTotalCalled(state.calledNumbers.length);
+            myCards.forEach(checkCardProximity);
         });
         
         socket.on('waiting_approval', (data) => {
@@ -1006,6 +1065,7 @@
                 const el = document.getElementById(`c${card.id}-n${data.number}`);
                 if (el) el.classList.remove('marked');
             });
+            myCards.forEach(checkCardProximity);
             
             updateLastNumbers(data.last5);
             updateTotalCalled(data.totalCalled);
@@ -1034,6 +1094,7 @@
                 const grid = document.getElementById('pattern-grid');
                 grid.innerHTML = renderPatternGrid(pattern?.positions || []);
             }
+            myCards.forEach(checkCardProximity);
         });
         
         socket.on('message_updated', (msg) => {
