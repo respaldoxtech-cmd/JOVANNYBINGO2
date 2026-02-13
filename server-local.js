@@ -13,7 +13,7 @@ const ADMIN_PASS = "admin123";
 
 // Sistema de moderación de jugadores
 let pendingPlayers = new Map(); // socketId -> {username, cardIds, socket}
-let virtualPlayers = new Map(); // virtualId -> {username, cardIds} - Jugadores agregados manualmente
+let players = new Map(); // username -> { id, username, cardIds, status, type }
 
 // Registro de cartones en uso (Para evitar duplicados)
 let takenCards = new Set();
@@ -293,6 +293,14 @@ io.on('connection', (socket) => {
                 return;
             }
 
+            // Verificar si el nombre de usuario ya está en uso por un jugador activo/desconectado
+            if (players.has(data.username)) {
+                socket.emit('join_error', {
+                    message: `El nombre "${data.username}" ya está en uso. Si eres tú, intenta reconectar.`
+                });
+                return;
+            }
+
             // Permitir cualquier cantidad de cartones (sin límite)
             // Poner al jugador en lista de pendientes para aprobación
             pendingPlayers.set(socket.id, {
@@ -354,6 +362,34 @@ io.on('connection', (socket) => {
     });
 
     socket.on('admin_kick_player', (socketId) => {
+        // Buscar jugador en el mapa de jugadores (puede estar desconectado)
+        let targetUsername = null;
+        for (const [username, p] of players.entries()) {
+            if (p.id === socketId) {
+                targetUsername = username;
+                break;
+            }
+        }
+
+        if (targetUsername) {
+            const player = players.get(targetUsername);
+            if (player.cardIds) {
+                player.cardIds.forEach(id => takenCards.delete(id));
+            }
+            players.delete(targetUsername);
+            
+            // Si está conectado, desconectarlo
+            const targetSocket = io.sockets.sockets.get(socketId);
+            if (targetSocket) {
+                targetSocket.emit('kicked');
+                targetSocket.disconnect();
+            }
+            
+            io.emit('update_players', getActivePlayers());
+            return;
+        }
+
+        // Fallback para sockets que no están en el mapa (raro)
         const target = io.sockets.sockets.get(socketId);
         if (target) {
             // Al expulsar, liberar cartones manualmente antes de desconectar
@@ -382,6 +418,16 @@ io.on('connection', (socket) => {
 
             // Aceptar al jugador: registrar cartones y inicializar
             pendingPlayer.cardIds.forEach(id => takenCards.add(id));
+            
+            // Agregar al mapa unificado de jugadores
+            players.set(pendingPlayer.username, {
+                id: socketId,
+                username: pendingPlayer.username,
+                cardIds: pendingPlayer.cardIds,
+                status: 'connected',
+                type: 'real'
+            });
+
             pendingPlayer.socket.data = {
                 username: pendingPlayer.username,
                 cardIds: pendingPlayer.cardIds
@@ -437,9 +483,12 @@ io.on('connection', (socket) => {
 
             // Add player to virtual players (for local testing)
             const virtualId = `virtual_${Date.now()}`;
-            virtualPlayers.set(virtualId, {
+            players.set(name, {
+                id: virtualId,
                 username: name,
-                cardIds: validCardIds
+                cardIds: validCardIds,
+                status: 'virtual',
+                type: 'virtual'
             });
 
             // Mark cards as taken immediately (no verification needed)
@@ -471,6 +520,14 @@ io.on('connection', (socket) => {
             availableCount: 300 - takenCards.size,
             usedCount: takenCards.size
         });
+    });
+
+    // Enviar mensaje privado a un jugador
+    socket.on('admin_send_private_message', (data) => {
+        const target = io.sockets.sockets.get(data.socketId);
+        if (target) {
+            target.emit('private_message', { message: data.message });
+        }
     });
 
     socket.on('admin_reset', () => {
@@ -511,8 +568,8 @@ io.on('connection', (socket) => {
         // Clear pending players
         pendingPlayers.clear();
 
-        // Clear virtual players (manually added players)
-        virtualPlayers.clear();
+        // Clear players map
+        players.clear();
 
         // Emit game reset (though players are disconnected, admin will receive it)
         io.emit('game_reset');
@@ -524,11 +581,14 @@ io.on('connection', (socket) => {
     socket.on('reconnect_player', (data) => {
         const { username, cardIds, sessionId } = data;
 
-        // Verify that the cards are still assigned to this player
-        const isValidReconnection = cardIds.every(id => takenCards.has(id));
+        // Verificar si el jugador existe en el registro (aunque esté desconectado)
+        const player = players.get(username);
 
-        if (isValidReconnection) {
+        if (player) {
             // Successful reconnection
+            player.id = socket.id;
+            player.status = 'connected';
+            
             socket.data = {
                 username: username,
                 cardIds: cardIds
@@ -584,6 +644,18 @@ io.on('connection', (socket) => {
             socket.emit('invalid_bingo');
         }
     });
+    
+    // Chat Global
+    socket.on('send_chat', (text) => {
+        const username = socket.data.username;
+        if (!username || !text || !text.trim()) return;
+        
+        io.emit('chat_message', {
+            user: username,
+            text: text.trim(),
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        });
+    });
 
     // --- AL DESCONECTARSE ---
     socket.on('disconnect', () => {
@@ -596,34 +668,31 @@ io.on('connection', (socket) => {
             io.emit('update_pending_players', getPendingPlayers());
         }
 
-        // Los jugadores activos permanecen en la lista incluso desconectados
-        // Solo se actualiza la lista visual, pero mantienen sus cartones asignados
-        io.emit('update_players', getActivePlayers());
+        // Marcar como desconectado pero mantener en la lista
+        const username = socket.data.username;
+        if (username && players.has(username)) {
+            const player = players.get(username);
+            // Solo marcar si el ID coincide (evitar condiciones de carrera en reconexión)
+            if (player.id === socket.id) {
+                player.status = 'disconnected';
+                io.emit('update_players', getActivePlayers());
+            }
+        }
     });
 });
 
 function getActivePlayers() {
-    // Get connected players
-    const connectedPlayers = Array.from(io.sockets.sockets.values())
-        .filter(s => s.data.username)
-        .map(s => ({
-            id: s.id,
-            name: s.data.username,
-            cardCount: s.data.cardIds ? s.data.cardIds.length : 0,
-            status: 'connected'
-        }));
-
-    // Get virtual players (manually added)
-    const virtualPlayersList = Array.from(virtualPlayers.entries())
-        .map(([virtualId, player]) => ({
-            id: virtualId,
-            name: player.username,
-            cardCount: player.cardIds.length,
-            status: 'virtual'
-        }));
-
-    // Combine both lists
-    return [...connectedPlayers, ...virtualPlayersList];
+    return Array.from(players.values()).map(p => {
+        let icon = '🔴';
+        if (p.status === 'connected') icon = '🟢';
+        else if (p.status === 'virtual') icon = '🤖';
+        return {
+            id: p.id,
+            name: `${icon} ${p.username}`,
+            cardCount: p.cardIds.length,
+            status: p.status
+        };
+    });
 }
 
 function getPendingPlayers() {
@@ -638,28 +707,8 @@ function getPendingPlayers() {
 
 // Función para verificar automáticamente ganadores después de cada número
 function checkForAutomaticWinners() {
-    // Obtener todos los jugadores activos (conectados + virtuales)
-    const connectedPlayers = Array.from(io.sockets.sockets.values())
-        .filter(s => s.data.username && s.data.cardIds && s.data.cardIds.length > 0)
-        .map(s => ({
-            username: s.data.username,
-            cardIds: s.data.cardIds,
-            type: 'connected'
-        }));
-
-    // Agregar jugadores virtuales (agregados manualmente)
-    const virtualPlayersList = Array.from(virtualPlayers.values())
-        .map(player => ({
-            username: player.username,
-            cardIds: player.cardIds,
-            type: 'virtual'
-        }));
-
-    // Combinar todas las listas de jugadores
-    const allActivePlayers = [...connectedPlayers, ...virtualPlayersList];
-
-    // Verificar cada jugador activo
-    for (const player of allActivePlayers) {
+    // Verificar cada jugador registrado (conectado, desconectado o virtual)
+    for (const player of players.values()) {
         const { username, cardIds } = player;
 
         // Verificar si este jugador ya ganó en esta partida (para evitar duplicados)

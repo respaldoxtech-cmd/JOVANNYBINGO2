@@ -15,7 +15,7 @@
             40% { transform: scale(1.25); filter: brightness(1.3); box-shadow: 0 0 15px rgba(255,255,255,0.6); }
             100% { transform: scale(1); }
         }
-        .grid-cell { cursor: pointer; transition: all 0.2s ease; }
+        .grid-cell { cursor: default; transition: all 0.2s ease; }
         .grid-cell.pop-anim { animation: pop-highlight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
         @keyframes gold-pulse {
@@ -28,6 +28,45 @@
             border: 2px solid #ffd700 !important;
             z-index: 10;
         }
+        
+        .bingo-card { position: relative; }
+        .proximity-badge {
+            position: absolute;
+            top: -12px;
+            right: 10px;
+            background: #ff3b30;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 15;
+            opacity: 0;
+            transform: translateY(10px) scale(0.8);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            border: 2px solid rgba(255,255,255,0.8);
+        }
+        .bingo-card.near-win .proximity-badge {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        
+        /* Estilos del Chat */
+        .chat-messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem; background: rgba(0,0,0,0.1); height: 50vh; min-height: 300px; }
+        .chat-bubble { max-width: 80%; padding: 0.6rem 1rem; border-radius: 1rem; font-size: 0.95rem; line-height: 1.4; position: relative; word-wrap: break-word; }
+        .chat-bubble.mine { align-self: flex-end; background: #4f46e5; color: white; border-bottom-right-radius: 0.2rem; }
+        .chat-bubble.others { align-self: flex-start; background: rgba(255,255,255,0.15); color: white; border-bottom-left-radius: 0.2rem; }
+        .chat-bubble .sender { font-size: 0.7rem; opacity: 0.8; margin-bottom: 0.2rem; display: block; font-weight: 600; }
+        .chat-bubble .time { font-size: 0.65rem; opacity: 0.6; float: right; margin-left: 8px; margin-top: 4px; }
+        .chat-input-area { display: flex; gap: 0.5rem; padding: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
+        .chat-input-area input { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 0.8rem; border-radius: 2rem; color: white; outline: none; }
+        .chat-badge { position: absolute; top: 5px; right: 20px; background: #ef4444; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid rgba(255,255,255,0.2); z-index: 5; }
+        
+        .quick-reactions { display: flex; gap: 8px; padding: 0 1rem 0.5rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .reaction-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 5px 12px; border-radius: 15px; cursor: pointer; font-size: 1.2rem; transition: all 0.2s; flex-shrink: 0; }
+        .reaction-btn:hover { transform: scale(1.1); background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body class="player-app">
@@ -219,6 +258,12 @@
                 <span class="nav-label">Ganadores</span>
             </button>
             
+            <button onclick="showChatModal()" class="nav-btn" style="position: relative;">
+                <span class="nav-icon">💬</span>
+                <span class="nav-label">Chat</span>
+                <div id="chat-badge" class="chat-badge hidden">0</div>
+            </button>
+            
             <div class="fab-wrapper">
                 <button onclick="shoutBingo()" class="btn-bingo pulse" id="bingo-btn">
                     BINGO
@@ -276,6 +321,42 @@
                 <div class="voice-test">
                     <button onclick="testVoice()" class="btn-primary btn-block">🔊 Probar voz</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Mensaje Privado -->
+    <div id="message-modal" class="modal hidden">
+        <div class="modal-content glass-card slide-up">
+            <div class="modal-header">
+                <h3>📨 Mensaje del Admin</h3>
+                <button onclick="hideModal('message-modal')" class="btn-close">✕</button>
+            </div>
+            <div class="message-body" style="padding: 1.5rem; text-align: center;">
+                <p id="admin-message-text" style="font-size: 1.2rem; margin-bottom: 1.5rem;"></p>
+                <button onclick="hideModal('message-modal')" class="btn-primary btn-block">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Chat -->
+    <div id="chat-modal" class="modal hidden">
+        <div class="modal-content glass-card slide-up">
+            <div class="modal-header">
+                <h3>💬 Chat Global</h3>
+                <button onclick="hideModal('chat-modal')" class="btn-close">✕</button>
+            </div>
+            <div id="chat-messages" class="chat-messages"></div>
+            <div class="quick-reactions">
+                <button onclick="sendQuickEmoji('👍')" class="reaction-btn">👍</button>
+                <button onclick="sendQuickEmoji('❤️')" class="reaction-btn">❤️</button>
+                <button onclick="sendQuickEmoji('😂')" class="reaction-btn">😂</button>
+                <button onclick="sendQuickEmoji('😮')" class="reaction-btn">😮</button>
+                <button onclick="sendQuickEmoji('🎉')" class="reaction-btn">🎉</button>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Escribe un mensaje..." maxlength="100" autocomplete="off">
+                <button onclick="sendChatMessage()" class="btn-primary" style="border-radius: 50%; width: 45px; height: 45px; padding: 0; display: flex; align-items: center; justify-content: center;">➤</button>
             </div>
         </div>
     </div>
@@ -434,6 +515,7 @@
         let currentPattern = 'line';
         let patterns = {};
         let playerSession = null;
+        let unreadChatCount = 0;
         
         const WINNING_PATTERNS = {
             'line': [
@@ -718,6 +800,7 @@
                 cardEl.id = `card-${card.id}`;
                 
                 cardEl.innerHTML = `
+                    <div class="proximity-badge">🔥 Falta 1</div>
                     <div class="card-header">
                         <span class="card-title">Cartón #${card.id}</span>
                         <button class="btn-download" onclick="downloadCard(${card.id})" title="Descargar">⬇️</button>
@@ -730,7 +813,7 @@
                             ['B','I','N','G','O'].map(col => {
                                 const val = card[col][row];
                                 const isFree = val === "FREE";
-                                const id = isFree ? '' : `id="c${card.id}-n${val}" onclick="toggleCell(this)"`;
+                                const id = isFree ? '' : `id="c${card.id}-n${val}"`;
                                 return `<div class="grid-cell ${isFree ? 'marked free' : ''}" ${id}>${isFree ? '★' : val}</div>`;
                             }).join('')
                         ).join('')}
@@ -875,6 +958,52 @@
         
         function showWinnersModal() {
             showModal('winners-modal');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CHAT GLOBAL
+        // ═══════════════════════════════════════════════════════════════
+        function showChatModal() {
+            showModal('chat-modal');
+            unreadChatCount = 0;
+            document.getElementById('chat-badge').classList.add('hidden');
+            scrollToBottomChat();
+            setTimeout(() => document.getElementById('chat-input').focus(), 100);
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (text) {
+                socket.emit('send_chat', text);
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function sendQuickEmoji(emoji) {
+            socket.emit('send_chat', emoji);
+            document.getElementById('chat-input').focus();
+        }
+
+        function appendChatMessage(data) {
+            const container = document.getElementById('chat-messages');
+            const isMine = data.user === playerSession?.username;
+            
+            const div = document.createElement('div');
+            div.className = `chat-bubble ${isMine ? 'mine' : 'others'}`;
+            div.innerHTML = `
+                ${!isMine ? `<span class="sender">${data.user}</span>` : ''}
+                ${data.text}
+                <span class="time">${data.time}</span>
+            `;
+            container.appendChild(div);
+            scrollToBottomChat();
+        }
+
+        function scrollToBottomChat() {
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = container.scrollHeight;
         }
         
         async function showStatsModal() {
@@ -1196,6 +1325,24 @@
         socket.on('achievement_unlocked', (data) => {
             if (data?.name) showAchievementToast(data.name);
         });
+        
+        socket.on('private_message', (data) => {
+            document.getElementById('admin-message-text').textContent = data.message;
+            showModal('message-modal');
+            if (audio && audio.join) audio.join();
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        });
+        
+        socket.on('chat_message', (data) => {
+            appendChatMessage(data);
+            const modal = document.getElementById('chat-modal');
+            if (modal.classList.contains('hidden')) {
+                unreadChatCount++;
+                const badge = document.getElementById('chat-badge');
+                badge.textContent = unreadChatCount > 9 ? '9+' : unreadChatCount;
+                badge.classList.remove('hidden');
+            }
+        });
 
         // ═══════════════════════════════════════════════════════════════
         // INICIALIZACIÓN
@@ -1259,6 +1406,11 @@
         // Enter para unirse
         document.getElementById('username').addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && selectedIds.length > 0) joinGame();
+        });
+
+        // Enter para enviar chat
+        document.getElementById('chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChatMessage();
         });
     </script>
 </body>
