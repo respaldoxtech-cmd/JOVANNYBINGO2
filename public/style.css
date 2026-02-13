@@ -2346,3 +2346,27 @@ input:focus {
         display: none;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEMAS DE COLOR
+   ═══════════════════════════════════════════════════════════════════════════ */
+body.theme-blue { --primary: #3b82f6; --primary-dark: #2563eb; --primary-light: #60a5fa; }
+body.theme-red { --primary: #ef4444; --primary-dark: #dc2626; --primary-light: #f87171; }
+body.theme-green { --primary: #10b981; --primary-dark: #059669; --primary-light: #34d399; }
+body.theme-orange { --primary: #f59e0b; --primary-dark: #d97706; --primary-light: #fbbf24; }
+body.theme-pink { --primary: #ec4899; --primary-dark: #db2777; --primary-light: #f472b6; }
+body.theme-teal { --primary: #14b8a6; --primary-dark: #0d9488; --primary-light: #2dd4bf; }
+body.theme-slate { --primary: #64748b; --primary-dark: #475569; --primary-light: #94a3b8; }
+
+.color-btn {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+}
+.color-btn:hover {
+    transform: scale(1.1);
+    border-color: white;
+}

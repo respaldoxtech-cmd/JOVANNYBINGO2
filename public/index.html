@@ -276,6 +276,7 @@
             </div>
             
             <div class="header-right">
+                <button onclick="showCustomizeModal()" class="btn-logout-game" style="margin-right: 8px;" title="Personalizar Color">🎨</button>
                 <button onclick="showVoiceSettings()" class="btn-logout-game" style="margin-right: 8px;" title="Configuración de Voz">🔊</button>
                 <div class="mode-badge" onclick="showPatternModal()">
                     <span class="mode-label">MODO</span>
@@ -348,6 +349,29 @@
             <ul id="winners-list" class="winners-list">
                 <li class="empty">No hay ganadores aún</li>
             </ul>
+        </div>
+    </div>
+
+    <!-- Modal de Personalización -->
+    <div id="customize-modal" class="modal hidden">
+        <div class="modal-content glass-card slide-up">
+            <div class="modal-header">
+                <h3>🎨 Personalizar Color</h3>
+                <button onclick="hideModal('customize-modal')" class="btn-close">✕</button>
+            </div>
+            <div class="customize-options" style="padding: 1rem;">
+                <p style="margin-bottom: 1rem; color: var(--text-secondary);">Elige el color de tus cartones:</p>
+                <div class="color-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+                    <button onclick="setTheme('default')" class="color-btn" style="background: #8b5cf6;" title="Violeta (Default)"></button>
+                    <button onclick="setTheme('blue')" class="color-btn" style="background: #3b82f6;" title="Azul"></button>
+                    <button onclick="setTheme('red')" class="color-btn" style="background: #ef4444;" title="Rojo"></button>
+                    <button onclick="setTheme('green')" class="color-btn" style="background: #10b981;" title="Verde"></button>
+                    <button onclick="setTheme('orange')" class="color-btn" style="background: #f59e0b;" title="Naranja"></button>
+                    <button onclick="setTheme('pink')" class="color-btn" style="background: #ec4899;" title="Rosa"></button>
+                    <button onclick="setTheme('teal')" class="color-btn" style="background: #14b8a6;" title="Turquesa"></button>
+                    <button onclick="setTheme('slate')" class="color-btn" style="background: #64748b;" title="Gris"></button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -574,7 +598,7 @@
         let selectedIds = [];
         let currentPattern = 'line';
         let patterns = {};
-        let playerSession = null;
+        let playerSession = loadSession(); // Cargar sesión inmediatamente
         let unreadChatCount = 0;
         
         const WINNING_PATTERNS = {
@@ -961,6 +985,32 @@
         // ═══════════════════════════════════════════════════════════════
         // MODALES
         // ═══════════════════════════════════════════════════════════════
+        function showCustomizeModal() {
+            showModal('customize-modal');
+        }
+
+        function setTheme(themeName) {
+            // Remover clases de tema existentes
+            document.body.classList.remove('theme-blue', 'theme-red', 'theme-green', 'theme-orange', 'theme-pink', 'theme-teal', 'theme-slate');
+            
+            if (themeName !== 'default') {
+                document.body.classList.add(`theme-${themeName}`);
+            }
+            
+            localStorage.setItem('bingo_theme', themeName);
+            
+            // Feedback visual
+            if (navigator.vibrate) navigator.vibrate(50);
+            hideModal('customize-modal');
+        }
+
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('bingo_theme');
+            if (savedTheme) {
+                setTheme(savedTheme);
+            }
+        }
+
         function showVoiceSettings() {
             showModal('voice-modal');
         }
@@ -1445,8 +1495,8 @@
         // INICIALIZACIÓN
         // ═══════════════════════════════════════════════════════════════
         window.addEventListener('load', async () => {
-            const session = loadSession();
-            playerSession = session;
+            loadTheme();
+            const session = playerSession;
             
             if (session?.status === 'approved') {
                 socket.emit('reconnect_player', { username: session.username, cardIds: session.cardIds });

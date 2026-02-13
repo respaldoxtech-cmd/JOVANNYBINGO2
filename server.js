@@ -978,6 +978,12 @@ io.on('connection', (socket) => {
         
         if (isValid) {
             socket.data = { username, cardIds };
+            
+            // Actualizar socketId en DB para respaldo del chat
+            try {
+                await Player.findOneAndUpdate({ username }, { socketId: socket.id, isActive: true });
+            } catch (e) { console.error('Error updating socketId:', e); }
+            
             const cards = cardIds.map(id => generateCard(id));
             socket.emit('reconnection_success', { cards });
             io.emit('update_players', getActivePlayers());
