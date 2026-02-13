@@ -4,8 +4,8 @@
   "description": "Bingo Online Realtime con MongoDB",
   "main": "server.js",
   "scripts": {
-    "start": "node --max-old-space-size=450 server.js",
-    "dev": "node server.js"
+    "start": "node --max-old-space-size=450 server-local.js",
+    "dev": "node server-local.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

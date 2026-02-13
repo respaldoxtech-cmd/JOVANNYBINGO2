@@ -8,6 +8,38 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
+    <style>
+        /* Estilos del Chat Admin */
+        #chat-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            height: 450px;
+            background: rgba(20, 20, 30, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            transform: translateY(110%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #chat-panel.open { transform: translateY(0); }
+        .chat-header { padding: 10px 15px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; border-radius: 16px 16px 0 0; color: white; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem; background: rgba(0,0,0,0.2); }
+        .chat-bubble { max-width: 85%; padding: 0.6rem 1rem; border-radius: 1rem; font-size: 0.9rem; line-height: 1.4; position: relative; word-wrap: break-word; color: white; }
+        .chat-bubble.mine { align-self: flex-end; background: #dc2626; border-bottom-right-radius: 0.2rem; }
+        .chat-bubble.others { align-self: flex-start; background: rgba(255,255,255,0.15); border-bottom-left-radius: 0.2rem; }
+        .chat-bubble .sender { font-size: 0.7rem; opacity: 0.8; margin-bottom: 0.2rem; display: block; font-weight: 600; }
+        .chat-input-area { display: flex; gap: 0.5rem; padding: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
+        .chat-input-area input { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 0.8rem; border-radius: 2rem; color: white; outline: none; }
+        .chat-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; background: #4f46e5; color: white; border: none; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 999; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; }
+        .chat-toggle-btn:hover { transform: scale(1.1); }
+        .chat-badge { position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #1a1a1a; }
+    </style>
 </head>
 <body class="admin-app">
     <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -42,6 +74,20 @@
              PANEL IZQUIERDO: JUGADORES Y GANADORES
         ────────────────────────────────────────────────────────────── -->
         <section class="panel-left">
+            <div class="roulette-box roulette-box-mini" style="margin-bottom: 1rem;">
+                <div class="roulette-display">
+                    <div id="roulette-wheel" class="roulette-wheel">
+                        <span id="roulette-number" class="roulette-number">--</span>
+                    </div>
+                    <div class="roulette-stats">
+                        <span id="called-count">0</span>/75 números
+                    </div>
+                </div>
+            </div>
+            <div class="last-balls" style="margin-bottom: 1rem;">
+                <span class="label">Últimos:</span>
+                <div id="last-numbers" class="balls-row" style="justify-content: center; flex-wrap: wrap;"></div>
+            </div>
             <!-- Controles de voz -->
             <div class="voice-controls-panel glass-card">
                 <h4>🔊 Control de Voz</h4>
@@ -130,22 +176,6 @@
             </div>
             <div id="numbers-board" class="numbers-board">
                 <!-- Los números se generan por JS -->
-            </div>
-            
-            <div class="last-balls">
-                <span class="label">Últimos:</span>
-                <div id="last-numbers" class="balls-row"></div>
-            </div>
-            
-            <div class="roulette-box roulette-box-mini">
-                <div class="roulette-display">
-                    <div id="roulette-wheel" class="roulette-wheel">
-                        <span id="roulette-number" class="roulette-number">--</span>
-                    </div>
-                    <div class="roulette-stats">
-                        <span id="called-count">0</span>/75 números
-                    </div>
-                </div>
             </div>
         </section>
 
@@ -253,6 +283,24 @@
         </div>
     </div>
 
+    <!-- Botón flotante del Chat -->
+    <button onclick="toggleChat()" class="chat-toggle-btn">
+        💬 <span id="chat-badge" class="chat-badge hidden">0</span>
+    </button>
+
+    <!-- Panel de Chat -->
+    <div id="chat-panel">
+        <div class="chat-header">
+            <h3>💬 Chat Global</h3>
+            <button onclick="toggleChat()" style="background:none; border:none; color:white; cursor:pointer;">▼</button>
+        </div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Mensaje como ADMIN..." maxlength="100" autocomplete="off">
+            <button onclick="sendAdminChat()" class="btn-primary" style="border-radius: 50%; width: 40px; height: 40px; padding: 0;">➤</button>
+        </div>
+    </div>
+
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- JAVASCRIPT -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -313,6 +361,7 @@
         let customGrid = Array(25).fill(false);
         let isAutoPlaying = false;
         let takenCards = new Set();
+        let unreadChatCount = 0;
 
         // Patrones se cargan desde el servidor (no hardcodeados)
         let PATTERNS = {};
@@ -825,6 +874,49 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // CHAT ADMIN
+        // ═══════════════════════════════════════════════════════════════
+        function toggleChat() {
+            const panel = document.getElementById('chat-panel');
+            panel.classList.toggle('open');
+            if (panel.classList.contains('open')) {
+                unreadChatCount = 0;
+                document.getElementById('chat-badge').classList.add('hidden');
+                scrollToBottomChat();
+                setTimeout(() => document.getElementById('chat-input').focus(), 100);
+            }
+        }
+
+        function sendAdminChat() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (text) {
+                socket.emit('admin_send_chat', text);
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function appendChatMessage(data) {
+            const container = document.getElementById('chat-messages');
+            const isMine = data.isAdmin; // Si es admin, es mío (en este panel)
+            
+            const div = document.createElement('div');
+            div.className = `chat-bubble ${isMine ? 'mine' : 'others'}`;
+            div.innerHTML = `
+                ${!isMine ? `<span class="sender">${data.user}</span>` : ''}
+                ${data.text}
+            `;
+            container.appendChild(div);
+            scrollToBottomChat();
+        }
+
+        function scrollToBottomChat() {
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // ESTADO DE CARTONES
         // ═══════════════════════════════════════════════════════════════
         function showCardStatusModal() {
@@ -999,6 +1091,17 @@
         socket.on('admin_error', (data) => {
             alert('Error: ' + data.message);
         });
+        
+        socket.on('chat_message', (data) => {
+            appendChatMessage(data);
+            const panel = document.getElementById('chat-panel');
+            if (!panel.classList.contains('open')) {
+                unreadChatCount++;
+                const badge = document.getElementById('chat-badge');
+                badge.textContent = unreadChatCount > 9 ? '9+' : unreadChatCount;
+                badge.classList.remove('hidden');
+            }
+        });
 
         // ═══════════════════════════════════════════════════════════════
         // INICIALIZACIÓN
@@ -1009,6 +1112,10 @@
             
             document.getElementById('admin-message').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') setMessage();
+            });
+            
+            document.getElementById('chat-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendAdminChat();
             });
         });
     </script>

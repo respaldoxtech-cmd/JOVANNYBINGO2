@@ -653,7 +653,19 @@ io.on('connection', (socket) => {
         io.emit('chat_message', {
             user: username,
             text: text.trim(),
-            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            isAdmin: false
+        });
+    });
+
+    // Admin Chat
+    socket.on('admin_send_chat', (text) => {
+        if (!text || !text.trim()) return;
+        io.emit('chat_message', {
+            user: 'ADMIN',
+            text: text.trim(),
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            isAdmin: true
         });
     });
 
