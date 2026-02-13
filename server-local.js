@@ -67,7 +67,8 @@ let gameState = {
     customPattern: [],
     last5Numbers: [],
     last5Winners: [],
-    message: "¡BIENVENIDOS AL BINGO YOVANNY!"
+    message: "¡BIENVENIDOS AL BINGO YOVANNY!",
+    isPaused: false
 };
 
 function mulberry32(a) {
@@ -721,6 +722,12 @@ io.on('connection', (socket) => {
             time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
             isAdmin: true
         });
+    });
+    
+    // Admin Pause
+    socket.on('admin_toggle_pause', () => {
+        gameState.isPaused = !gameState.isPaused;
+        io.emit('game_paused', gameState.isPaused);
     });
 
     // --- AL DESCONECTARSE ---

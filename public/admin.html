@@ -122,6 +122,7 @@
                 <div class="control-buttons">
                     <button onclick="undoNumber()" class="btn-undo" title="Deshacer último">↩️ Deshacer</button>
                     <button onclick="toggleAuto()" id="auto-btn" class="btn-auto">▶️ Auto</button>
+                    <button onclick="togglePause()" id="pause-btn" class="btn-warning" title="Pausar juego">⏸️</button>
                 </div>
             </div>
 
@@ -155,6 +156,9 @@
                 <ul id="winners-list" class="player-list winners">
                     <li class="empty">No hay ganadores aún</li>
                 </ul>
+                <div style="padding: 10px;">
+                    <button onclick="exportWinnersToCSV()" class="btn-action" style="width:100%">📄 Exportar Ganadores (CSV)</button>
+                </div>
             </div>
 
             <!-- Acciones rápidas -->
@@ -736,6 +740,10 @@
             }
         }
 
+        function togglePause() {
+            socket.emit('admin_toggle_pause');
+        }
+
         function callManualNumber() {
             const input = document.getElementById('manual-number');
             const num = parseInt(input.value);
@@ -849,6 +857,10 @@
             if (confirm(message)) {
                 socket.emit('admin_kick_player', idOrData);
             }
+        }
+
+        function exportWinnersToCSV() {
+            window.location.href = '/api/export-winners';
         }
 
         function showAddPlayerModal() {
@@ -1080,6 +1092,12 @@
             document.getElementById('roulette-number').textContent = '--';
             document.getElementById('called-count').textContent = '0';
             document.getElementById('last-numbers').innerHTML = '';
+        });
+        
+        socket.on('game_paused', (isPaused) => {
+            const btn = document.getElementById('pause-btn');
+            btn.textContent = isPaused ? '▶️ Reanudar' : '⏸️ Pausar';
+            btn.classList.toggle('active', isPaused);
         });
 
         socket.on('card_availability', updateCardStatus);

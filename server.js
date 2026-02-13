@@ -52,6 +52,8 @@ const connectDB = async () => {
         mongoose.connection.on('disconnected', () => console.warn('⚠️ MongoDB desconectado'));
         mongoose.connection.on('reconnected', () => console.log('✅ MongoDB reconectado'));
         
+        await loadGameState();
+        
     } catch (error) {
         console.error('❌ Error conectando MongoDB:', error.message);
         process.exit(1);
@@ -131,6 +133,26 @@ const UserSchema = new mongoose.Schema({
 });
 UserSchema.index({ username: 1 });
 const User = mongoose.model('User', UserSchema);
+
+// Modelo GameState: Persistencia del estado del juego
+const GameStateSchema = new mongoose.Schema({
+    calledNumbers: [Number],
+    pattern: String,
+    customPattern: [Boolean],
+    last5Numbers: [Number],
+    last5Winners: [],
+    message: String,
+    gameId: String,
+    gameSession: {
+        id: String,
+        winners: [String],
+        winningCards: [Number],
+        lastWinnerTime: Number,
+        cooldown: Number
+    },
+    updatedAt: { type: Date, default: Date.now }
+});
+const GameState = mongoose.model('GameState', GameStateSchema);
 
 // ═══════════════════════════════════════════════════════════════
 // 🎯 DEFINICIÓN DE PATRONES DE BINGO (50+)
@@ -327,7 +349,8 @@ let gameState = {
     message: "¡BIENVENIDOS AL BINGO YOVANNY!",
     isAutoPlaying: false,
     autoPlayInterval: null,
-    gameId: Date.now().toString()
+    gameId: Date.now().toString(),
+    isPaused: false
 };
 
 let gameSession = {
@@ -337,6 +360,56 @@ let gameSession = {
     lastWinnerTime: 0,
     cooldown: 2000
 };
+
+// ═══════════════════════════════════════════════════════════════
+// 💾 PERSISTENCIA DEL ESTADO
+// ═══════════════════════════════════════════════════════════════
+async function saveGameState() {
+    try {
+        const stateData = {
+            calledNumbers: gameState.calledNumbers,
+            pattern: gameState.pattern,
+            customPattern: gameState.customPattern,
+            last5Numbers: gameState.last5Numbers,
+            last5Winners: gameState.last5Winners,
+            message: gameState.message,
+            gameId: gameState.gameId,
+            gameSession: {
+                id: gameSession.id,
+                winners: Array.from(gameSession.winners),
+                winningCards: Array.from(gameSession.winningCards),
+                lastWinnerTime: gameSession.lastWinnerTime,
+                cooldown: gameSession.cooldown
+            },
+            updatedAt: new Date()
+        };
+        await GameState.findOneAndUpdate({}, stateData, { upsert: true });
+    } catch (e) { console.error('❌ Error guardando estado:', e.message); }
+}
+
+async function loadGameState() {
+    try {
+        const saved = await GameState.findOne({});
+        if (saved) {
+            gameState.calledNumbers = saved.calledNumbers || [];
+            gameState.pattern = saved.pattern || 'line';
+            gameState.customPattern = saved.customPattern || [];
+            gameState.last5Numbers = saved.last5Numbers || [];
+            gameState.last5Winners = saved.last5Winners || [];
+            gameState.message = saved.message || "¡BIENVENIDOS AL BINGO YOVANNY!";
+            gameState.gameId = saved.gameId || Date.now().toString();
+            
+            if (saved.gameSession) {
+                gameSession.id = saved.gameSession.id;
+                gameSession.winners = new Set(saved.gameSession.winners);
+                gameSession.winningCards = new Set(saved.gameSession.winningCards);
+                gameSession.lastWinnerTime = saved.gameSession.lastWinnerTime;
+                gameSession.cooldown = saved.gameSession.cooldown;
+            }
+            console.log('📂 Estado del juego recuperado de MongoDB');
+        }
+    } catch (e) { console.error('❌ Error cargando estado:', e.message); }
+}
 
 // Jugadores en memoria
 let pendingPlayers = new Map();  // socketId -> datos del jugador
@@ -624,6 +697,7 @@ async function checkForAutomaticWinners() {
                 if (gameState.last5Winners.length > 5) gameState.last5Winners.pop();
                 
                 await updatePlayerStats(player.username, winData);
+                saveGameState(); // Guardar estado al haber ganador
                 
                 io.emit('bingo_audio', { playSound: true });
                 io.emit('winner_announced', winData);
@@ -808,6 +882,24 @@ app.get('/api/active-game/:username', async (req, res) => {
     }
 });
 
+app.get('/api/export-winners', (req, res) => {
+    try {
+        const headers = ['Usuario', 'Carton', 'Hora', 'Patron', 'Numeros Llamados'];
+        const rows = gameState.last5Winners.map(w => [
+            w.user, w.card, w.time, w.patternName || w.pattern, w.numbersCalled
+        ]);
+        
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(r => r.join(','))
+        ].join('\n');
+        
+        res.header('Content-Type', 'text/csv');
+        res.attachment(`ganadores_bingo_${Date.now()}.csv`);
+        res.send(csvContent);
+    } catch (e) { res.status(500).send('Error exportando CSV'); }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // 🔌 SOCKET.IO EVENTOS
 // ═══════════════════════════════════════════════════════════════
@@ -919,6 +1011,7 @@ io.on('connection', (socket) => {
                 }
                 
                 await updatePlayerStats(username, winData);
+                saveGameState();
                 
                 io.emit('winner_announced', winData);
                 io.emit('update_history', gameState.last5Winners);
@@ -952,6 +1045,7 @@ io.on('connection', (socket) => {
         
         console.log(`🎯 Número ${num} | Total: ${gameState.calledNumbers.length}`);
         
+        saveGameState();
         io.emit('number_called', {
             num,
             last5: gameState.last5Numbers,
@@ -980,6 +1074,7 @@ io.on('connection', (socket) => {
         
         console.log(`🔙 Deshecho número ${lastNum}`);
         
+        saveGameState();
         io.emit('number_undone', {
             number: lastNum,
             calledNumbers: gameState.calledNumbers,
@@ -1030,6 +1125,7 @@ io.on('connection', (socket) => {
     // ─────────────────────────────────────────────────────────────
     socket.on('admin_set_message', (msg) => {
         gameState.message = msg;
+        saveGameState();
         io.emit('message_updated', msg);
     });
     
@@ -1200,6 +1296,7 @@ io.on('connection', (socket) => {
         gameState.last5Winners = [];
         resetWinnerManagement();
         
+        saveGameState();
         io.emit('game_reset');
         io.emit('update_pending_players', getPendingPlayers());
         getActivePlayers().then(players => {
@@ -1219,7 +1316,8 @@ io.on('connection', (socket) => {
         resetWinnerManagement();
         
         // Desconectar todos los jugadores
-        io.sockets.sockets.forEach(s => {
+        const sockets = Array.from(io.sockets.sockets.values());
+        sockets.forEach(s => {
             if (s.data.cardIds) {
                 s.emit('full_reset');
                 s.emit('kicked');
@@ -1229,7 +1327,9 @@ io.on('connection', (socket) => {
         
         takenCards.clear();
         pendingPlayers.clear();
-        saveGameState();
+
+        // Limpiar estado guardado
+        await GameState.deleteMany({});
 
         try {
             const result = await Player.deleteMany({});
@@ -1271,6 +1371,7 @@ io.on('connection', (socket) => {
             gameState.last5Numbers.unshift(num);
             if (gameState.last5Numbers.length > 5) gameState.last5Numbers.pop();
             
+            saveGameState();
             io.emit('number_called', {
                 num,
                 last5: gameState.last5Numbers,
@@ -1297,6 +1398,24 @@ io.on('connection', (socket) => {
         console.log('⏹️ Tiro automático detenido');
     });
     
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN: Pausar Juego
+    // ─────────────────────────────────────────────────────────────
+    socket.on('admin_toggle_pause', () => {
+        gameState.isPaused = !gameState.isPaused;
+        
+        // Si se pausa, detener el auto-play si está activo
+        if (gameState.isPaused && gameState.isAutoPlaying) {
+            clearInterval(gameState.autoPlayInterval);
+            gameState.autoPlayInterval = null;
+            gameState.isAutoPlaying = false;
+            io.emit('auto_play_stopped');
+        }
+        
+        io.emit('game_paused', gameState.isPaused);
+        console.log(`⏸️ Juego ${gameState.isPaused ? 'PAUSADO' : 'REANUDADO'}`);
+    });
+
     // ─────────────────────────────────────────────────────────────
     // Desconexión
     // ─────────────────────────────────────────────────────────────
