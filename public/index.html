@@ -9,6 +9,15 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
+    <style>
+        @keyframes pop-highlight {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.25); filter: brightness(1.3); box-shadow: 0 0 15px rgba(255,255,255,0.6); }
+            100% { transform: scale(1); }
+        }
+        .grid-cell { cursor: pointer; transition: all 0.2s ease; }
+        .grid-cell.pop-anim { animation: pop-highlight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    </style>
 </head>
 <body class="player-app">
     <!-- Marca de agua -->
@@ -181,28 +190,15 @@
         </div>
 
         <!-- Área principal: Tablero de números en el centro -->
-        <main class="game-main">
-            <!-- Área central: Tablero de números -->
-            <section class="numbers-board-area">
-                <div class="board-header">
-                    <span class="board-title">Tablero de Números</span>
-                    <div class="board-actions">
-                        <button onclick="showBoardInfo()" class="btn-info">ℹ️</button>
-                    </div>
-                </div>
-                <div id="numbers-board" class="numbers-board">
-                    <!-- Los números se generan por JS -->
-                </div>
-            </section>
-
-            <!-- Área derecha: Cartones -->
-            <aside class="cards-sidebar">
+        <main class="game-main" style="display: block; overflow-y: auto; padding-bottom: 120px; -webkit-overflow-scrolling: touch;">
+            <!-- Área de Cartones -->
+            <div class="cards-container-full" style="padding: 10px; max-width: 1200px; margin: 0 auto;">
                 <div class="cards-header">
                     <h4>🎫 Tus Cartones</h4>
                     <span id="cards-count" class="cards-count">0</span>
                 </div>
-                <div id="cards-container" class="cards-grid"></div>
-            </aside>
+                <div id="cards-container" class="cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;"></div>
+            </div>
         </main>
 
         <!-- Barra inferior -->
@@ -712,7 +708,7 @@
                             ['B','I','N','G','O'].map(col => {
                                 const val = card[col][row];
                                 const isFree = val === "FREE";
-                                const id = isFree ? '' : `id="c${card.id}-n${val}"`;
+                                const id = isFree ? '' : `id="c${card.id}-n${val}" onclick="toggleCell(this)"`;
                                 return `<div class="grid-cell ${isFree ? 'marked free' : ''}" ${id}>${isFree ? '★' : val}</div>`;
                             }).join('')
                         ).join('')}
@@ -726,11 +722,28 @@
             document.getElementById('cards-count').textContent = cards.length;
         }
         
-        function markNumber(num) {
+        function toggleCell(el) {
+            if (el.classList.contains('free')) return;
+            
+            // Animación y marcado visual
+            el.classList.remove('pop-anim');
+            void el.offsetWidth; // Trigger reflow
+            el.classList.add('pop-anim');
+            el.classList.toggle('marked');
+            
+            if (el.classList.contains('marked')) audio.click();
+        }
+        
+        function markNumber(num, shouldAnimate = false) {
             myCards.forEach(card => {
                 const el = document.getElementById(`c${card.id}-n${num}`);
-                if (el && !el.classList.contains('marked')) {
-                    el.classList.add('marked');
+                if (el) {
+                    if (shouldAnimate) {
+                        el.classList.remove('pop-anim');
+                        void el.offsetWidth; // Trigger reflow
+                        el.classList.add('pop-anim');
+                    }
+                    if (!el.classList.contains('marked')) el.classList.add('marked');
                 }
             });
         }
@@ -930,7 +943,7 @@
             
             updateWinnersList(state.last5Winners);
             updateLastNumbers(state.last5Numbers);
-            state.calledNumbers.forEach(markNumber);
+            state.calledNumbers.forEach(n => markNumber(n, false));
             updateTotalCalled(state.calledNumbers.length);
         });
         
@@ -978,7 +991,7 @@
             ball.textContent = data.num;
             setTimeout(() => ball.classList.remove('animate'), 300);
             
-            markNumber(data.num);
+            markNumber(data.num, true);
             updateLastNumbers(data.last5);
             updateTotalCalled(data.totalCalled);
             
