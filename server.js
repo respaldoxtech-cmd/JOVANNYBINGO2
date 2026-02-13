@@ -8,6 +8,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -106,6 +107,30 @@ PlayerSchema.index({ cardIds: 1 });
 PlayerSchema.index({ isActive: 1 });
 
 const Player = mongoose.model('Player', PlayerSchema);
+
+// Modelo User: cuentas registradas (logros y stats persistentes)
+const UserSchema = new mongoose.Schema({
+    username: { type: String, required: true, trim: true, maxlength: 50, unique: true },
+    passwordHash: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now },
+    stats: {
+        totalGames: { type: Number, default: 0 },
+        wins: { type: Number, default: 0 },
+        winRate: { type: Number, default: 0 },
+        lastWinDate: { type: Date, default: null },
+        currentStreak: { type: Number, default: 0 },
+        maxStreak: { type: Number, default: 0 },
+        totalPoints: { type: Number, default: 0 }
+    },
+    level: {
+        current: { type: Number, default: 1 },
+        exp: { type: Number, default: 0 },
+        expToNext: { type: Number, default: 100 }
+    },
+    achievements: [{ name: String, earnedAt: { type: Date, default: Date.now } }]
+});
+UserSchema.index({ username: 1 });
+const User = mongoose.model('User', UserSchema);
 
 // ═══════════════════════════════════════════════════════════════
 // 🎯 DEFINICIÓN DE PATRONES DE BINGO (50+)
@@ -467,7 +492,11 @@ async function updatePlayerStats(username, winData) {
             }
             
             // Agregar logros
-            await checkAchievements(player, winData);
+            const unlocked = checkAchievements(player, winData);
+            for (const name of unlocked) {
+                const s = Array.from(io.sockets.sockets.values()).find(x => x.data?.username === player.username);
+                if (s) s.emit('achievement_unlocked', { name });
+            }
         } else {
             player.stats.currentStreak = 0;
         }
@@ -485,12 +514,27 @@ async function updatePlayerStats(username, winData) {
         }
         
         await player.save();
+
+        // Sincronizar con User si existe (cuenta registrada)
+        try {
+            const user = await User.findOne({ username: player.username.trim().toLowerCase() });
+            if (user) {
+                user.stats = { ...user.stats.toObject(), ...player.stats.toObject() };
+                user.level = { ...user.level.toObject(), ...player.level.toObject() };
+                const mergedAch = [...(user.achievements || [])];
+                for (const a of player.achievements || []) {
+                    if (!mergedAch.some(x => x.name === a.name)) mergedAch.push(a);
+                }
+                user.achievements = mergedAch;
+                await user.save();
+            }
+        } catch (e) { /* ignorar */ }
     } catch (error) {
         console.error('❌ Error actualizando estadísticas:', error);
     }
 }
 
-async function checkAchievements(player, winData) {
+function checkAchievements(player, winData) {
     const newAchievements = [];
     
     if (player.stats.wins === 1) newAchievements.push('Primera Victoria');
@@ -502,19 +546,22 @@ async function checkAchievements(player, winData) {
     if (player.stats.currentStreak === 5) newAchievements.push('Imparable');
     if (player.stats.currentStreak === 10) newAchievements.push('Invencible');
     
-    if (winData.pattern === 'full') newAchievements.push('Blackout');
-    if (winData.pattern === 'heart') newAchievements.push('Corazón de Oro');
-    if (winData.pattern === 'star') newAchievements.push('Estrella Brillante');
+    if (winData && winData.pattern === 'full') newAchievements.push('Blackout');
+    if (winData && winData.pattern === 'heart') newAchievements.push('Corazón de Oro');
+    if (winData && winData.pattern === 'star') newAchievements.push('Estrella Brillante');
     
     if (gameState.calledNumbers.length <= 15) newAchievements.push('Velocista');
     if (gameState.calledNumbers.length <= 10) newAchievements.push('Rayo');
     
+    const unlocked = [];
     for (const name of newAchievements) {
         if (!player.achievements.some(a => a.name === name)) {
             player.achievements.push({ name, earnedAt: new Date() });
+            unlocked.push(name);
             console.log(`🏆 Logro desbloqueado para ${player.username}: ${name}`);
         }
     }
+    return unlocked;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -676,12 +723,16 @@ app.get('/api/patterns', (req, res) => {
 
 app.get('/api/stats/:username', async (req, res) => {
     try {
-        const player = await Player.findOne({ username: req.params.username });
-        if (player) {
-            res.json({ stats: player.stats, level: player.level, achievements: player.achievements });
-        } else {
-            res.status(404).json({ error: 'Jugador no encontrado' });
+        const u = (req.params.username || '').trim().toLowerCase();
+        const user = await User.findOne({ username: u });
+        if (user) {
+            return res.json({ stats: user.stats, level: user.level, achievements: user.achievements || [] });
         }
+        const player = await Player.findOne({ username: req.params.username.trim() });
+        if (player) {
+            return res.json({ stats: player.stats, level: player.level, achievements: player.achievements || [] });
+        }
+        res.status(404).json({ error: 'Jugador no encontrado' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -699,6 +750,64 @@ app.get('/api/leaderboard', async (req, res) => {
     }
 });
 
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, password } = req.body || {};
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+        }
+        const user = username.trim().toLowerCase().slice(0, 50);
+        if (user.length < 2) return res.status(400).json({ error: 'Usuario muy corto' });
+        if (password.length < 4) return res.status(400).json({ error: 'Contraseña mínimo 4 caracteres' });
+        const existing = await User.findOne({ username: user });
+        if (existing) return res.status(400).json({ error: 'Usuario ya existe' });
+        const passwordHash = await bcrypt.hash(password, 10);
+        await User.create({ username: user, passwordHash });
+        res.json({ success: true, username: user });
+    } catch (e) {
+        res.status(500).json({ error: e.message || 'Error al registrar' });
+    }
+});
+
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body || {};
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+        }
+        const user = await User.findOne({ username: username.trim().toLowerCase() });
+        if (!user) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+        const ok = await bcrypt.compare(password, user.passwordHash);
+        if (!ok) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+        res.json({
+            success: true,
+            username: user.username,
+            stats: user.stats,
+            level: user.level,
+            achievements: user.achievements || []
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message || 'Error al iniciar sesión' });
+    }
+});
+
+app.get('/api/active-game/:username', async (req, res) => {
+    try {
+        await syncTakenCards();
+        const username = (req.params.username || '').trim().toLowerCase();
+        const player = await Player.findOne({ username, isActive: true }).lean();
+        if (!player || !player.cardIds || player.cardIds.length === 0) {
+            return res.json({ hasGame: false, cardIds: [] });
+        }
+        const allTaken = Array.from(takenCards);
+        const valid = player.cardIds.every(id => allTaken.includes(id));
+        if (!valid) return res.json({ hasGame: false, cardIds: [] });
+        res.json({ hasGame: true, cardIds: player.cardIds });
+    } catch (e) {
+        res.status(500).json({ hasGame: false, cardIds: [] });
+    }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // 🔌 SOCKET.IO EVENTOS
 // ═══════════════════════════════════════════════════════════════
@@ -712,7 +821,8 @@ io.on('connection', (socket) => {
             id: k,
             name: BINGO_PATTERNS[k].name,
             description: BINGO_PATTERNS[k].description,
-            positions: BINGO_PATTERNS[k].positions
+            positions: BINGO_PATTERNS[k].positions,
+            multiplier: BINGO_PATTERNS[k].multiplier
         }))
     });
     socket.emit('update_pending_players', getPendingPlayers());
@@ -898,6 +1008,7 @@ io.on('connection', (socket) => {
             name: patternInfo?.name || data.type,
             description: patternInfo?.description || '',
             positions: patternInfo?.positions || (data.type === 'custom' ? null : []),
+            multiplier: patternInfo?.multiplier || 1,
             grid: data.grid
         });
         
@@ -908,7 +1019,8 @@ io.on('connection', (socket) => {
                 id: k,
                 name: BINGO_PATTERNS[k].name,
                 description: BINGO_PATTERNS[k].description || '',
-                positions: BINGO_PATTERNS[k].positions || []
+                positions: BINGO_PATTERNS[k].positions || [],
+                multiplier: BINGO_PATTERNS[k].multiplier || 1
             }))
         });
     });
@@ -1117,19 +1229,20 @@ io.on('connection', (socket) => {
         
         takenCards.clear();
         pendingPlayers.clear();
-        
-        // Limpiar base de datos
+        saveGameState();
+
         try {
             const result = await Player.deleteMany({});
-            console.log(`🧹 ${result.deletedCount} jugadores eliminados`);
+            console.log(`🧹 ${result.deletedCount} jugadores eliminados (logros de cuentas registradas se mantienen)`);
         } catch (error) {
             console.error('Error limpiando DB:', error);
         }
-        
+
         io.emit('game_reset');
+        io.emit('update_history', []);
         io.emit('update_pending_players', []);
         io.emit('update_players', []);
-        
+
         console.log('🔄 REINICIO COMPLETO');
     });
     

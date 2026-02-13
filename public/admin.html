@@ -22,6 +22,7 @@
         <div class="header-status">
             <span id="connection-status" class="status-indicator online">🟢 Conectado</span>
             <span id="players-count" class="players-badge">0 jugadores</span>
+            <a href="/admin-login.html" class="btn-logout" title="Cerrar sesión">🚪 Salir</a>
         </div>
     </header>
 
@@ -38,72 +39,46 @@
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <main class="admin-main">
         <!-- ─────────────────────────────────────────────────────────────
-             PANEL IZQUIERDO: RULETA Y CONTROLES
+             PANEL IZQUIERDO: JUGADORES Y GANADORES
         ────────────────────────────────────────────────────────────── -->
         <section class="panel-left">
-            <!-- Ruleta grande -->
-            <div class="roulette-box">
-                <div class="roulette-display">
-                    <div id="roulette-wheel" class="roulette-wheel">
-                        <span id="roulette-number" class="roulette-number">--</span>
+            <!-- Controles de voz -->
+            <div class="voice-controls-panel glass-card">
+                <h4>🔊 Control de Voz</h4>
+                <div class="voice-settings">
+                    <div class="voice-gender">
+                        <label>Género de voz:</label>
+                        <div class="gender-buttons">
+                            <button id="admin-voice-male" class="gender-btn active" onclick="setAdminVoiceGender('male')">
+                                👨 Masculino
+                            </button>
+                            <button id="admin-voice-female" class="gender-btn" onclick="setAdminVoiceGender('female')">
+                                👩 Femenino
+                            </button>
+                        </div>
                     </div>
-                    <div class="roulette-stats">
-                        <span id="called-count">0</span>/75 números
+                    <div class="voice-volume">
+                        <label>Volúmen:</label>
+                        <input type="range" id="admin-voice-volume" min="0" max="100" value="80" oninput="setAdminVoiceVolume(this.value)">
+                        <span id="admin-volume-display">80%</span>
                     </div>
-                </div>
-                
-                <div class="last-balls">
-                    <span class="label">Últimos:</span>
-                    <div id="last-numbers" class="balls-row"></div>
+                    <div class="voice-test">
+                        <button onclick="testAdminVoice()" class="btn-test-voice">🔊 Probar voz</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Controles de juego -->
+            <!-- Controles de juego (miniatura) -->
             <div class="game-controls">
                 <div class="control-group">
-                    <input type="number" id="manual-number" min="1" max="75" placeholder="1-75">
-                    <button onclick="callNumber()" class="btn-call">📢 LLAMAR</button>
+                    <button onclick="callNumber()" class="btn-call">📢 LLAMAR ALEATORIO</button>
                 </div>
-                
                 <div class="control-buttons">
                     <button onclick="undoNumber()" class="btn-undo" title="Deshacer último">↩️ Deshacer</button>
                     <button onclick="toggleAuto()" id="auto-btn" class="btn-auto">▶️ Auto</button>
                 </div>
             </div>
 
-            <!-- Patrón actual -->
-            <div class="pattern-box">
-                <h4>🎯 Patrón Actual</h4>
-                <div class="pattern-display-large">
-                    <div class="pattern-preview-large">
-                        <div id="current-pattern-grid" class="large-pattern-grid"></div>
-                        <div class="pattern-info">
-                            <span id="current-pattern-name" class="pattern-name-large">LÍNEA</span>
-                            <span id="current-pattern-desc" class="pattern-desc-small"></span>
-                        </div>
-                    </div>
-                    <button onclick="showPatternSelector()" class="btn-change">Cambiar Patrón</button>
-                </div>
-            </div>
-        </section>
-
-        <!-- ─────────────────────────────────────────────────────────────
-             PANEL CENTRAL: TABLERO DE NÚMEROS
-        ────────────────────────────────────────────────────────────── -->
-        <section class="panel-center">
-            <div class="board-header">
-                <span class="board-title">Tablero de Números</span>
-                <button onclick="showBoardInfo()" class="btn-info">ℹ️</button>
-            </div>
-            <div id="numbers-board" class="numbers-board">
-                <!-- Los números se generan por JS -->
-            </div>
-        </section>
-
-        <!-- ─────────────────────────────────────────────────────────────
-             PANEL DERECHO: JUGADORES Y ACCIONES
-        ────────────────────────────────────────────────────────────── -->
-        <section class="panel-right">
             <!-- Tabs -->
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('pending')">
@@ -142,6 +117,54 @@
                 <button onclick="showCardStatusModal()" class="btn-action">🎫 Ver Cartones</button>
                 <button onclick="newRound()" class="btn-warning">🔄 Nueva Ronda</button>
                 <button onclick="fullReset()" class="btn-danger">⚠️ Reinicio Total</button>
+            </div>
+        </section>
+
+        <!-- ─────────────────────────────────────────────────────────────
+             PANEL CENTRAL: TABLERO Y RULETA
+        ────────────────────────────────────────────────────────────── -->
+        <section class="panel-center">
+            <div class="board-header">
+                <span class="board-title">Tablero de Números</span>
+                <button onclick="showBoardInfo()" class="btn-info">ℹ️</button>
+            </div>
+            <div id="numbers-board" class="numbers-board">
+                <!-- Los números se generan por JS -->
+            </div>
+            
+            <div class="last-balls">
+                <span class="label">Últimos:</span>
+                <div id="last-numbers" class="balls-row"></div>
+            </div>
+            
+            <div class="roulette-box roulette-box-mini">
+                <div class="roulette-display">
+                    <div id="roulette-wheel" class="roulette-wheel">
+                        <span id="roulette-number" class="roulette-number">--</span>
+                    </div>
+                    <div class="roulette-stats">
+                        <span id="called-count">0</span>/75 números
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─────────────────────────────────────────────────────────────
+             PANEL DERECHO: PATRÓN EN JUEGO (para transmisión)
+        ────────────────────────────────────────────────────────────── -->
+        <section class="panel-right">
+            <div class="pattern-box pattern-box-stream">
+                <h4>🎯 Patrón en Juego</h4>
+                <div class="pattern-display-large pattern-display-stream">
+                    <div class="pattern-preview-large pattern-preview-stream">
+                        <div id="current-pattern-grid" class="large-pattern-grid stream-pattern-grid"></div>
+                        <div class="pattern-info pattern-info-stream">
+                            <span id="current-pattern-name" class="pattern-name-large pattern-name-stream">LÍNEA</span>
+                            <span id="current-pattern-desc" class="pattern-desc-small"></span>
+                        </div>
+                    </div>
+                    <button onclick="showPatternSelector()" class="btn-change">Cambiar Patrón</button>
+                </div>
             </div>
         </section>
     </main>
@@ -455,21 +478,30 @@
         }
 
         /**
-         * Función para renderizar mini grid (usada en selector de patrones)
-         * Usa el mismo sistema de índices row-major que renderLargeGrid
+         * Convierte índice de display (row-major) a índice flatCard (column-major).
+         * flatCard = [B0,B1,B2,B3,B4, I0..I4, N0..N4, G0..G4, O0..O4]
+         * display i = row*5+col -> flatCardIdx = col*5+row
+         */
+        function displayToFlatIdx(i) {
+            const row = Math.floor(i / 5), col = i % 5;
+            return col * 5 + row;
+        }
+        
+        /**
+         * Renderiza mini grid. positions usa índices flatCard (igual que checkWin en servidor).
          */
         function renderMiniGrid(positions) {
-            let html = '';
-            // Aplanar el array de posiciones si es un array de arrays
-            const flatPositions = Array.isArray(positions) && positions.length > 0 && Array.isArray(positions[0])
-                ? positions.flat()
+            if (!positions || !Array.isArray(positions)) return '';
+            const flatPos = positions.length > 0 && Array.isArray(positions[0])
+                ? positions[0]
                 : positions;
+            const flatSet = new Set(Array.isArray(flatPos[0]) ? flatPos.flat() : flatPos);
             
-            // Iterar en orden row-major: fila por fila, de izquierda a derecha
-            // Índice = row * 5 + col (0-24)
+            let html = '';
             for (let i = 0; i < 25; i++) {
-                const isActive = flatPositions.includes(i);
-                const isFree = i === 12; // Centro del cartón (fila 2, columna 2)
+                const flatIdx = displayToFlatIdx(i);
+                const isActive = flatSet.has(flatIdx);
+                const isFree = flatIdx === 12;
                 html += `<div class="mini-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}"></div>`;
             }
             return html;
@@ -521,8 +553,9 @@
                 return;
             }
             
+            const mult = pattern?.multiplier ?? (currentPattern === 'custom' ? 2 : 1);
             nameEl.textContent = pattern?.name || (currentPattern === 'custom' ? 'PERSONALIZADO' : currentPattern);
-            descEl.textContent = pattern?.description || '';
+            descEl.textContent = (pattern?.description || '') + (mult !== 1 ? ` • x${mult} pts` : '');
             
             const grid = document.getElementById('current-pattern-grid');
             if (currentPattern === 'custom') {
@@ -549,33 +582,18 @@
          * Índice = row * 5 + col
          */
         function renderLargeGrid(positions) {
-            let html = '';
-            // Aplanar el array de posiciones si es un array de arrays
-            const flatPositions = Array.isArray(positions) && positions.length > 0 && Array.isArray(positions[0])
-                ? positions.flat()
+            if (!positions || !Array.isArray(positions)) return '';
+            const flatPos = positions.length > 0 && Array.isArray(positions[0])
+                ? positions[0]
                 : positions;
+            const flatSet = new Set(Array.isArray(flatPos[0]) ? flatPos.flat() : flatPos);
             
-            // Iterar en orden row-major: fila por fila, de izquierda a derecha
-            // Índice = row * 5 + col (0-24)
+            let html = '';
             for (let i = 0; i < 25; i++) {
-                const isActive = flatPositions.includes(i);
-                const isFree = i === 12; // Centro del cartón (fila 2, columna 2)
+                const flatIdx = displayToFlatIdx(i);
+                const isActive = flatSet.has(flatIdx);
+                const isFree = flatIdx === 12;
                 html += `<div class="large-pattern-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}">${isFree ? '★' : ''}</div>`;
-            }
-            return html;
-        }
-        
-        // Función para renderizar mini grid (usada en selector de patrones)
-        function renderMiniGrid(positions) {
-            let html = '';
-            const flatPositions = Array.isArray(positions) && positions.length > 0 && Array.isArray(positions[0])
-                ? positions.flat()
-                : positions;
-            
-            for (let i = 0; i < 25; i++) {
-                const isActive = flatPositions.includes(i);
-                const isFree = i === 12;
-                html += `<div class="mini-cell ${isActive ? 'active' : ''} ${isFree ? 'free' : ''}"></div>`;
             }
             return html;
         }
@@ -584,13 +602,72 @@
         // ACCIONES DE JUEGO
         // ═══════════════════════════════════════════════════════════════
         function callNumber() {
-            const input = document.getElementById('manual-number');
-            const num = parseInt(input.value);
-            if (num >= 1 && num <= 75) {
-                socket.emit('admin_call_number', num);
-                input.value = '';
+            const available = [];
+            for (let n = 1; n <= 75; n++) {
+                if (!calledNumbers.includes(n)) available.push(n);
             }
+            if (available.length === 0) return;
+            const num = available[Math.floor(Math.random() * available.length)];
+            socket.emit('admin_call_number', num);
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SISTEMA DE VOZ PARA ADMIN
+        // ═══════════════════════════════════════════════════════════════
+        let adminVoiceSettings = {
+            gender: 'male',
+            volume: 0.8
+        };
+
+        function setAdminVoiceGender(gender) {
+            adminVoiceSettings.gender = gender;
+            document.getElementById('admin-voice-male').classList.toggle('active', gender === 'male');
+            document.getElementById('admin-voice-female').classList.toggle('active', gender === 'female');
+        }
+
+        function setAdminVoiceVolume(value) {
+            adminVoiceSettings.volume = value / 100;
+            document.getElementById('admin-volume-display').textContent = `${value}%`;
+        }
+
+        function testAdminVoice() {
+            const msg = `¡Número ${Math.floor(Math.random() * 75) + 1}!`;
+            speakAdminNumber(msg);
+        }
+
+        function speakAdminNumber(text) {
+            if (!('speechSynthesis' in window)) return;
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.volume = adminVoiceSettings.volume;
+            
+            // Seleccionar voz según género
+            const voices = speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => 
+                (adminVoiceSettings.gender === 'male' && /male|man|español.*mexicano/i.test(v.name)) ||
+                (adminVoiceSettings.gender === 'female' && /female|woman|español.*mexicano/i.test(v.name))
+            ) || voices.find(v => /español/i.test(v.lang)) || voices[0];
+            
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+            }
+            
+            utterance.rate = 1.0;
+            utterance.pitch = adminVoiceSettings.gender === 'male' ? 0.8 : 1.2;
+            
+            speechSynthesis.cancel();
+            speechSynthesis.speak(utterance);
+        }
+
+        // Escuchar eventos de números llamados para anunciarlos
+        socket.on('number_called', (data) => {
+            // Pequeño delay para asegurar que el número esté visible
+            setTimeout(() => {
+                const letter = getLetterForNumber(data.num);
+                const msg = `¡Número ${letter} ${data.num}!`;
+                speakAdminNumber(msg);
+            }, 500);
+        });
 
         function callNumberDirect(num) {
             if (!calledNumbers.includes(num)) {
@@ -598,7 +675,7 @@
             }
         }
 
-        function undoNumber() {
+        function undoLast() {
             socket.emit('admin_undo_number');
         }
 
@@ -608,6 +685,17 @@
             } else {
                 socket.emit('admin_start_auto');
             }
+        }
+
+        function callManualNumber() {
+            const input = document.getElementById('manual-number');
+            const num = parseInt(input.value);
+            if (isNaN(num) || num < 1 || num > 75) {
+                alert('Ingresa un número entre 1 y 75');
+                return;
+            }
+            socket.emit('admin_call_number', num);
+            input.value = '';
         }
 
         function setMessage() {
@@ -786,7 +874,8 @@
                     PATTERNS[p.id] = {
                         name: p.name,
                         description: p.description || '',
-                        positions: p.positions || []
+                        positions: p.positions || [],
+                        multiplier: p.multiplier || 1
                     };
                 });
                 console.log('✅ Patrones sincronizados desde servidor:', Object.keys(PATTERNS).length);
@@ -830,13 +919,12 @@
                 customGrid = data.grid;
             }
             // Actualizar PATTERNS con la información recibida del servidor
-            if (data.positions !== undefined) {
-                if (!PATTERNS[data.type]) {
-                    PATTERNS[data.type] = {};
-                }
-                PATTERNS[data.type].name = data.name;
-                PATTERNS[data.type].description = data.description || '';
-                PATTERNS[data.type].positions = data.positions;
+            if (data.type) {
+                if (!PATTERNS[data.type]) PATTERNS[data.type] = {};
+                PATTERNS[data.type].name = data.name || PATTERNS[data.type].name;
+                PATTERNS[data.type].description = data.description ?? PATTERNS[data.type].description;
+                PATTERNS[data.type].positions = data.positions ?? PATTERNS[data.type].positions;
+                PATTERNS[data.type].multiplier = data.multiplier ?? PATTERNS[data.type].multiplier ?? 1;
             }
             updatePatternDisplay();
         });
@@ -918,10 +1006,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             initBoard();
             updatePatternDisplay();
-            
-            document.getElementById('manual-number').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') callNumber();
-            });
             
             document.getElementById('admin-message').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') setMessage();
