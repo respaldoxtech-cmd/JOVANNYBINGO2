@@ -97,7 +97,15 @@
         #chat-panel.open { transform: translateY(0); }
         .chat-header { padding: 10px 15px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; border-radius: 16px 16px 0 0; }
         @media (max-width: 768px) {
-            #chat-panel { width: calc(100% - 30px); left: 15px; right: 15px; bottom: 85px; height: 50vh; }
+            #chat-panel { 
+                width: 94%; 
+                left: 3%; 
+                right: 3%; 
+                bottom: 95px; /* Más arriba para no tapar la nav */
+                height: 45vh; 
+                border-radius: 16px;
+                z-index: 2000;
+            }
         }
     </style>
 </head>
@@ -1032,6 +1040,12 @@
                 <span class="time">${data.time}</span>
             `;
             container.appendChild(div);
+            
+            // OPTIMIZACIÓN: Mantener solo los últimos 15 mensajes
+            while (container.children.length > 15) {
+                container.removeChild(container.firstChild);
+            }
+            
             scrollToBottomChat();
         }
 
@@ -1142,6 +1156,16 @@
         // ═══════════════════════════════════════════════════════════════
         // SOCKET EVENTS
         // ═══════════════════════════════════════════════════════════════
+        socket.on('connect', () => {
+            // Re-identificarse al reconectar para poder enviar mensajes
+            if (playerSession?.username && playerSession?.cardIds) {
+                socket.emit('reconnect_player', { 
+                    username: playerSession.username, 
+                    cardIds: playerSession.cardIds 
+                });
+            }
+        });
+
         socket.on('sync_state', (state) => {
             document.getElementById('announcement-text').textContent = state.message;
             currentPattern = state.pattern;
