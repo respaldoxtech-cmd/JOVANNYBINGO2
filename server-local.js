@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,12 +15,50 @@ const ADMIN_PASS = "admin123";
 // Sistema de moderación de jugadores
 let pendingPlayers = new Map(); // socketId -> {username, cardIds, socket}
 let players = new Map(); // username -> { id, username, cardIds, status, type }
+let users = new Map(); // Sistema de usuarios local: username -> { passwordHash, stats, ... }
 
 // Registro de cartones en uso (Para evitar duplicados)
 let takenCards = new Set();
 
 app.post('/admin-login', (req, res) => {
     res.json({ success: req.body.password === ADMIN_PASS });
+});
+
+// --- RUTAS DE AUTENTICACIÓN (LOCAL) ---
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, password } = req.body || {};
+        if (!username || !password) return res.status(400).json({ error: 'Faltan datos' });
+        
+        const userLower = username.trim().toLowerCase();
+        if (users.has(userLower)) return res.status(400).json({ error: 'El usuario ya existe' });
+        
+        const passwordHash = await bcrypt.hash(password, 10);
+        users.set(userLower, { 
+            username: username.trim(), 
+            passwordHash,
+            stats: { totalGames: 0, wins: 0, winRate: 0 },
+            level: { current: 1, exp: 0, expToNext: 100 },
+            achievements: []
+        });
+        
+        res.json({ success: true, username: username.trim() });
+    } catch (e) { res.status(500).json({ error: 'Error interno' }); }
+});
+
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body || {};
+        const userLower = (username || '').trim().toLowerCase();
+        const user = users.get(userLower);
+        
+        if (!user) return res.status(401).json({ error: 'Usuario no encontrado' });
+        
+        const valid = await bcrypt.compare(password, user.passwordHash);
+        if (!valid) return res.status(401).json({ error: 'Contraseña incorrecta' });
+        
+        res.json({ success: true, username: user.username, stats: user.stats, level: user.level, achievements: user.achievements });
+    } catch (e) { res.status(500).json({ error: 'Error interno' }); }
 });
 
 let gameState = {
@@ -553,7 +592,10 @@ io.on('connection', (socket) => {
         gameState.last5Winners = [];
 
         // Disconnect all active players and clear their sessions
-        io.sockets.sockets.forEach(s => {
+        // FIX: Convertir a array para evitar errores al modificar la colección mientras se itera
+        const sockets = Array.from(io.sockets.sockets.values());
+        
+        sockets.forEach(s => {
             if (s.data.cardIds) {
                 // This is a player, disconnect them and clear session
                 s.emit('full_reset'); // Tell client to clear localStorage
@@ -647,7 +689,19 @@ io.on('connection', (socket) => {
     
     // Chat Global
     socket.on('send_chat', (text) => {
-        const username = socket.data.username;
+        let username = socket.data.username;
+        
+        // FIX: Si el socket perdió la data (reinicio/reconexión), buscar en el mapa de jugadores
+        if (!username) {
+            for (const [name, p] of players.entries()) {
+                if (p.id === socket.id) {
+                    username = name;
+                    socket.data.username = name; // Restaurar para la próxima
+                    break;
+                }
+            }
+        }
+
         if (!username || !text || !text.trim()) return;
         
         io.emit('chat_message', {
