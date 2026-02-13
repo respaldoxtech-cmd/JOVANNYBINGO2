@@ -674,6 +674,7 @@ io.on('connection', (socket) => {
                 gameState.last5Winners.unshift(winData);
                 if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
             }
+            updatePlayerStats(username, winData);
             // Anuncio automático inmediato
             io.emit('winner_announced', winData);
             io.emit('update_history', gameState.last5Winners);
@@ -705,7 +706,9 @@ io.on('connection', (socket) => {
 
         if (!username || !text || !text.trim()) return;
         
+        const msgId = Date.now().toString(36) + Math.random().toString(36).substr(2);
         io.emit('chat_message', {
+            id: msgId,
             user: username,
             text: text.trim(),
             time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
@@ -716,12 +719,18 @@ io.on('connection', (socket) => {
     // Admin Chat
     socket.on('admin_send_chat', (text) => {
         if (!text || !text.trim()) return;
+        const msgId = Date.now().toString(36) + Math.random().toString(36).substr(2);
         io.emit('chat_message', {
+            id: msgId,
             user: 'ADMIN',
             text: text.trim(),
             time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
             isAdmin: true
         });
+    });
+
+    socket.on('admin_delete_chat', (msgId) => {
+        io.emit('chat_message_deleted', msgId);
     });
     
     // Admin Pause
@@ -753,6 +762,39 @@ io.on('connection', (socket) => {
         }
     });
 });
+
+function updatePlayerStats(username, winData) {
+    const userLower = username.trim().toLowerCase();
+    const user = users.get(userLower);
+    
+    if (user) {
+        user.stats.totalGames++;
+        if (winData) {
+            user.stats.wins++;
+            user.stats.winRate = (user.stats.wins / user.stats.totalGames) * 100;
+            
+            // Sistema simple de XP: 100 XP por victoria
+            user.level.exp += 100;
+            let leveledUp = false;
+            
+            while (user.level.exp >= user.level.expToNext) {
+                user.level.exp -= user.level.expToNext;
+                user.level.current++;
+                user.level.expToNext = Math.floor(user.level.expToNext * 1.2);
+                leveledUp = true;
+            }
+            
+            const player = players.get(username);
+            if (player && player.status === 'connected') {
+                const socket = io.sockets.sockets.get(player.id);
+                if (socket) {
+                    socket.emit('player_stats', { stats: user.stats, level: user.level });
+                    if (leveledUp) socket.emit('level_up', { level: user.level.current });
+                }
+            }
+        }
+    }
+}
 
 function getActivePlayers() {
     return Array.from(players.values()).map(p => {
@@ -806,6 +848,7 @@ function checkForAutomaticWinners() {
                 if (!isDuplicate) {
                     gameState.last5Winners.unshift(winData);
                     if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
+                    updatePlayerStats(username, winData);
 
                     // Anuncio automático inmediato
                     io.emit('winner_announced', winData);

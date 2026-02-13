@@ -39,6 +39,8 @@
         .chat-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; background: #4f46e5; color: white; border: none; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 2001; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; }
         .chat-toggle-btn:hover { transform: scale(1.1); }
         .chat-badge { position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #1a1a1a; }
+        .btn-delete-msg { background: none; border: none; cursor: pointer; font-size: 0.9rem; margin-left: 8px; opacity: 0.6; transition: opacity 0.2s; float: right; }
+        .btn-delete-msg:hover { opacity: 1; transform: scale(1.1); }
     </style>
 </head>
 <body class="admin-app">
@@ -914,13 +916,21 @@
             const isMine = data.isAdmin; // Si es admin, es mío (en este panel)
             
             const div = document.createElement('div');
+            div.id = `chat-msg-${data.id}`;
             div.className = `chat-bubble ${isMine ? 'mine' : 'others'}`;
             div.innerHTML = `
                 ${!isMine ? `<span class="sender">${data.user}</span>` : ''}
                 ${data.text}
+                <button onclick="deleteChatMessage('${data.id}')" class="btn-delete-msg" title="Borrar mensaje">🗑️</button>
             `;
             container.appendChild(div);
             scrollToBottomChat();
+        }
+
+        function deleteChatMessage(id) {
+            if (confirm('¿Estás seguro de borrar este mensaje?')) {
+                socket.emit('admin_delete_chat', id);
+            }
         }
 
         function scrollToBottomChat() {
@@ -1119,6 +1129,11 @@
                 badge.textContent = unreadChatCount > 9 ? '9+' : unreadChatCount;
                 badge.classList.remove('hidden');
             }
+        });
+        
+        socket.on('chat_message_deleted', (msgId) => {
+            const el = document.getElementById(`chat-msg-${msgId}`);
+            if (el) el.remove();
         });
 
         // ═══════════════════════════════════════════════════════════════

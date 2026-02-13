@@ -2348,6 +2348,63 @@ input:focus {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   COMPONENTES ADICIONALES (SETTINGS)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.settings-section {
+    padding: var(--spacing-md) 0;
+    border-bottom: 1px solid var(--glass-border);
+}
+.settings-section:last-child {
+    border-bottom: none;
+}
+.settings-section h4 {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.setting-item span {
+    font-weight: 500;
+}
+
+/* Switch Toggle */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+}
+.switch input { display: none; }
+.slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: var(--bg-surface);
+    transition: .4s;
+}
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+}
+input:checked + .slider { background-color: var(--primary); }
+input:focus + .slider { box-shadow: 0 0 1px var(--primary); }
+input:checked + .slider:before { transform: translateX(22px); }
+.slider.round { border-radius: 34px; }
+.slider.round:before { border-radius: 50%; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
    TEMAS DE COLOR
    ═══════════════════════════════════════════════════════════════════════════ */
 body.theme-blue { --primary: #3b82f6; --primary-dark: #2563eb; --primary-light: #60a5fa; }

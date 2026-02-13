@@ -277,7 +277,7 @@
             
             <div class="header-right">
                 <button onclick="showCustomizeModal()" class="btn-logout-game" style="margin-right: 8px;" title="Personalizar Color">🎨</button>
-                <button onclick="showVoiceSettings()" class="btn-logout-game" style="margin-right: 8px;" title="Configuración de Voz">🔊</button>
+                <button onclick="showSettingsModal()" class="btn-logout-game" style="margin-right: 8px;" title="Configuración">⚙️</button>
                 <div class="mode-badge" onclick="showPatternModal()">
                     <span class="mode-label">MODO</span>
                     <span id="mode-display" class="mode-value">LÍNEA</span>
@@ -375,27 +375,40 @@
         </div>
     </div>
 
-    <!-- Modal de Configuración de Voz -->
-    <div id="voice-modal" class="modal hidden">
+    <!-- Modal de Configuración -->
+    <div id="settings-modal" class="modal hidden">
         <div class="modal-content glass-card slide-up">
             <div class="modal-header">
-                <h3>🔊 Configuración de Voz</h3>
-                <button onclick="hideModal('voice-modal')" class="btn-close">✕</button>
+                <h3>⚙️ Configuración</h3>
+                <button onclick="hideModal('settings-modal')" class="btn-close">✕</button>
             </div>
-            <div class="voice-settings" style="padding: 1rem;">
-                <div class="voice-gender" style="margin-bottom: 1.5rem;">
-                    <label style="display:block; margin-bottom:0.5rem;">Género de voz:</label>
-                    <div class="gender-buttons" style="display:flex; gap:10px;">
-                        <button id="voice-male" class="gender-btn active" onclick="setVoiceGender('male')" style="flex:1; padding:8px;">👨 Masculino</button>
-                        <button id="voice-female" class="gender-btn" onclick="setVoiceGender('female')" style="flex:1; padding:8px;">👩 Femenino</button>
+            <div class="settings-section">
+                <h4>🔊 Voz del Narrador</h4>
+                <div class="voice-settings" style="padding-top: 1rem;">
+                    <div class="voice-gender" style="margin-bottom: 1.5rem;">
+                        <label style="display:block; margin-bottom:0.5rem;">Género de voz:</label>
+                        <div class="gender-buttons" style="display:flex; gap:10px;">
+                            <button id="voice-male" class="gender-btn active" onclick="setVoiceGender('male')" style="flex:1; padding:8px;">👨 Masculino</button>
+                            <button id="voice-female" class="gender-btn" onclick="setVoiceGender('female')" style="flex:1; padding:8px;">👩 Femenino</button>
+                        </div>
+                    </div>
+                    <div class="voice-volume" style="margin-bottom: 1.5rem;">
+                        <label style="display:block; margin-bottom:0.5rem;">Volúmen: <span id="volume-display">80%</span></label>
+                        <input type="range" id="voice-volume" min="0" max="100" value="80" oninput="setVoiceVolume(this.value)" style="width:100%;">
+                    </div>
+                    <div class="voice-test">
+                        <button onclick="testVoice()" class="btn-primary btn-block">🔊 Probar voz</button>
                     </div>
                 </div>
-                <div class="voice-volume" style="margin-bottom: 1.5rem;">
-                    <label style="display:block; margin-bottom:0.5rem;">Volúmen: <span id="volume-display">80%</span></label>
-                    <input type="range" id="voice-volume" min="0" max="100" value="80" oninput="setVoiceVolume(this.value)" style="width:100%;">
-                </div>
-                <div class="voice-test">
-                    <button onclick="testVoice()" class="btn-primary btn-block">🔊 Probar voz</button>
+            </div>
+            <div class="settings-section">
+                <h4>🔔 Notificaciones</h4>
+                <div class="setting-item">
+                    <span>Avisarme de nuevas partidas</span>
+                    <label class="switch">
+                        <input type="checkbox" id="notifications-toggle" onchange="handleNotificationsToggle(this.checked)">
+                        <span class="slider round"></span>
+                    </label>
                 </div>
             </div>
         </div>
@@ -985,6 +998,56 @@
         // ═══════════════════════════════════════════════════════════════
         // MODALES
         // ═══════════════════════════════════════════════════════════════
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        async function handleNotificationsToggle(enabled) {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                alert('Tu navegador no soporta notificaciones push.');
+                document.getElementById('notifications-toggle').checked = false;
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.ready;
+            const existingSubscription = await registration.pushManager.getSubscription();
+
+            if (enabled) {
+                if (existingSubscription) return;
+
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    alert('Permiso de notificaciones denegado.');
+                    document.getElementById('notifications-toggle').checked = false;
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/vapid-public-key');
+                    const vapidPublicKey = await response.text();
+                    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+                    
+                    const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+
+                    await fetch('/api/subscribe', { method: 'POST', body: JSON.stringify({ subscription, username: playerSession.username }), headers: { 'Content-Type': 'application/json' } });
+                    localStorage.setItem('notifications_enabled', 'true');
+                } catch (error) {
+                    console.error('Error al suscribirse:', error);
+                    document.getElementById('notifications-toggle').checked = false;
+                }
+            } else {
+                if (existingSubscription) await existingSubscription.unsubscribe();
+                localStorage.setItem('notifications_enabled', 'false');
+            }
+        }
+
         function showCustomizeModal() {
             showModal('customize-modal');
         }
@@ -1011,8 +1074,8 @@
             }
         }
 
-        function showVoiceSettings() {
-            showModal('voice-modal');
+        function showSettingsModal() {
+            showModal('settings-modal');
         }
 
         function showPatternModal() {
@@ -1105,6 +1168,7 @@
             const isAdmin = data.isAdmin;
             
             const div = document.createElement('div');
+            div.id = `chat-msg-${data.id}`;
             div.className = `chat-bubble ${isAdmin ? 'admin' : (isMine ? 'mine' : 'others')}`;
             div.innerHTML = `
                 ${!isMine ? `<span class="sender">${data.user}</span>` : ''}
@@ -1468,6 +1532,12 @@
             if (data?.name) showAchievementToast(data.name);
         });
         
+        socket.on('level_up', (data) => {
+            showAchievementToast(`¡NIVEL ${data.level} ALCANZADO!`);
+            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FFD700', '#FFA500'] });
+            if (audio && audio.bingo) audio.bingo();
+        });
+        
         socket.on('private_message', (data) => {
             document.getElementById('admin-message-text').textContent = data.message;
             showModal('message-modal');
@@ -1486,6 +1556,11 @@
             }
         });
         
+        socket.on('chat_message_deleted', (msgId) => {
+            const el = document.getElementById(`chat-msg-${msgId}`);
+            if (el) el.remove();
+        });
+        
         socket.on('game_paused', (isPaused) => {
             if (isPaused) document.body.classList.add('is-paused');
             else document.body.classList.remove('is-paused');
@@ -1495,6 +1570,20 @@
         // INICIALIZACIÓN
         // ═══════════════════════════════════════════════════════════════
         window.addEventListener('load', async () => {
+            // Registrar Service Worker para notificaciones
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').then(async (registration) => {
+                    console.log('✅ Service Worker registrado');
+                    const enabled = localStorage.getItem('notifications_enabled') === 'true';
+                    document.getElementById('notifications-toggle').checked = enabled;
+                    const permission = await Notification.permission;
+                    if (enabled && permission !== 'granted') {
+                        document.getElementById('notifications-toggle').checked = false;
+                        localStorage.setItem('notifications_enabled', 'false');
+                    }
+                }).catch(error => console.error('❌ Error registrando Service Worker:', error));
+            }
+
             loadTheme();
             const session = playerSession;
             

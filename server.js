@@ -10,6 +10,7 @@ const { Server } = require("socket.io");
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
+const webpush = require('web-push');
 
 dotenv.config();
 
@@ -29,6 +30,24 @@ app.use(express.static('public'));
 // ═══════════════════════════════════════════════════════════════
 const ADMIN_PASS = process.env.ADMIN_PASS || "admin123";
 const TOTAL_CARDS = 300;
+
+// Configuración de Web Push (VAPID keys)
+// Generar una vez con: ./node_modules/.bin/web-push generate-vapid-keys
+const vapidKeys = {
+    publicKey: process.env.VAPID_PUBLIC_KEY,
+    privateKey: process.env.VAPID_PRIVATE_KEY,
+};
+
+if (vapidKeys.publicKey && vapidKeys.privateKey) {
+    webpush.setVapidDetails(
+        'mailto:admin@yovannybingo.com',
+        vapidKeys.publicKey,
+        vapidKeys.privateKey
+    );
+    console.log('🔑 Web Push VAPID keys configurados.');
+} else {
+    console.warn('⚠️ VAPID keys no configuradas en .env. Las notificaciones push no funcionarán.');
+}
 
 // ═══════════════════════════════════════════════════════════════
 // 🗄️ CONEXIÓN MONGODB
@@ -70,6 +89,7 @@ const PlayerSchema = new mongoose.Schema({
     cardIds: [{ type: Number, min: 1, max: TOTAL_CARDS }],
     isActive: { type: Boolean, default: true },
     socketId: { type: String, default: null },
+    pushSubscription: { type: Object, default: null },
     createdAt: { type: Date, default: Date.now },
     stats: {
         totalGames: { type: Number, default: 0 },
@@ -114,6 +134,7 @@ const Player = mongoose.model('Player', PlayerSchema);
 const UserSchema = new mongoose.Schema({
     username: { type: String, required: true, trim: true, maxlength: 50, unique: true },
     passwordHash: { type: String, required: true },
+    pushSubscription: { type: Object, default: null },
     createdAt: { type: Date, default: Date.now },
     stats: {
         totalGames: { type: Number, default: 0 },
@@ -882,6 +903,43 @@ app.get('/api/active-game/:username', async (req, res) => {
     }
 });
 
+app.get('/api/vapid-public-key', (req, res) => {
+    if (vapidKeys.publicKey) {
+        res.send(vapidKeys.publicKey);
+    } else {
+        res.status(500).send('VAPID public key no configurada en el servidor.');
+    }
+});
+
+app.post('/api/subscribe', async (req, res) => {
+    const { subscription, username } = req.body;
+    if (!subscription || !username) {
+        return res.status(400).json({ error: 'Faltan datos de suscripción o usuario.' });
+    }
+
+    try {
+        const userLower = username.trim().toLowerCase();
+        // Guardar en el jugador activo y en la cuenta de usuario registrada
+        await Player.findOneAndUpdate({ username }, { pushSubscription: subscription });
+        await User.findOneAndUpdate({ username: userLower }, { pushSubscription: subscription });
+        
+        console.log(`📲 Suscripción Push guardada para ${username}`);
+        
+        // Enviar una notificación de bienvenida
+        const payload = JSON.stringify({
+            title: '¡Suscripción Exitosa!',
+            body: 'Ahora recibirás notificaciones de Yovanny Bingo.',
+            icon: '/logo.png'
+        });
+        await webpush.sendNotification(subscription, payload);
+        
+        res.status(201).json({ message: 'Suscripción guardada.' });
+    } catch (error) {
+        console.error('Error guardando suscripción:', error);
+        res.status(500).json({ error: 'Error al guardar la suscripción.' });
+    }
+});
+
 app.get('/api/export-winners', (req, res) => {
     try {
         const headers = ['Usuario', 'Carton', 'Hora', 'Patron', 'Numeros Llamados'];
@@ -1296,12 +1354,41 @@ io.on('connection', (socket) => {
     // ─────────────────────────────────────────────────────────────
     // ADMIN: Nueva ronda
     // ─────────────────────────────────────────────────────────────
-    socket.on('admin_reset', () => {
+    socket.on('admin_reset', async () => {
         gameState.calledNumbers = [];
         gameState.last5Numbers = [];
         gameState.last5Winners = [];
         resetWinnerManagement();
         
+        // Enviar notificaciones push para la nueva ronda
+        try {
+            const playersWithSubs = await Player.find({ 
+                isActive: true, 
+                pushSubscription: { $ne: null } 
+            });
+
+            const notificationPayload = JSON.stringify({
+                title: '🎲 ¡Nueva Ronda de Bingo!',
+                body: 'Una nueva partida está a punto de comenzar. ¡Únete ahora!',
+                icon: '/logo.png',
+            });
+
+            for (const player of playersWithSubs) {
+                if (player.pushSubscription) {
+                    webpush.sendNotification(player.pushSubscription, notificationPayload)
+                        .catch(err => {
+                            console.error(`Error enviando notificación a ${player.username}:`, err.statusCode);
+                            // Si la suscripción es inválida (e.g., 410 Gone), la eliminamos
+                            if (err.statusCode === 410 || err.statusCode === 404) {
+                                Player.updateOne({ _id: player._id }, { $set: { pushSubscription: null } }).exec();
+                            }
+                        });
+                }
+            }
+        } catch (error) {
+            console.error('Error al enviar notificaciones push:', error);
+        }
+
         saveGameState();
         io.emit('game_reset');
         io.emit('update_pending_players', getPendingPlayers());
@@ -1426,13 +1513,14 @@ io.on('connection', (socket) => {
     // Desconexión
     // ─────────────────────────────────────────────────────────────
     socket.on('disconnect', async () => {
-        if (socket.data?.cardIds) {
-            socket.data.cardIds.forEach(id => takenCards.delete(id));
-            
+        // Cuando un jugador se desconecta, NO lo marcamos como inactivo ni liberamos sus cartones.
+        // El jugador sigue 'isActive: true' en la DB para poder reconectarse.
+        // Simplemente actualizamos su socketId a null para que la UI lo muestre como 'offline'.
+        if (socket.data?.username) {
             try {
                 await Player.findOneAndUpdate(
-                    { username: socket.data.username, cardIds: { $in: socket.data.cardIds } },
-                    { isActive: false }
+                    { username: socket.data.username },
+                    { socketId: null }
                 );
             } catch (error) {
                 console.error('Error actualizando jugador desconectado:', error);
@@ -1444,7 +1532,7 @@ io.on('connection', (socket) => {
             io.emit('update_pending_players', getPendingPlayers());
         }
         
-        io.emit('update_players', getActivePlayers());
+        getActivePlayers().then(players => io.emit('update_players', players));
         console.log(`🔌 Desconectado: ${socket.id}`);
     });
 });
