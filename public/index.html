@@ -450,72 +450,71 @@
                     <button onclick="showScreen('welcome-screen')" class="btn-link">← Volver</button>
                 </div>
             </div>
-        </div>
 
-        <!-- PANTALLA DE LOGIN / SELECCIÓN DE CARTONES -->
-        <div id="login-screen" class="auth-panel hidden">
-            <button onclick="goToAdmin()" class="admin-access-btn" title="Panel Admin">⚙️</button>
+            <!-- PANTALLA DE LOGIN / SELECCIÓN DE CARTONES -->
+            <div id="login-screen" class="auth-panel hidden">
+                <button onclick="goToAdmin()" class="admin-access-btn" title="Panel Admin">⚙️</button>
 
-            <div class="login-container">
-                <div class="brand-area">
-                    <img src="logo.png" alt="Yovanny Bingo" class="brand-logo">
-                    <h1 class="brand-title">BINGO YOVANNY</h1>
-                    <p class="brand-subtitle">¡La suerte está de tu lado!</p>
-                </div>
+                <div class="login-container">
+                    <div class="brand-area">
+                        <img src="logo.png" alt="Yovanny Bingo" class="brand-logo">
+                        <h1 class="brand-title">BINGO YOVANNY</h1>
+                        <p class="brand-subtitle">¡La suerte está de tu lado!</p>
+                    </div>
 
-                <div class="form-group">
-                    <label>👤 Tu nombre</label>
-                    <input type="text" id="username" placeholder="Escribe tu apodo..." maxlength="20"
-                        autocomplete="off">
-                </div>
+                    <div class="form-group">
+                        <label>👤 Tu nombre</label>
+                        <input type="text" id="username" placeholder="Escribe tu apodo..." maxlength="20"
+                            autocomplete="off">
+                    </div>
 
-                <div class="form-group">
-                    <label>🎫 Selecciona tus cartones</label>
-                    <div class="card-picker">
-                        <div class="picker-controls">
-                            <input type="number" id="manual-input" placeholder="#" min="1" max="300">
-                            <button onclick="addManualCard()" class="btn-add" title="Agregar">➕</button>
-                            <button onclick="addRandomCard()" class="btn-random" title="Aleatorio">🎲</button>
-                        </div>
-                        <small class="hint">Cartones disponibles: 1-300</small>
-                        <div id="selected-list" class="chips-container">
-                            <span class="empty-hint">Ningún cartón seleccionado</span>
+                    <div class="form-group">
+                        <label>🎫 Selecciona tus cartones</label>
+                        <div class="card-picker">
+                            <div class="picker-controls">
+                                <input type="number" id="manual-input" placeholder="#" min="1" max="300">
+                                <button onclick="addManualCard()" class="btn-add" title="Agregar">➕</button>
+                                <button onclick="addRandomCard()" class="btn-random" title="Aleatorio">🎲</button>
+                            </div>
+                            <small class="hint">Cartones disponibles: 1-300</small>
+                            <div id="selected-list" class="chips-container">
+                                <span class="empty-hint">Ningún cartón seleccionado</span>
+                            </div>
                         </div>
                     </div>
+
+                    <div id="login-error" class="error-msg"></div>
+
+                    <button onclick="joinGame()" class="btn-primary btn-glow">
+                        🎱 ENTRAR AL JUEGO
+                    </button>
+
+                    <button id="back-to-welcome-btn" onclick="backToWelcomeFromLogin()" class="btn-link"
+                        style="display:none;">← Volver</button>
+                    <p class="login-footer">Al entrar, aceptas las reglas del juego</p>
                 </div>
+            </div>
 
-                <div id="login-error" class="error-msg"></div>
+            <!-- PANTALLA DE ESPERA -->
+            <div id="waiting-screen" class="auth-panel hidden">
+                <div class="waiting-container">
+                    <div class="loader-ring"></div>
+                    <h2>⏳ Esperando Aprobación</h2>
+                    <p>El administrador está revisando tu solicitud...</p>
+                    <p id="waiting-info" class="waiting-info"></p>
+                </div>
+            </div>
 
-                <button onclick="joinGame()" class="btn-primary btn-glow">
-                    🎱 ENTRAR AL JUEGO
-                </button>
+        </div>
 
-                <button id="back-to-welcome-btn" onclick="backToWelcomeFromLogin()" class="btn-link"
-                    style="display:none;">← Volver</button>
-                <p class="login-footer">Al entrar, aceptas las reglas del juego</p>
+        <!-- PANEL DERECHO (Animación) -->
+        <div class="split-right">
+            <canvas id="liquid-canvas"></canvas>
+            <div class="overlay-text">
+                <h2>Únete a la<br>Diversión</h2>
+                <p>La mejor experiencia de Bingo Online con amigos.</p>
             </div>
         </div>
-
-        <!-- PANTALLA DE ESPERA -->
-        <div id="waiting-screen" class="auth-panel hidden">
-            <div class="waiting-container">
-                <div class="loader-ring"></div>
-                <h2>⏳ Esperando Aprobación</h2>
-                <p>El administrador está revisando tu solicitud...</p>
-                <p id="waiting-info" class="waiting-info"></p>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- PANEL DERECHO (Animación) -->
-    <div class="split-right">
-        <canvas id="liquid-canvas"></canvas>
-        <div class="overlay-text">
-            <h2>Únete a la<br>Diversión</h2>
-            <p>La mejor experiencia de Bingo Online con amigos.</p>
-        </div>
-    </div>
 
     </div>
 
