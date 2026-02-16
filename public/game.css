@@ -292,8 +292,7 @@ body {
     }
     
     .sidebar-left, .sidebar-right {
-        height: auto; /* Altura automática en móvil */
-        max-height: 300px; /* Límite para no ocupar toda la pantalla */
+        height: 400px;
     }
     
     .current-ball-display {

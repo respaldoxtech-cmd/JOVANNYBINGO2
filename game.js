@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Verificar sesión
     const session = localStorage.getItem('yovanny_user');
     if (!session) {
-        window.location.href = '/index.html';
+        window.location.href = '/'; // Redirigir a la raíz es más seguro
         return;
     }
 
@@ -221,7 +221,7 @@ function addChatMessage(data) {
 
 function logout() {
     localStorage.removeItem('yovanny_user');
-    window.location.href = '/index.html';
+    window.location.href = '/';
 }
 
 window.shoutBingo = function() {
