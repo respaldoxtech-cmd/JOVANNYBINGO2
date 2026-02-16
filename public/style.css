@@ -277,10 +277,121 @@ input:focus {
    ═══════════════════════════════════════════════════════════════════════════ */
 #login-screen,
 .admin-login-page {
+    /* Updated for split layout */
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPLIT LAYOUT (NEW LOGIN DESIGN)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.split-layout {
+    display: grid;
+    grid-template-columns: 40% 60%;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+.split-left {
+    display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: var(--spacing-lg);
-    padding-top: 50px;
+    padding: var(--spacing-xl);
+    background: var(--bg-dark);
+    position: relative;
+    z-index: 10;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.3);
+}
+
+.split-right {
+    position: relative;
+    background: #0f172a;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#liquid-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.overlay-text {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    pointer-events: none;
+    padding: 2rem;
+}
+
+.overlay-text h2 {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, white, #cbd5e1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.overlay-text p {
+    color: rgba(255,255,255,0.7);
+    font-size: 1.2rem;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+/* Modify existing containers for split view */
+.split-left .login-container,
+.split-left .waiting-container {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    max-width: 100%;
+    width: 100%;
+    padding: 0;
+}
+
+.split-left .brand-area {
+    margin-bottom: var(--spacing-lg); 
+}
+
+/* Responsive Split */
+@media (max-width: 1024px) {
+    .split-layout {
+        grid-template-columns: 50% 50%;
+    }
+}
+
+@media (max-width: 768px) {
+    .split-layout {
+        grid-template-columns: 100%;
+    }
+    .split-right {
+        display: none;
+    }
+    .split-left {
+        max-width: 100%;
+        padding: var(--spacing-md);
+        background: radial-gradient(circle at 50% 50%, #1e1e2e 0%, #0f0f1a 100%);
+    }
+    
+    /* Restore card look on mobile */
+    .split-left .login-container {
+        padding: var(--spacing-lg);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-lg);
+    }
 }
 
 .login-container {
