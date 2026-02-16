@@ -214,48 +214,49 @@
             </div>
             <!-- (Moved Voice & Game Controls to other sections for decluttering) -->
 
-            <!-- Tabs -->
-            <div class="tabs">
-                <button class="tab active" onclick="switchTab('pending')">
-                    ⏳ Pendientes <span id="pending-badge" class="badge">0</span>
+            <!-- 
+                MOVED CONTROLS HERE (Left Panel)
+                Reference Style: Box with Call/Auto buttons
+            -->
+            <div class="left-controls-area">
+                <button onclick="callNumber()" class="btn-ref-call">
+                    📢 LLAMAR
                 </button>
-                <button class="tab" onclick="switchTab('active')">
-                    👥 Activos <span id="active-badge" class="badge">0</span>
-                </button>
-                <button class="tab" onclick="switchTab('winners')">
-                    🏆 Ganadores
-                </button>
-            </div>
 
-            <!-- Contenido de tabs -->
-            <div id="pending-tab" class="tab-content active">
-                <ul id="pending-list" class="player-list">
-                    <li class="empty">No hay solicitudes pendientes</li>
-                </ul>
-            </div>
-
-            <div id="active-tab" class="tab-content">
-                <ul id="active-list" class="player-list">
-                    <li class="empty">No hay jugadores activos</li>
-                </ul>
-            </div>
-
-            <div id="winners-tab" class="tab-content">
-                <ul id="winners-list" class="player-list winners">
-                    <li class="empty">No hay ganadores aún</li>
-                </ul>
-                <div style="padding: 10px;">
-                    <button onclick="exportWinnersToCSV()" class="btn-action" style="width:100%">📄 Exportar Ganadores
-                        (CSV)</button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button onclick="toggleAuto()" id="auto-btn" class="btn-ref-auto">
+                        ▶ Auto
+                    </button>
+                    <button onclick="togglePause()" id="pause-btn" class="btn-ref-auto"
+                        style="background: #f59e0b; box-shadow: 0 4px 0 #d97706;">
+                        ⏸ Pausa
+                    </button>
                 </div>
+
+                <button onclick="undoNumber()" class="btn-ref-undo">
+                    ↩ Deshacer Último
+                </button>
             </div>
 
-            <!-- Acciones rápidas -->
-            <div class="quick-actions">
-                <button onclick="showAddPlayerModal()" class="btn-action">➕ Agregar Jugador</button>
-                <button onclick="showCardStatusModal()" class="btn-action">🎫 Ver Cartones</button>
-                <button onclick="newRound()" class="btn-warning">🔄 Nueva Ronda</button>
-                <button onclick="fullReset()" class="btn-danger">⚠️ Reinicio Total</button>
+            <!-- 
+                MOVED PATTERN PREVIEW HERE (Left Panel Bottom)
+            -->
+            <div class="left-pattern-box">
+                <span style="font-size: 0.8rem; opacity: 0.7; display: block; margin-bottom: 5px;">🎯 Patrón
+                    Actual</span>
+                <span id="current-pattern-name" class="pattern-name-badge">LÍNEA</span>
+
+                <div id="current-pattern-grid" class="left-pattern-grid">
+                    <!-- Grid will be rendered here -->
+                </div>
+
+                <div id="current-pattern-desc" style="font-size: 0.8em; color: var(--text-muted); margin-top: 5px;">
+                </div>
+
+                <button onclick="showPatternSelector()" class="btn-secondary btn-block"
+                    style="margin-top: 10px; font-size: 0.9rem;">
+                    Cambiar Patrón
+                </button>
             </div>
         </section>
 
@@ -264,17 +265,9 @@
         ────────────────────────────────────────────────────────────── -->
         <section class="panel-center">
             <!-- Game Controls (Moved Here) -->
-            <div class="game-controls-center">
-                <button onclick="callNumber()" class="btn-primary btn-glow">📢 LLAMAR NÚMERO</button>
-                <button onclick="toggleAuto()" id="auto-btn" class="btn-secondary">▶️ Auto</button>
-                <button onclick="togglePause()" id="pause-btn" class="btn-warning">⏸️ Pausa</button>
-            </div>
+            <!-- Game Controls REMOVED from Center (moved to Left) -->
 
-            <div style="display: flex; gap: 10px;">
-                <button onclick="undoNumber()" class="btn-danger" style="flex:1; opacity: 0.8;">↩️ Deshacer
-                    Último</button>
-                <button onclick="showBoardInfo()" class="btn-info" style="width: auto;">ℹ️ Info</button>
-            </div>
+            <!-- Undo button REMOVED from center -->
 
             <div class="board-header">
                 <span class="board-title">Tablero de Números</span>
@@ -289,19 +282,49 @@
         ────────────────────────────────────────────────────────────── -->
         <section class="panel-right">
             <!-- Patrón en Juego -->
-            <div class="pattern-box glass-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h4>🎯 Patrón en Juego</h4>
-                    <span id="current-pattern-name" class="badge"
-                        style="background: var(--primary); color: white;">LÍNEA</span>
-                </div>
+            <!-- 
+                MOVED PLAYER MANAGEMENT HERE (Right Panel)
+            -->
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('pending')">
+                    ⏳ <span id="pending-badge" class="badge">0</span>
+                </button>
+                <button class="tab" onclick="switchTab('active')">
+                    👥 <span id="active-badge" class="badge">0</span>
+                </button>
+                <button class="tab" onclick="switchTab('winners')">
+                    🏆
+                </button>
+            </div>
 
-                <div id="current-pattern-grid" class="large-pattern-grid"
-                    style="margin: 0 auto; width: 200px; height: 200px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;">
-                </div>
+            <!-- Contenido de tabs -->
+            <div id="pending-tab" class="tab-content active" style="flex: 1; overflow-y: auto; max-height: 250px;">
+                <ul id="pending-list" class="player-list">
+                    <li class="empty">No hay solicitudes pendientes</li>
+                </ul>
+            </div>
 
-                <button onclick="showPatternSelector()" class="btn-primary btn-block" style="margin-top: 15px;">Cambiar
-                    Patrón</button>
+            <div id="active-tab" class="tab-content" style="flex: 1; overflow-y: auto; max-height: 250px;">
+                <ul id="active-list" class="player-list">
+                    <li class="empty">No hay jugadores activos</li>
+                </ul>
+            </div>
+
+            <div id="winners-tab" class="tab-content" style="flex: 1; overflow-y: auto; max-height: 250px;">
+                <ul id="winners-list" class="player-list winners">
+                    <li class="empty">No hay ganadores aún</li>
+                </ul>
+            </div>
+
+            <!-- Acciones rápidas (Moved here) -->
+            <div class="quick-actions" style="margin-top: auto;">
+                <button onclick="showAddPlayerModal()" class="btn-action">➕ Jugador</button>
+                <button onclick="showCardStatusModal()" class="btn-action">🎫 Cartones</button>
+                <button onclick="newRound()" class="btn-warning">🔄 Nueva</button>
+                <button onclick="fullReset()" class="btn-danger">⚠️ Reset</button>
+                <button onclick="exportWinnersToCSV()" class="btn-secondary" style="grid-column: span 2;">📄
+                    Exportar</button>
             </div>
 
             <!-- Ticker -->
@@ -1242,14 +1265,14 @@
             const btn = document.getElementById('auto-btn');
             // btn.textContent = '⏹️ Detener'; // Old text
             btn.classList.add('active'); // New style handles color
-            btn.innerHTML = '⏹'; // Icon only
+            btn.innerHTML = '⏹ Detener'; // Restore text for reference button style
         });
 
         socket.on('auto_play_stopped', () => {
             isAutoPlaying = false;
             const btn = document.getElementById('auto-btn');
             btn.classList.remove('active');
-            btn.innerHTML = '▶';
+            btn.innerHTML = '▶ Auto';
         });
 
         socket.on('game_reset', () => {
