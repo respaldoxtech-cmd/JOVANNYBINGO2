@@ -316,11 +316,12 @@ input:focus {
 
 .split-right {
     position: relative;
-    background: #0f172a;
-    overflow: hidden;
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
+    /* Rich gradient background */
+    background: radial-gradient(circle at 70% 30%, #2e1065 0%, #0f0f1a 100%);
+    overflow: hidden;
 }
 
 #liquid-canvas {
@@ -336,18 +337,27 @@ input:focus {
     position: relative;
     z-index: 2;
     text-align: center;
-    pointer-events: none;
-    padding: 2rem;
+    color: white;
+    padding: var(--spacing-xl);
+    max-width: 600px;
+    /* Glass effect for text legibility */
+    background: rgba(15, 23, 42, 0.3);
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius-xl);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .overlay-text h2 {
-    font-size: 3rem;
-    font-weight: 800;
-    margin-bottom: 1rem;
-    background: linear-gradient(135deg, white, #cbd5e1);
+    font-size: 4rem;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: var(--spacing-lg);
+    background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    letter-spacing: -0.02em;
 }
 
 .overlay-text p {
