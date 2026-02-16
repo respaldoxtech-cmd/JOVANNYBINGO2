@@ -12,24 +12,28 @@
 
 <body class="admin-login-page split-layout">
     <div class="split-left">
-        <div class="login-container glass-card">
-            <img src="logo.png" alt="Yovanny Bingo" class="brand-logo">
-            <h1 class="brand-title">BINGO YOVANNY</h1>
-            <p class="brand-subtitle">Panel de Administración</p>
+        <div id="admin-login-panel" class="auth-panel">
+            <div class="login-container">
+                <div class="brand-area">
+                    <img src="logo.png" alt="Yovanny Bingo" class="brand-logo">
+                    <h1 class="brand-title">BINGO YOVANNY</h1>
+                    <p class="brand-subtitle">Panel de Administración</p>
+                </div>
+
+                <div class="form-group">
+                    <label>🔒 Contraseña</label>
+                    <input type="password" id="admin-password" placeholder="Contraseña..." autocomplete="off">
+                </div>
+
+                <div id="login-error" class="error-msg"></div>
+
+                <button onclick="login()" class="btn-primary btn-glow btn-block">
+                    🚪 INGRESAR AL PANEL
+                </button>
+
+                <a href="/" class="back-link">← Volver al juego</a>
+            </div>
         </div>
-
-        <div class="form-group">
-            <label>🔒 Contraseña</label>
-            <input type="password" id="admin-password" placeholder="Contraseña..." autocomplete="off">
-        </div>
-
-        <div id="login-error" class="error-msg"></div>
-
-        <button onclick="login()" class="btn-primary btn-glow">
-            🚪 INGRESAR AL PANEL
-        </button>
-
-        <a href="/" class="back-link">← Volver al juego</a>
     </div>
 
     <!-- PANEL DERECHO -->
