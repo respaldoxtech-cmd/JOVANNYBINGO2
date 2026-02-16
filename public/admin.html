@@ -1240,15 +1240,16 @@
         socket.on('auto_play_started', () => {
             isAutoPlaying = true;
             const btn = document.getElementById('auto-btn');
-            btn.textContent = '⏹️ Detener';
-            btn.classList.add('active');
+            // btn.textContent = '⏹️ Detener'; // Old text
+            btn.classList.add('active'); // New style handles color
+            btn.innerHTML = '⏹'; // Icon only
         });
 
         socket.on('auto_play_stopped', () => {
             isAutoPlaying = false;
             const btn = document.getElementById('auto-btn');
-            btn.textContent = '▶️ Auto';
             btn.classList.remove('active');
+            btn.innerHTML = '▶';
         });
 
         socket.on('game_reset', () => {
