@@ -11,6 +11,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 const webpush = require('web-push');
+const bingoEngine = require('./bingo_rules_engine');
 
 dotenv.config();
 
@@ -98,7 +99,10 @@ const PlayerSchema = new mongoose.Schema({
         lastWinDate: { type: Date, default: null },
         currentStreak: { type: Number, default: 0 },
         maxStreak: { type: Number, default: 0 },
-        totalPoints: { type: Number, default: 0 }
+        totalPoints: { type: Number, default: 0 },
+        patternsWon: { type: Object, default: {} },
+        favoriteNumbers: { type: [Number], default: [] },
+        totalPlayTime: { type: Number, default: 0 }
     },
     level: {
         current: { type: Number, default: 1 },
@@ -143,7 +147,10 @@ const UserSchema = new mongoose.Schema({
         lastWinDate: { type: Date, default: null },
         currentStreak: { type: Number, default: 0 },
         maxStreak: { type: Number, default: 0 },
-        totalPoints: { type: Number, default: 0 }
+        totalPoints: { type: Number, default: 0 },
+        patternsWon: { type: Object, default: {} },
+        favoriteNumbers: { type: [Number], default: [] },
+        totalPlayTime: { type: Number, default: 0 }
     },
     level: {
         current: { type: Number, default: 1 },
@@ -154,6 +161,41 @@ const UserSchema = new mongoose.Schema({
 });
 UserSchema.index({ username: 1 });
 const User = mongoose.model('User', UserSchema);
+
+// ═══════════════════════════════════════════════════════════════
+// 🎨 ESQUEMA DE PREFERENCIAS (MEJORA 3)
+// ═══════════════════════════════════════════════════════════════
+const UserPreferencesSchema = new mongoose.Schema({
+    username: { type: String, required: true, unique: true },
+    theme: { type: String, default: 'dark', enum: ['dark', 'light', 'party', 'night', 'classic', 'neon', 'ocean', 'forest'] },
+    soundProfile: { type: String, default: 'balanced', enum: ['muted', 'balanced', 'loud', 'custom'] },
+    customSounds: {
+        bingo: String,
+        numberCall: String,
+        playerJoin: String,
+        alert: String
+    },
+    animations: { type: Boolean, default: true },
+    cardLayout: { type: String, default: 'grid', enum: ['grid', 'list', 'compact', 'carousel'] },
+    fontSize: { type: String, default: 'medium', enum: ['small', 'medium', 'large', 'xlarge'] },
+    colorBlindMode: { type: Boolean, default: false },
+    notifications: {
+        proximityAlerts: { type: Boolean, default: true },
+        winNotifications: { type: Boolean, default: true },
+        friendOnline: { type: Boolean, default: true }
+    },
+    accessibility: {
+        highContrast: { type: Boolean, default: false },
+        screenReader: { type: Boolean, default: false },
+        keyboardShortcuts: { type: Boolean, default: true }
+    },
+    autoMark: { type: Boolean, default: true },
+    showStats: { type: Boolean, default: true },
+    language: { type: String, default: 'es', enum: ['es', 'en', 'fr', 'de', 'it', 'pt'] },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+const UserPreferences = mongoose.model('UserPreferences', UserPreferencesSchema);
 
 // Modelo GameState: Persistencia del estado del juego
 const GameStateSchema = new mongoose.Schema({
@@ -176,190 +218,7 @@ const GameStateSchema = new mongoose.Schema({
 const GameState = mongoose.model('GameState', GameStateSchema);
 
 // ═══════════════════════════════════════════════════════════════
-// 🎯 DEFINICIÓN DE PATRONES DE BINGO (50+)
-// ═══════════════════════════════════════════════════════════════
-const BINGO_PATTERNS = {
-    // Patrones básicos
-    line: {
-        name: 'LÍNEA',
-        description: 'Cualquier línea horizontal, vertical o diagonal',
-        positions: [
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-            [0,6,12,18,24], [4,8,12,16,20]
-        ],
-        multiplier: 1.0
-    },
-    full: {
-        name: 'CARTÓN LLENO',
-        description: 'Todo el cartón marcado (Blackout)',
-        positions: [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]],
-        multiplier: 10.0
-    },
-    corners: {
-        name: '4 ESQUINAS',
-        description: 'Las cuatro esquinas del cartón',
-        positions: [[0,4,20,24]],
-        multiplier: 1.5
-    },
-    x_shape: {
-        name: 'EQUIS (X)',
-        description: 'Ambas diagonales cruzadas',
-        positions: [[0,4,6,8,12,16,18,20,24]],
-        multiplier: 2.0
-    },
-    plus: {
-        name: 'PLUS (+)',
-        description: 'Cruz central',
-        positions: [[2,7,10,11,12,13,14,17,22]],
-        multiplier: 2.0
-    },
-    frame: {
-        name: 'MARCO',
-        description: 'Borde exterior del cartón',
-        positions: [[0,1,2,3,4,5,9,10,14,15,19,20,21,22,23,24]],
-        multiplier: 2.5
-    },
-    inner_square: {
-        name: 'CUADRADO INTERIOR',
-        description: 'Cuadrado 3x3 central',
-        positions: [[6,7,8,11,12,13,16,17,18]],
-        multiplier: 2.2
-    },
-    diamond: {
-        name: 'DIAMANTE',
-        description: 'Forma de diamante',
-        positions: [[2,6,8,10,12,14,16,18,22]],
-        multiplier: 2.5
-    },
-    letter_t: {
-        name: 'LETRA T',
-        description: 'Forma de T mayúscula',
-        positions: [[0,1,2,3,4,7,12,17,22]],
-        multiplier: 2.0
-    },
-    letter_l: {
-        name: 'LETRA L',
-        description: 'Forma de L mayúscula',
-        positions: [[0,5,10,15,20,21,22,23,24]],
-        multiplier: 2.0
-    },
-    letter_h: {
-        name: 'LETRA H',
-        description: 'Forma de H mayúscula',
-        positions: [[0,4,5,9,10,11,12,13,14,15,19,20,24]],
-        multiplier: 3.0
-    },
-    letter_o: {
-        name: 'LETRA O',
-        description: 'Forma de O (marco)',
-        positions: [[1,2,3,5,9,10,14,15,19,21,22,23]],
-        multiplier: 2.8
-    },
-    star: {
-        name: 'ESTRELLA',
-        description: 'Forma de estrella',
-        positions: [[2,6,7,8,10,11,12,13,14,16,17,18,22]],
-        multiplier: 3.5
-    },
-    heart: {
-        name: 'CORAZÓN',
-        description: 'Forma de corazón',
-        positions: [[1,3,5,6,7,8,9,10,11,12,13,14,16,18,22]],
-        multiplier: 4.0
-    },
-    arrow: {
-        name: 'FLECHA',
-        description: 'Flecha apuntando arriba',
-        positions: [[2,6,7,8,10,11,12,13,14,17,22]],
-        multiplier: 3.0
-    },
-    pyramid: {
-        name: 'PIRÁMIDE',
-        description: 'Forma triangular',
-        positions: [[2,6,7,8,10,11,12,13,14,15,16,17,18,19]],
-        multiplier: 3.5
-    },
-    cross: {
-        name: 'CRUZ',
-        description: 'Cruz completa',
-        positions: [[2,7,10,11,12,13,14,17,22]],
-        multiplier: 2.0
-    },
-    checkerboard: {
-        name: 'AJEDREZ',
-        description: 'Patrón de ajedrez',
-        positions: [[0,2,4,6,8,10,12,14,16,18,20,22,24]],
-        multiplier: 3.0
-    },
-    hourglass: {
-        name: 'RELOJ DE ARENA',
-        description: 'Forma de reloj de arena',
-        positions: [[0,1,2,3,4,6,8,12,16,18,20,21,22,23,24]],
-        multiplier: 3.5
-    },
-    butterfly: {
-        name: 'MARIPOSA',
-        description: 'Forma de mariposa',
-        positions: [[0,4,5,6,8,9,12,15,16,18,19,20,24]],
-        multiplier: 3.8
-    },
-    crown: {
-        name: 'CORONA',
-        description: 'Forma de corona',
-        positions: [[0,2,4,5,6,7,8,9,10,11,12,13,14]],
-        multiplier: 3.5
-    },
-    snake: {
-        name: 'SERPIENTE',
-        description: 'Patrón serpenteante',
-        positions: [[0,1,2,7,12,17,22,23,24]],
-        multiplier: 2.5
-    },
-    zigzag: {
-        name: 'ZIGZAG',
-        description: 'Patrón en zigzag',
-        positions: [[0,1,6,11,12,13,18,23,24]],
-        multiplier: 2.5
-    },
-    small_square: {
-        name: 'CUADRADO PEQUEÑO',
-        description: 'Cuadrado 2x2',
-        positions: [[0,1,5,6]],
-        multiplier: 1.2
-    },
-    corners_center: {
-        name: 'ESQUINAS + CENTRO',
-        description: '4 esquinas más el centro',
-        positions: [[0,4,12,20,24]],
-        multiplier: 1.8
-    },
-    // Columnas individuales
-    column_b: { name: 'COLUMNA B', positions: [[0,1,2,3,4]], multiplier: 1.0 },
-    column_i: { name: 'COLUMNA I', positions: [[5,6,7,8,9]], multiplier: 1.0 },
-    column_n: { name: 'COLUMNA N', positions: [[10,11,12,13,14]], multiplier: 1.0 },
-    column_g: { name: 'COLUMNA G', positions: [[15,16,17,18,19]], multiplier: 1.0 },
-    column_o: { name: 'COLUMNA O', positions: [[20,21,22,23,24]], multiplier: 1.0 },
-    // Filas individuales
-    row_1: { name: 'FILA 1', positions: [[0,5,10,15,20]], multiplier: 1.0 },
-    row_2: { name: 'FILA 2', positions: [[1,6,11,16,21]], multiplier: 1.0 },
-    row_3: { name: 'FILA 3', positions: [[2,7,12,17,22]], multiplier: 1.0 },
-    row_4: { name: 'FILA 4', positions: [[3,8,13,18,23]], multiplier: 1.0 },
-    row_5: { name: 'FILA 5', positions: [[4,9,14,19,24]], multiplier: 1.0 },
-    // Diagonales
-    diagonal_main: { name: 'DIAGONAL PRINCIPAL', positions: [[0,6,12,18,24]], multiplier: 1.0 },
-    diagonal_secondary: { name: 'DIAGONAL SECUNDARIA', positions: [[4,8,12,16,20]], multiplier: 1.0 },
-    // Patrón personalizado
-    custom: {
-        name: 'PERSONALIZADO',
-        description: 'Figura definida por el administrador',
-        positions: null,
-        multiplier: 2.0
-    }
-};
-
-// ═══════════════════════════════════════════════════════════════
-// 🎮 ESTADO DEL JUEGO
+//  ESTADO DEL JUEGO
 // ═══════════════════════════════════════════════════════════════
 let gameState = {
     calledNumbers: [],
@@ -476,10 +335,10 @@ function generateCard(cardId) {
 // ✅ VALIDACIÓN DE PATRONES
 // ═══════════════════════════════════════════════════════════════
 function checkWin(card, calledNumbers, patternType, customPattern = []) {
-    const flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
-    const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
-
+    // Manejar patrón personalizado localmente (ya que depende de customPattern dinámico)
     if (patternType === 'custom' && customPattern.length > 0) {
+        const flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
+        const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
         for (let r = 0; r < 5; r++) {
             for (let c = 0; c < 5; c++) {
                 const adminIdx = r * 5 + c;
@@ -492,18 +351,8 @@ function checkWin(card, calledNumbers, patternType, customPattern = []) {
         return true;
     }
 
-    const pattern = BINGO_PATTERNS[patternType];
-    if (!pattern || !pattern.positions) {
-        console.warn(`⚠️ Patrón "${patternType}" no encontrado en BINGO_PATTERNS`);
-        return false;
-    }
-
-    // Verificar si alguna línea del patrón está completa
-    const hasWon = pattern.positions.some(line => 
-        line.every(idx => isMarked(flatCard[idx]))
-    );
-    
-    return hasWon;
+    // Delegar al motor de reglas para patrones estándar
+    return bingoEngine.checkWin(card, calledNumbers, patternType);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -552,6 +401,24 @@ async function syncTakenCards() {
     }
 }
 
+async function updateFavoriteNumbers(player) {
+    try {
+        if (!player.cardIds || player.cardIds.length === 0) return;
+        const freq = {};
+        for (const id of player.cardIds) {
+            const card = generateCard(id);
+            const nums = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O].filter(n => n !== 'FREE');
+            nums.forEach(n => freq[n] = (freq[n] || 0) + 1);
+        }
+        player.stats.favoriteNumbers = Object.entries(freq)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(e => parseInt(e[0]));
+    } catch (error) {
+        console.error('❌ Error actualizando números favoritos:', error);
+    }
+}
+
 async function updatePlayerStats(username, winData) {
     try {
         const player = await Player.findOne({ username });
@@ -570,7 +437,14 @@ async function updatePlayerStats(username, winData) {
             
             player.stats.winRate = (player.stats.wins / player.stats.totalGames) * 100;
             
-            const pattern = BINGO_PATTERNS[winData.pattern];
+            // Actualizar patrones ganados
+            const pKey = winData.pattern;
+            if (!player.stats.patternsWon) player.stats.patternsWon = {};
+            player.stats.patternsWon[pKey] = (player.stats.patternsWon[pKey] || 0) + 1;
+            
+            await updateFavoriteNumbers(player);
+
+            const pattern = bingoEngine.getPatternByName(winData.pattern);
             const multiplier = pattern?.multiplier || 1.0;
             const speedBonus = Math.max(1.0, (75 - gameState.calledNumbers.length) / 25);
             const points = Math.round(100 * multiplier * speedBonus);
@@ -595,11 +469,14 @@ async function updatePlayerStats(username, winData) {
             player.stats.currentStreak = 0;
         }
         
+        // Estimación de tiempo de juego (5 seg por número llamado aprox)
+        player.stats.totalPlayTime += Math.round((gameState.calledNumbers.length * 5) / 60);
+
         player.gameHistory.push({
             date: new Date(),
             pattern: winData?.pattern || gameState.pattern,
             won: !!winData,
-            points: winData ? Math.round(100 * (BINGO_PATTERNS[winData.pattern]?.multiplier || 1)) : 0,
+            points: winData ? Math.round(100 * (bingoEngine.getPatternByName(winData.pattern)?.multiplier || 1)) : 0,
             numbersCalled: gameState.calledNumbers.length
         });
         
@@ -707,7 +584,7 @@ async function checkForAutomaticWinners() {
                     time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
                     numbersCalled: gameState.calledNumbers.length,
                     pattern: gameState.pattern,
-                    patternName: BINGO_PATTERNS[gameState.pattern]?.name || gameState.pattern
+                    patternName: bingoEngine.getPatternByName(gameState.pattern)?.name || gameState.pattern
                 };
                 
                 gameSession.winners.add(player.username);
@@ -750,6 +627,110 @@ function resetWinnerManagement() {
         cooldown: 2000
     };
     gameState.gameId = gameSession.id;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🚨 DETECCIÓN DE PROXIMIDAD (ASISTENTE)
+// ═══════════════════════════════════════════════════════════════
+async function checkForProximity() {
+    const sockets = Array.from(io.sockets.sockets.values());
+    
+    for (const socket of sockets) {
+        if (!socket.data.username || !socket.data.cardIds) continue;
+        
+        for (const cardId of socket.data.cardIds) {
+            if (gameSession.winningCards.has(cardId)) continue;
+
+            const card = generateCard(cardId);
+            const analysis = getCardAnalysis(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern);
+            
+            if (analysis.missing === 1) {
+                socket.emit('assistant_proximity_alert', {
+                    cardId: cardId,
+                    missing: 1,
+                    pattern: gameState.pattern,
+                    message: "🔥 ¡A 1 número de ganar!"
+                });
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🧠 ASISTENTE INTELIGENTE (Lógica de MEJORA_2)
+// ═══════════════════════════════════════════════════════════════
+function getCardAnalysis(card, calledNumbers, patternType, customPattern) {
+    const flatCard = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
+    const isMarked = (val) => val === "FREE" || calledNumbers.includes(val);
+    
+    let minMissing = 25;
+    let totalToMark = 0;
+    let markedCount = 0;
+    let bestNeededNumbers = [];
+
+    if (patternType === 'custom' && customPattern && customPattern.length > 0) {
+        let currentMissing = 0;
+        let currentTotal = 0;
+        let currentMarked = 0;
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c < 5; c++) {
+                const adminIdx = r * 5 + c;
+                const cardIdx = c * 5 + r;
+                if (customPattern[adminIdx]) {
+                    currentTotal++;
+                    if (isMarked(flatCard[cardIdx])) currentMarked++;
+                    else {
+                        currentMissing++;
+                        if (currentMissing === 1) bestNeededNumbers.push(flatCard[cardIdx]);
+                    }
+                }
+            }
+        }
+        minMissing = currentMissing;
+        totalToMark = currentTotal;
+        markedCount = currentMarked;
+        // Si faltan más de 1, la lista bestNeededNumbers podría no ser exacta aquí sin lógica extra, 
+        // pero para missing===1 funciona bien.
+    } else {
+        const pattern = bingoEngine.getPatternByName(patternType);
+        if (!pattern || !pattern.positions) return { cardId: card.id, missing: 25, status: 'Desconocido' };
+
+        for (const line of pattern.positions) {
+            let currentMissing = 0;
+            let currentTotal = 0;
+            let currentMarked = 0;
+            let currentNeeded = [];
+            for (const idx of line) {
+                currentTotal++;
+                if (isMarked(flatCard[idx])) currentMarked++;
+                else {
+                    currentMissing++;
+                    currentNeeded.push(flatCard[idx]);
+                }
+            }
+            if (currentMissing < minMissing) {
+                minMissing = currentMissing;
+                totalToMark = currentTotal;
+                markedCount = currentMarked;
+                bestNeededNumbers = currentNeeded;
+            }
+        }
+    }
+
+    const percentage = totalToMark > 0 ? (markedCount / totalToMark) * 100 : 0;
+    let status = 'Normal';
+    if (minMissing === 0) status = '¡GANADOR!';
+    else if (minMissing === 1) status = '🔥 ¡A 1 número!';
+    else if (minMissing <= 2) status = '⚠️ Muy cerca';
+    else if (percentage > 75) status = '✅ Excelente';
+
+    return { 
+        cardId: card.id, 
+        missing: minMissing, 
+        percentage: Math.round(percentage), 
+        status,
+        neededNumbers: bestNeededNumbers
+    };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -807,11 +788,11 @@ app.post('/admin-login', (req, res) => {
 });
 
 app.get('/api/patterns', (req, res) => {
-    const patterns = Object.entries(BINGO_PATTERNS).map(([key, val]) => ({
+    const patterns = Object.entries(bingoEngine.BINGO_PATTERNS).map(([key, val]) => ({
         id: key,
         name: val.name,
         description: val.description,
-        multiplier: val.multiplier
+        multiplier: val.multiplier || 1.0
     }));
     res.json(patterns);
 });
@@ -833,6 +814,86 @@ app.get('/api/stats/:username', async (req, res) => {
     }
 });
 
+app.get('/api/player-stats/:username', async (req, res) => {
+    try {
+        const username = req.params.username.trim();
+        // Intentar buscar en usuarios registrados primero
+        let statsData = await User.findOne({ username: new RegExp(`^${username}$`, 'i') });
+        
+        // Si no, buscar en jugadores activos/temporales
+        if (!statsData) {
+            statsData = await Player.findOne({ username });
+        }
+        
+        if (!statsData) {
+            return res.status(404).json({ message: 'No hay estadísticas disponibles para este jugador', stats: null });
+        }
+        
+        const stats = statsData.stats;
+        const avgGameTime = stats.totalGames > 0 ? Math.round(stats.totalPlayTime / stats.totalGames) : 0;
+        
+        res.json({
+            ...statsData.toObject(),
+            stats: {
+                ...statsData.stats.toObject(), // Asegurar que es objeto plano
+                avgGameTime
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/stats/summary', async (req, res) => {
+    try {
+        const totalPlayers = await User.countDocuments();
+        const activePlayers = await Player.countDocuments({ isActive: true });
+        const totalWinsResult = await User.aggregate([{ $group: { _id: null, total: { $sum: "$stats.wins" } } }]);
+        const totalWins = totalWinsResult[0]?.total || 0;
+        
+        // Calcular win rate promedio de usuarios con al menos 1 juego
+        const avgWinRateResult = await User.aggregate([
+            { $match: { "stats.totalGames": { $gt: 0 } } },
+            { $group: { _id: null, avg: { $avg: "$stats.winRate" } } }
+        ]);
+        const avgWinRate = Math.round(avgWinRateResult[0]?.avg || 0);
+
+        res.json({
+            totalPlayers,
+            activePlayers,
+            totalWins,
+            avgWinRate,
+            topPlayers: await User.find().sort({ "stats.wins": -1 }).limit(5).select('username stats.wins level')
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/assist/suggestions/:username', async (req, res) => {
+    try {
+        const username = req.params.username.trim();
+        // Buscar jugador (incluso si está offline pero activo en DB)
+        const player = await Player.findOne({ username });
+        
+        if (!player || !player.cardIds || player.cardIds.length === 0) {
+            return res.json({ suggestions: [] });
+        }
+
+        const analysis = player.cardIds.map(id => {
+            const card = generateCard(id);
+            return getCardAnalysis(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern);
+        });
+
+        // Ordenar por proximidad a la victoria (menos números faltantes primero)
+        analysis.sort((a, b) => a.missing - b.missing || b.percentage - a.percentage);
+        
+        res.json({ pattern: gameState.pattern, suggestions: analysis });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/api/leaderboard', async (req, res) => {
     try {
         const players = await Player.find({ isActive: true })
@@ -840,6 +901,92 @@ app.get('/api/leaderboard', async (req, res) => {
             .limit(10)
             .select('username stats.totalPoints stats.wins level.current');
         res.json(players);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint actualizado para incluir los números específicos que faltan
+app.get('/api/admin/proximity-report', async (req, res) => {
+    try {
+        // 1. Obtener jugadores conectados
+        const connectedPlayers = Array.from(io.sockets.sockets.values())
+            .filter(s => s.data.username && s.data.cardIds?.length > 0)
+            .map(s => ({ username: s.data.username, cardIds: s.data.cardIds, source: 'online' }));
+        
+        // 2. Obtener jugadores de DB (offline pero activos)
+        const dbPlayers = await getActivePlayersFromDB();
+        const connectedUsernames = new Set(connectedPlayers.map(p => p.username));
+        
+        const dbPlayersList = dbPlayers
+            .filter(p => !connectedUsernames.has(p.username) && p.cardIds && p.cardIds.length > 0)
+            .map(p => ({ username: p.username, cardIds: p.cardIds, source: 'offline' }));
+            
+        const allPlayers = [...connectedPlayers, ...dbPlayersList];
+        const closePlayers = [];
+
+        for (const player of allPlayers) {
+            for (const cardId of player.cardIds) {
+                if (gameSession.winningCards.has(cardId)) continue;
+                if (!takenCards.has(cardId)) continue;
+
+                const card = generateCard(cardId);
+                const analysis = getCardAnalysis(card, gameState.calledNumbers, gameState.pattern, gameState.customPattern);
+                
+                if (analysis.missing === 1) {
+                    closePlayers.push({
+                        username: player.username,
+                        cardId: cardId,
+                        missing: 1,
+                        neededNumbers: analysis.neededNumbers, // Nuevo campo
+                        pattern: gameState.pattern,
+                        status: player.source
+                    });
+                }
+            }
+        }
+        
+        res.json(closePlayers.sort((a, b) => a.username.localeCompare(b.username)));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/user-preferences/:username', async (req, res) => {
+    try {
+        const username = req.params.username.trim();
+        let prefs = await UserPreferences.findOne({ username });
+        
+        if (!prefs) {
+            // Crear preferencias por defecto si no existen
+            prefs = new UserPreferences({ username });
+            await prefs.save();
+        }
+        
+        res.json(prefs);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/user-preferences/:username', async (req, res) => {
+    try {
+        const username = req.params.username.trim();
+        const updates = req.body;
+        
+        const prefs = await UserPreferences.findOneAndUpdate(
+            { username },
+            { ...updates, updatedAt: new Date() },
+            { new: true, upsert: true }
+        );
+        
+        // Notificar cambios en tiempo real si el usuario está conectado
+        const socket = Array.from(io.sockets.sockets.values()).find(s => s.data?.username === username);
+        if (socket) {
+            socket.emit('preferences_updated', prefs);
+        }
+        
+        res.json(prefs);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -967,12 +1114,12 @@ io.on('connection', (socket) => {
     // Sincronizar estado inicial
     socket.emit('sync_state', {
         ...gameState,
-        patterns: Object.keys(BINGO_PATTERNS).map(k => ({
+        patterns: Object.keys(bingoEngine.BINGO_PATTERNS).map(k => ({
             id: k,
-            name: BINGO_PATTERNS[k].name,
-            description: BINGO_PATTERNS[k].description,
-            positions: BINGO_PATTERNS[k].positions,
-            multiplier: BINGO_PATTERNS[k].multiplier
+            name: bingoEngine.BINGO_PATTERNS[k].name,
+            description: bingoEngine.BINGO_PATTERNS[k].description,
+            positions: bingoEngine.BINGO_PATTERNS[k].positions,
+            multiplier: bingoEngine.BINGO_PATTERNS[k].multiplier || 1.0
         }))
     });
     socket.emit('update_pending_players', getPendingPlayers());
@@ -1120,6 +1267,7 @@ io.on('connection', (socket) => {
         // Verificar ganadores automáticos después de un breve delay
         setTimeout(async () => {
             await checkForAutomaticWinners();
+            await checkForProximity();
         }, 200);
     });
     
@@ -1157,7 +1305,7 @@ io.on('connection', (socket) => {
         // Resetear ganadores cuando se cambia el patrón
         resetWinnerManagement();
         
-        const patternInfo = BINGO_PATTERNS[data.type];
+        const patternInfo = bingoEngine.getPatternByName(data.type);
         console.log(`🎯 Patrón cambiado a: ${patternInfo?.name || data.type}`);
         console.log(`   Posiciones:`, patternInfo?.positions || data.grid);
         
@@ -1174,12 +1322,12 @@ io.on('connection', (socket) => {
         // También actualizar el estado sincronizado con TODOS los patrones
         io.emit('sync_state', {
             ...gameState,
-            patterns: Object.keys(BINGO_PATTERNS).map(k => ({
+            patterns: Object.keys(bingoEngine.BINGO_PATTERNS).map(k => ({
                 id: k,
-                name: BINGO_PATTERNS[k].name,
-                description: BINGO_PATTERNS[k].description || '',
-                positions: BINGO_PATTERNS[k].positions || [],
-                multiplier: BINGO_PATTERNS[k].multiplier || 1
+                name: bingoEngine.BINGO_PATTERNS[k].name,
+                description: bingoEngine.BINGO_PATTERNS[k].description || '',
+                positions: bingoEngine.BINGO_PATTERNS[k].positions || [],
+                multiplier: bingoEngine.BINGO_PATTERNS[k].multiplier || 1
             }))
         });
     });
@@ -1474,6 +1622,7 @@ io.on('connection', (socket) => {
             
             setTimeout(async () => {
                 await checkForAutomaticWinners();
+                await checkForProximity();
             }, 200);
         }, 5000);
         
@@ -1550,7 +1699,7 @@ syncTakenCards().then(() => {
 ║   🎱  YOVANNY BINGO V15 - SISTEMA COMPLETO                   ║
 ║                                                              ║
 ║   Puerto: ${PORT}                                              ║
-║   Patrones: ${Object.keys(BINGO_PATTERNS).length} disponibles                               ║
+║   Patrones: ${Object.keys(bingoEngine.BINGO_PATTERNS).length} disponibles                               ║
 ║   Cartones: ${TOTAL_CARDS} únicos                                      ║
 ║                                                              ║
 ║   ✅ MongoDB conectado                                       ║
