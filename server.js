@@ -137,6 +137,7 @@ const Player = mongoose.model('Player', PlayerSchema);
 // Modelo User: cuentas registradas (logros y stats persistentes)
 const UserSchema = new mongoose.Schema({
     username: { type: String, required: true, trim: true, maxlength: 50, unique: true },
+    email: { type: String, required: true, trim: true, unique: true },
     passwordHash: { type: String, required: true },
     pushSubscription: { type: Object, default: null },
     createdAt: { type: Date, default: Date.now },
@@ -994,17 +995,19 @@ app.post('/api/user-preferences/:username', async (req, res) => {
 
 app.post('/api/register', async (req, res) => {
     try {
-        const { username, password } = req.body || {};
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+        const { username, password, email } = req.body || {};
+        if (!username || !password || !email) {
+            return res.status(400).json({ error: 'Todos los campos son requeridos' });
         }
         const user = username.trim().toLowerCase().slice(0, 50);
         if (user.length < 2) return res.status(400).json({ error: 'Usuario muy corto' });
         if (password.length < 4) return res.status(400).json({ error: 'Contraseña mínimo 4 caracteres' });
         const existing = await User.findOne({ username: user });
         if (existing) return res.status(400).json({ error: 'Usuario ya existe' });
+        const existingEmail = await User.findOne({ email: email.trim().toLowerCase() });
+        if (existingEmail) return res.status(400).json({ error: 'El correo ya está registrado' });
         const passwordHash = await bcrypt.hash(password, 10);
-        await User.create({ username: user, passwordHash });
+        await User.create({ username: user, email: email.trim().toLowerCase(), passwordHash });
         res.json({ success: true, username: user });
     } catch (e) {
         res.status(500).json({ error: e.message || 'Error al registrar' });

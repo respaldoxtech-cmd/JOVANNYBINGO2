@@ -27,8 +27,8 @@ app.post('/admin-login', (req, res) => {
 // --- RUTAS DE AUTENTICACIÓN (LOCAL) ---
 app.post('/api/register', async (req, res) => {
     try {
-        const { username, password } = req.body || {};
-        if (!username || !password) return res.status(400).json({ error: 'Faltan datos' });
+        const { username, password, email } = req.body || {};
+        if (!username || !password || !email) return res.status(400).json({ error: 'Faltan datos' });
         
         const userLower = username.trim().toLowerCase();
         if (users.has(userLower)) return res.status(400).json({ error: 'El usuario ya existe' });
@@ -36,6 +36,7 @@ app.post('/api/register', async (req, res) => {
         const passwordHash = await bcrypt.hash(password, 10);
         users.set(userLower, { 
             username: username.trim(), 
+            email: email.trim().toLowerCase(),
             passwordHash,
             stats: { totalGames: 0, wins: 0, winRate: 0 },
             level: { current: 1, exp: 0, expToNext: 100 },

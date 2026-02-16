@@ -92,33 +92,24 @@ body {
     font-size: 0.95rem;
 }
 
-/* Tabs */
-.auth-tabs {
-    display: flex;
-    background: var(--glass);
-    padding: 4px;
-    border-radius: 12px;
-    margin-bottom: 25px;
+/* Sliding Forms Container */
+.forms-wrapper {
+    width: 100%;
+    overflow: hidden; /* Hide the form that is out of view */
     position: relative;
 }
 
-.tab-btn {
-    flex: 1;
-    background: none;
-    border: none;
-    padding: 10px;
-    color: var(--text-muted);
-    font-weight: 600;
-    cursor: pointer;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    z-index: 2;
+.forms-slider {
+    display: flex;
+    width: 200%; /* Two forms side by side */
+    transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* Bouncy slide effect */
 }
 
-.tab-btn.active {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+.auth-form {
+    width: 50%;
+    padding: 0 10px;
+    opacity: 1;
+    transition: opacity 0.3s ease;
 }
 
 /* Formularios */
@@ -197,15 +188,6 @@ body {
 }
 
 /* Utilidades */
-.hidden {
-    display: none;
-    animation: fadeOut 0.2s ease forwards;
-}
-
-.fade-in {
-    animation: fadeIn 0.4s ease forwards;
-}
-
 .error-msg {
     color: #ef4444;
     font-size: 0.85rem;
@@ -230,6 +212,20 @@ body {
 .admin-link a:hover {
     opacity: 1;
     color: var(--primary);
+}
+
+.switch-link {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.switch-link a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
 }
 
 /* Animaciones */

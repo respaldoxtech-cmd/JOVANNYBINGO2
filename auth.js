@@ -2,10 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Elementos del DOM
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
-    const tabLogin = document.getElementById('tab-login');
-    const tabRegister = document.getElementById('tab-register');
-    const formLoginContainer = document.getElementById('form-login');
-    const formRegisterContainer = document.getElementById('form-register');
+    const formsSlider = document.getElementById('forms-slider');
+    const toRegisterBtn = document.getElementById('to-register');
+    const toLoginBtn = document.getElementById('to-login');
     const errorDisplay = document.getElementById('error-display');
 
     // 🔊 Efecto de Sonido para Botones (Generado con Web Audio API)
@@ -29,29 +28,19 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', playClickSound);
     });
 
-    // Gestión de Pestañas
-    function switchTab(tab) {
+    // Gestión de Animación (Slide)
+    function showRegister() {
         errorDisplay.textContent = '';
-        
-        if (tab === 'login') {
-            tabLogin.classList.add('active');
-            tabRegister.classList.remove('active');
-            formLoginContainer.classList.remove('hidden');
-            formLoginContainer.classList.add('fade-in');
-            formRegisterContainer.classList.add('hidden');
-            formRegisterContainer.classList.remove('fade-in');
-        } else {
-            tabRegister.classList.add('active');
-            tabLogin.classList.remove('active');
-            formRegisterContainer.classList.remove('hidden');
-            formRegisterContainer.classList.add('fade-in');
-            formLoginContainer.classList.add('hidden');
-            formLoginContainer.classList.remove('fade-in');
-        }
+        formsSlider.style.transform = 'translateX(-50%)';
     }
 
-    tabLogin.addEventListener('click', () => switchTab('login'));
-    tabRegister.addEventListener('click', () => switchTab('register'));
+    function showLogin() {
+        errorDisplay.textContent = '';
+        formsSlider.style.transform = 'translateX(0)';
+    }
+
+    toRegisterBtn.addEventListener('click', showRegister);
+    toLoginBtn.addEventListener('click', showLogin);
 
     // Manejo de Login
     loginForm.addEventListener('submit', async (e) => {
@@ -92,20 +81,21 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoading(btn, true);
 
         const username = document.getElementById('reg-user').value;
+        const email = document.getElementById('reg-email').value;
         const password = document.getElementById('reg-pass').value;
 
         try {
             const res = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username, email, password })
             });
 
             const data = await res.json();
 
             if (data.success) {
                 // Auto-login tras registro exitoso
-                switchTab('login');
+                showLogin();
                 document.getElementById('login-user').value = username;
                 document.getElementById('login-pass').value = password;
                 showError('¡Registro exitoso! Iniciando sesión...', 'green');
