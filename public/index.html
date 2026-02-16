@@ -325,20 +325,20 @@
                         <button onclick="enterAsGuest()" class="btn-primary btn-glow btn-block">
                             🎮 JUGAR COMO INVITADO
                         </button>
-                        <button onclick="showAuthScreen()" class="btn-secondary btn-block">
+                        <button onclick="showScreen('auth-login')" class="btn-secondary btn-block">
                             👤 CREAR CUENTA O INICIAR SESIÓN
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- PANTALLA DE AUTENTICACIÓN -->
-            <div id="auth-screen" class="auth-panel hidden">
+            <!-- PANTALLA DE LOGIN (SEPARADA) -->
+            <div id="auth-login" class="auth-panel hidden">
                 <button onclick="goToAdmin()" class="admin-access-btn" title="Panel Admin">⚙️</button>
                 <div class="login-container">
                     <div class="brand-area">
                         <img src="logo.png" alt="Yovanny Bingo" class="brand-logo">
-                        <h1 class="brand-title">MI CUENTA</h1>
+                        <h1 class="brand-title">INICIAR SESIÓN</h1>
                     </div>
 
                     <div class="google-auth-wrapper" style="margin-bottom: 20px;">
@@ -367,123 +367,155 @@
                         </div>
                     </div>
 
-                    <div class="forms-wrapper">
-                        <div class="forms-slider" id="spa-forms-slider"
-                            style="display: flex; width: 200%; transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);">
-                            <div id="auth-login" class="auth-form">
-                                <div class="form-group">
-                                    <label>👤 Usuario</label>
-                                    <input type="text" id="auth-username" placeholder="Tu usuario..." maxlength="50"
-                                        autocomplete="username">
-                                </div>
-                                <div class="form-group">
-                                    <label>🔒 Contraseña</label>
-                                    <input type="password" id="auth-password" placeholder="Tu contraseña..."
-                                        autocomplete="current-password">
-                                </div>
-                                <div id="auth-error" class="error-msg"></div>
-                                <button onclick="doLogin()" class="btn-primary btn-glow btn-block">Ingresar</button>
-                                <div class="switch-link" style="text-align: center; margin-top: 15px;">
-                                    ¿No tienes cuenta? <a onclick="switchAuthTab('register')"
-                                        style="color: var(--primary); cursor: pointer;">Regístrate aquí</a>
-                                </div>
-                                <button onclick="forgotPassword()" class="btn-link"
-                                    style="margin-top: 10px; width: 100%; font-size: 0.9rem; opacity: 0.8;">¿Olvidaste
-                                    tu contraseña?</button>
-                            </div>
-                            <div id="auth-register" class="auth-form">
-                                <div class="form-group">
-                                    <label>👤 Usuario</label>
-                                    <input type="text" id="reg-username" placeholder="Elige un usuario..."
-                                        maxlength="50" autocomplete="username">
-                                </div>
-                                <div class="form-group">
-                                    <label>📧 Correo</label>
-                                    <input type="email" id="reg-email" placeholder="tu@correo.com" autocomplete="email">
-                                </div>
-                                <div class="form-group">
-                                    <label>🔒 Contraseña</label>
-                                    <input type="password" id="reg-password" placeholder="Mínimo 4 caracteres..."
-                                        autocomplete="new-password">
-                                </div>
-                                <div id="reg-error" class="error-msg"></div>
-                                <button onclick="doRegister()" class="btn-primary btn-glow btn-block">Crear
-                                    cuenta</button>
-                                <div class="switch-link" style="text-align: center; margin-top: 15px;">
-                                    ¿Ya tienes cuenta? <a onclick="switchAuthTab('login')"
-                                        style="color: var(--primary); cursor: pointer;">Inicia Sesión</a>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label>👤 Usuario</label>
+                        <input type="text" id="auth-username" placeholder="Tu usuario..." maxlength="50"
+                            autocomplete="username">
                     </div>
-                    <button onclick="backToWelcome()" class="btn-link">← Volver</button>
+                    <div class="form-group">
+                        <label>🔒 Contraseña</label>
+                        <input type="password" id="auth-password" placeholder="Tu contraseña..."
+                            autocomplete="current-password">
+                    </div>
+                    <div id="auth-error" class="error-msg"></div>
+                    <button onclick="doLogin()" class="btn-primary btn-glow btn-block">Ingresar</button>
+
+                    <div class="switch-link" style="text-align: center; margin-top: 15px;">
+                        ¿No tienes cuenta? <a onclick="showScreen('auth-register')"
+                            style="color: var(--primary); cursor: pointer;">Regístrate aquí</a>
+                    </div>
+                    <button onclick="forgotPassword()" class="btn-link"
+                        style="margin-top: 10px; width: 100%; font-size: 0.9rem; opacity: 0.8;">¿Olvidaste tu
+                        contraseña?</button>
+                    <button onclick="showScreen('welcome-screen')" class="btn-link">← Volver</button>
                 </div>
             </div>
 
-            <!-- PANTALLA DE LOGIN / SELECCIÓN DE CARTONES -->
-            <div id="login-screen" class="auth-panel hidden">
+            <!-- PANTALLA DE REGISTRO (SEPARADA) -->
+            <div id="auth-register" class="auth-panel hidden">
                 <button onclick="goToAdmin()" class="admin-access-btn" title="Panel Admin">⚙️</button>
-
                 <div class="login-container">
                     <div class="brand-area">
                         <img src="logo.png" alt="Yovanny Bingo" class="brand-logo">
-                        <h1 class="brand-title">BINGO YOVANNY</h1>
-                        <p class="brand-subtitle">¡La suerte está de tu lado!</p>
+                        <h1 class="brand-title">CREAR CUENTA</h1>
                     </div>
 
-                    <div class="form-group">
-                        <label>👤 Tu nombre</label>
-                        <input type="text" id="username" placeholder="Escribe tu apodo..." maxlength="20"
-                            autocomplete="off">
-                    </div>
-
-                    <div class="form-group">
-                        <label>🎫 Selecciona tus cartones</label>
-                        <div class="card-picker">
-                            <div class="picker-controls">
-                                <input type="number" id="manual-input" placeholder="#" min="1" max="300">
-                                <button onclick="addManualCard()" class="btn-add" title="Agregar">➕</button>
-                                <button onclick="addRandomCard()" class="btn-random" title="Aleatorio">🎲</button>
-                            </div>
-                            <small class="hint">Cartones disponibles: 1-300</small>
-                            <div id="selected-list" class="chips-container">
-                                <span class="empty-hint">Ningún cartón seleccionado</span>
-                            </div>
+                    <div class="google-auth-wrapper" style="margin-bottom: 20px;">
+                        <button class="btn-google" onclick="alert('Google Auth integration pending backend setup')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 10px;">
+                                <path
+                                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                                    fill="#4285F4" />
+                                <path
+                                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                                    fill="#34A853" />
+                                <path
+                                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                                    fill="#FBBC05" />
+                                <path
+                                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                                    fill="#EA4335" />
+                            </svg>
+                            Continuar con Google
+                        </button>
+                        <div class="separator"
+                            style="display: flex; align-items: center; margin: 15px 0; color: var(--text-muted); font-size: 0.8rem;">
+                            <span style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></span>
+                            <span style="padding: 0 10px;">O usa tu correo</span>
+                            <span style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></span>
                         </div>
                     </div>
 
-                    <div id="login-error" class="error-msg"></div>
+                    <div class="form-group">
+                        <label>👤 Usuario</label>
+                        <input type="text" id="reg-username" placeholder="Elige un usuario..." maxlength="50"
+                            autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label>📧 Correo</label>
+                        <input type="email" id="reg-email" placeholder="tu@correo.com" autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label>🔒 Contraseña</label>
+                        <input type="password" id="reg-password" placeholder="Mínimo 4 caracteres..."
+                            autocomplete="new-password">
+                    </div>
+                    <div id="reg-error" class="error-msg"></div>
+                    <button onclick="doRegister()" class="btn-primary btn-glow btn-block">Crear cuenta</button>
 
-                    <button onclick="joinGame()" class="btn-primary btn-glow">
-                        🎱 ENTRAR AL JUEGO
-                    </button>
-
-                    <button id="back-to-welcome-btn" onclick="backToWelcomeFromLogin()" class="btn-link"
-                        style="display:none;">← Volver</button>
-                    <p class="login-footer">Al entrar, aceptas las reglas del juego</p>
+                    <div class="switch-link" style="text-align: center; margin-top: 15px;">
+                        ¿Ya tienes cuenta? <a onclick="showScreen('auth-login')"
+                            style="color: var(--primary); cursor: pointer;">Inicia Sesión</a>
+                    </div>
+                    <button onclick="showScreen('welcome-screen')" class="btn-link">← Volver</button>
                 </div>
             </div>
+        </div>
 
-            <!-- PANTALLA DE ESPERA -->
-            <div id="waiting-screen" class="auth-panel hidden">
-                <div class="waiting-container">
-                    <div class="loader-ring"></div>
-                    <h2>⏳ Esperando Aprobación</h2>
-                    <p>El administrador está revisando tu solicitud...</p>
-                    <p id="waiting-info" class="waiting-info"></p>
+        <!-- PANTALLA DE LOGIN / SELECCIÓN DE CARTONES -->
+        <div id="login-screen" class="auth-panel hidden">
+            <button onclick="goToAdmin()" class="admin-access-btn" title="Panel Admin">⚙️</button>
+
+            <div class="login-container">
+                <div class="brand-area">
+                    <img src="logo.png" alt="Yovanny Bingo" class="brand-logo">
+                    <h1 class="brand-title">BINGO YOVANNY</h1>
+                    <p class="brand-subtitle">¡La suerte está de tu lado!</p>
                 </div>
-            </div>
 
+                <div class="form-group">
+                    <label>👤 Tu nombre</label>
+                    <input type="text" id="username" placeholder="Escribe tu apodo..." maxlength="20"
+                        autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label>🎫 Selecciona tus cartones</label>
+                    <div class="card-picker">
+                        <div class="picker-controls">
+                            <input type="number" id="manual-input" placeholder="#" min="1" max="300">
+                            <button onclick="addManualCard()" class="btn-add" title="Agregar">➕</button>
+                            <button onclick="addRandomCard()" class="btn-random" title="Aleatorio">🎲</button>
+                        </div>
+                        <small class="hint">Cartones disponibles: 1-300</small>
+                        <div id="selected-list" class="chips-container">
+                            <span class="empty-hint">Ningún cartón seleccionado</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="login-error" class="error-msg"></div>
+
+                <button onclick="joinGame()" class="btn-primary btn-glow">
+                    🎱 ENTRAR AL JUEGO
+                </button>
+
+                <button id="back-to-welcome-btn" onclick="backToWelcomeFromLogin()" class="btn-link"
+                    style="display:none;">← Volver</button>
+                <p class="login-footer">Al entrar, aceptas las reglas del juego</p>
+            </div>
         </div>
 
-        <!-- PANEL DERECHO (Animación) -->
-        <div class="split-right">
-            <canvas id="liquid-canvas"></canvas>
-            <div class="overlay-text">
-                <h2>Únete a la<br>Diversión</h2>
-                <p>La mejor experiencia de Bingo Online con amigos.</p>
+        <!-- PANTALLA DE ESPERA -->
+        <div id="waiting-screen" class="auth-panel hidden">
+            <div class="waiting-container">
+                <div class="loader-ring"></div>
+                <h2>⏳ Esperando Aprobación</h2>
+                <p>El administrador está revisando tu solicitud...</p>
+                <p id="waiting-info" class="waiting-info"></p>
             </div>
         </div>
+
+    </div>
+
+    <!-- PANEL DERECHO (Animación) -->
+    <div class="split-right">
+        <canvas id="liquid-canvas"></canvas>
+        <div class="overlay-text">
+            <h2>Únete a la<br>Diversión</h2>
+            <p>La mejor experiencia de Bingo Online con amigos.</p>
+        </div>
+    </div>
 
     </div>
 
@@ -915,8 +947,7 @@
             document.getElementById('username').readOnly = false;
         }
         function showAuthScreen() {
-            showScreen('auth-screen');
-            switchAuthTab('login');
+            showScreen('auth-login');
         }
         function backToWelcome() {
             showScreen('welcome-screen');
@@ -945,16 +976,7 @@
             document.getElementById('back-to-welcome-btn').style.display = 'none';
             showScreen('welcome-screen');
         }
-        function switchAuthTab(tab) {
-            const slider = document.getElementById('spa-forms-slider');
-            if (tab === 'login') {
-                slider.style.transform = 'translateX(0)';
-            } else {
-                slider.style.transform = 'translateX(-50%)';
-            }
-            document.getElementById('auth-error').textContent = '';
-            document.getElementById('reg-error').textContent = '';
-        }
+        // switchAuthTab removed - using separate screens now
         async function doLogin() {
             const username = document.getElementById('auth-username').value.trim();
             const password = document.getElementById('auth-password').value;
@@ -990,7 +1012,8 @@
                 if (!d.success) { err.textContent = d.error || 'Error'; return; }
                 err.textContent = ''; err.style.color = 'var(--success)';
                 err.textContent = '¡Cuenta creada! Inicia sesión.';
-                switchAuthTab('login');
+                err.textContent = '¡Cuenta creada! Inicia sesión.';
+                showScreen('auth-login');
                 document.getElementById('auth-username').value = username;
             } catch (e) { err.textContent = 'Error de conexión'; }
         }
