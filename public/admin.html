@@ -173,6 +173,8 @@
             <span class="admin-badge">ADMIN</span>
         </div>
         <div class="header-status">
+            <button onclick="showModal('voice-modal')" class="btn-secondary" title="Configuración de Voz">🔊
+                Voz</button>
             <span id="connection-status" class="status-indicator online">🟢 Conectado</span>
             <span id="players-count" class="players-badge">0 jugadores</span>
             <button onclick="window.location.href='/admin-login.html'" class="btn-primary btn-glow"
@@ -210,47 +212,7 @@
                 <span class="label">Últimos:</span>
                 <div id="last-numbers" class="balls-row" style="justify-content: center; flex-wrap: wrap;"></div>
             </div>
-            <!-- Controles de voz -->
-            <div class="voice-controls-panel glass-card">
-                <h4>🔊 Control de Voz</h4>
-                <div class="voice-settings">
-                    <div class="voice-gender">
-                        <label>Género de voz:</label>
-                        <div class="gender-buttons">
-                            <button id="admin-voice-male" class="gender-btn active"
-                                onclick="setAdminVoiceGender('male')">
-                                👨 Masculino
-                            </button>
-                            <button id="admin-voice-female" class="gender-btn" onclick="setAdminVoiceGender('female')">
-                                👩 Femenino
-                            </button>
-                        </div>
-                    </div>
-                    <div class="voice-volume">
-                        <label>Volúmen:</label>
-                        <input type="range" id="admin-voice-volume" min="0" max="100" value="80"
-                            oninput="setAdminVoiceVolume(this.value)">
-                        <span id="admin-volume-display">80%</span>
-                    </div>
-                    <div class="voice-test">
-                        <button onclick="testAdminVoice()" class="btn-test-voice">🔊 Probar voz</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Controles de juego -->
-            <div class="game-controls glass-card" style="padding: var(--spacing-md);">
-                <div class="control-group" style="margin-bottom: 10px;">
-                    <button onclick="callNumber()" class="btn-primary btn-block btn-glow"
-                        style="font-size: 1.1rem; padding: 1rem;">📢 LLAMAR NÚMERO</button>
-                </div>
-                <div class="control-buttons" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <button onclick="toggleAuto()" id="auto-btn" class="btn-secondary">▶️ Auto</button>
-                    <button onclick="togglePause()" id="pause-btn" class="btn-warning">⏸️ Pausa</button>
-                </div>
-                <button onclick="undoNumber()" class="btn-danger btn-block" style="margin-top: 10px; opacity: 0.8;">↩️
-                    Deshacer Último</button>
-            </div>
+            <!-- (Moved Voice & Game Controls to other sections for decluttering) -->
 
             <!-- Tabs -->
             <div class="tabs">
@@ -301,9 +263,21 @@
              PANEL CENTRAL: TABLERO Y RULETA
         ────────────────────────────────────────────────────────────── -->
         <section class="panel-center">
+            <!-- Game Controls (Moved Here) -->
+            <div class="game-controls-center">
+                <button onclick="callNumber()" class="btn-primary btn-glow">📢 LLAMAR NÚMERO</button>
+                <button onclick="toggleAuto()" id="auto-btn" class="btn-secondary">▶️ Auto</button>
+                <button onclick="togglePause()" id="pause-btn" class="btn-warning">⏸️ Pausa</button>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button onclick="undoNumber()" class="btn-danger" style="flex:1; opacity: 0.8;">↩️ Deshacer
+                    Último</button>
+                <button onclick="showBoardInfo()" class="btn-info" style="width: auto;">ℹ️ Info</button>
+            </div>
+
             <div class="board-header">
                 <span class="board-title">Tablero de Números</span>
-                <button onclick="showBoardInfo()" class="btn-info">ℹ️</button>
             </div>
             <div id="numbers-board" class="numbers-board">
                 <!-- Los números se generan por JS -->
@@ -406,6 +380,50 @@
                 <div id="cards-grid" class="cards-status-grid"></div>
             </div>
         </div>
+    </div>
+
+    <!-- Modal: Configuración de Voz (New) -->
+    <div id="voice-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔊 Configuración de Voz</h3>
+                <button onclick="hideModal('voice-modal')" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="voice-settings">
+                    <div class="voice-gender">
+                        <label>Género de voz:</label>
+                        <div class="gender-buttons">
+                            <button id="admin-voice-male" class="gender-btn active"
+                                onclick="setAdminVoiceGender('male')">
+                                👨 Masculino
+                            </button>
+                            <button id="admin-voice-female" class="gender-btn" onclick="setAdminVoiceGender('female')">
+                                👩 Femenino
+                            </button>
+                        </div>
+                    </div>
+                    <div class="voice-volume">
+                        <label>Volúmen:</label>
+                        <input type="range" id="admin-voice-volume" min="0" max="100" value="80"
+                            oninput="setAdminVoiceVolume(this.value)">
+                        <span id="admin-volume-display">80%</span>
+                    </div>
+                    <div class="voice-test">
+                        <button onclick="testAdminVoice()" class="btn-primary btn-full">🔊 Probar voz</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-body">
+        <div class="card-stats">
+            <div class="stat"><span id="stat-available">0</span> Disponibles</div>
+            <div class="stat"><span id="stat-used">0</span> En uso</div>
+        </div>
+        <div id="cards-grid" class="cards-status-grid"></div>
+    </div>
+    </div>
     </div>
 
     <!-- Modal: Ganador Detalle -->
