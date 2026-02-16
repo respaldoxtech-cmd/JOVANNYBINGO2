@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yovanny Bingo - Panel de Control</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -18,31 +20,148 @@
             height: 450px;
             background: rgba(20, 20, 30, 0.95);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.15);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 16px;
             display: flex;
             flex-direction: column;
             z-index: 2000;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
             transform: translateY(110%);
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        #chat-panel.open { transform: translateY(0); }
-        .chat-header { padding: 10px 15px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; border-radius: 16px 16px 0 0; color: white; }
-        .chat-messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem; background: rgba(0,0,0,0.2); }
-        .chat-bubble { max-width: 85%; padding: 0.6rem 1rem; border-radius: 1rem; font-size: 0.9rem; line-height: 1.4; position: relative; word-wrap: break-word; color: white; }
-        .chat-bubble.mine { align-self: flex-end; background: #dc2626; border-bottom-right-radius: 0.2rem; }
-        .chat-bubble.others { align-self: flex-start; background: rgba(255,255,255,0.15); border-bottom-left-radius: 0.2rem; }
-        .chat-bubble .sender { font-size: 0.7rem; opacity: 0.8; margin-bottom: 0.2rem; display: block; font-weight: 600; }
-        .chat-input-area { display: flex; gap: 0.5rem; padding: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
-        .chat-input-area input { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 0.8rem; border-radius: 2rem; color: white; outline: none; }
-        .chat-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; background: #4f46e5; color: white; border: none; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 2001; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; }
-        .chat-toggle-btn:hover { transform: scale(1.1); }
-        .chat-badge { position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #1a1a1a; }
-        .btn-delete-msg { background: none; border: none; cursor: pointer; font-size: 0.9rem; margin-left: 8px; opacity: 0.6; transition: opacity 0.2s; float: right; }
-        .btn-delete-msg:hover { opacity: 1; transform: scale(1.1); }
+
+        #chat-panel.open {
+            transform: translateY(0);
+        }
+
+        .chat-header {
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 16px 16px 0 0;
+            color: white;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-bubble {
+            max-width: 85%;
+            padding: 0.6rem 1rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            position: relative;
+            word-wrap: break-word;
+            color: white;
+        }
+
+        .chat-bubble.mine {
+            align-self: flex-end;
+            background: #dc2626;
+            border-bottom-right-radius: 0.2rem;
+        }
+
+        .chat-bubble.others {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.15);
+            border-bottom-left-radius: 0.2rem;
+        }
+
+        .chat-bubble .sender {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            margin-bottom: 0.2rem;
+            display: block;
+            font-weight: 600;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.8rem;
+            border-radius: 2rem;
+            color: white;
+            outline: none;
+        }
+
+        .chat-toggle-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 2001;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-toggle-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .chat-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 2px solid #1a1a1a;
+        }
+
+        .btn-delete-msg {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 8px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            float: right;
+        }
+
+        .btn-delete-msg:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
     </style>
 </head>
+
 <body class="admin-app">
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- HEADER PRINCIPAL -->
@@ -56,7 +175,8 @@
         <div class="header-status">
             <span id="connection-status" class="status-indicator online">🟢 Conectado</span>
             <span id="players-count" class="players-badge">0 jugadores</span>
-            <a href="/admin-login.html" class="btn-logout" title="Cerrar sesión">🚪 Salir</a>
+            <button onclick="window.location.href='/admin-login.html'" class="btn-primary btn-glow"
+                style="padding: 0.5rem 1rem; font-size: 0.9rem;">🚪 Salir</button>
         </div>
     </header>
 
@@ -97,7 +217,8 @@
                     <div class="voice-gender">
                         <label>Género de voz:</label>
                         <div class="gender-buttons">
-                            <button id="admin-voice-male" class="gender-btn active" onclick="setAdminVoiceGender('male')">
+                            <button id="admin-voice-male" class="gender-btn active"
+                                onclick="setAdminVoiceGender('male')">
                                 👨 Masculino
                             </button>
                             <button id="admin-voice-female" class="gender-btn" onclick="setAdminVoiceGender('female')">
@@ -107,7 +228,8 @@
                     </div>
                     <div class="voice-volume">
                         <label>Volúmen:</label>
-                        <input type="range" id="admin-voice-volume" min="0" max="100" value="80" oninput="setAdminVoiceVolume(this.value)">
+                        <input type="range" id="admin-voice-volume" min="0" max="100" value="80"
+                            oninput="setAdminVoiceVolume(this.value)">
                         <span id="admin-volume-display">80%</span>
                     </div>
                     <div class="voice-test">
@@ -116,16 +238,18 @@
                 </div>
             </div>
 
-            <!-- Controles de juego (miniatura) -->
-            <div class="game-controls">
-                <div class="control-group">
-                    <button onclick="callNumber()" class="btn-call">📢 LLAMAR ALEATORIO</button>
+            <!-- Controles de juego -->
+            <div class="game-controls glass-card" style="padding: var(--spacing-md);">
+                <div class="control-group" style="margin-bottom: 10px;">
+                    <button onclick="callNumber()" class="btn-primary btn-block btn-glow"
+                        style="font-size: 1.1rem; padding: 1rem;">📢 LLAMAR NÚMERO</button>
                 </div>
-                <div class="control-buttons">
-                    <button onclick="undoNumber()" class="btn-undo" title="Deshacer último">↩️ Deshacer</button>
-                    <button onclick="toggleAuto()" id="auto-btn" class="btn-auto">▶️ Auto</button>
-                    <button onclick="togglePause()" id="pause-btn" class="btn-warning" title="Pausar juego">⏸️</button>
+                <div class="control-buttons" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button onclick="toggleAuto()" id="auto-btn" class="btn-secondary">▶️ Auto</button>
+                    <button onclick="togglePause()" id="pause-btn" class="btn-warning">⏸️ Pausa</button>
                 </div>
+                <button onclick="undoNumber()" class="btn-danger btn-block" style="margin-top: 10px; opacity: 0.8;">↩️
+                    Deshacer Último</button>
             </div>
 
             <!-- Tabs -->
@@ -147,19 +271,20 @@
                     <li class="empty">No hay solicitudes pendientes</li>
                 </ul>
             </div>
-            
+
             <div id="active-tab" class="tab-content">
                 <ul id="active-list" class="player-list">
                     <li class="empty">No hay jugadores activos</li>
                 </ul>
             </div>
-            
+
             <div id="winners-tab" class="tab-content">
                 <ul id="winners-list" class="player-list winners">
                     <li class="empty">No hay ganadores aún</li>
                 </ul>
                 <div style="padding: 10px;">
-                    <button onclick="exportWinnersToCSV()" class="btn-action" style="width:100%">📄 Exportar Ganadores (CSV)</button>
+                    <button onclick="exportWinnersToCSV()" class="btn-action" style="width:100%">📄 Exportar Ganadores
+                        (CSV)</button>
                 </div>
             </div>
 
@@ -189,17 +314,28 @@
              PANEL DERECHO: PATRÓN EN JUEGO (para transmisión)
         ────────────────────────────────────────────────────────────── -->
         <section class="panel-right">
-            <div class="pattern-box pattern-box-stream">
-                <h4>🎯 Patrón en Juego</h4>
-                <div class="pattern-display-large pattern-display-stream">
-                    <div class="pattern-preview-large pattern-preview-stream">
-                        <div id="current-pattern-grid" class="large-pattern-grid stream-pattern-grid"></div>
-                        <div class="pattern-info pattern-info-stream">
-                            <span id="current-pattern-name" class="pattern-name-large pattern-name-stream">LÍNEA</span>
-                            <span id="current-pattern-desc" class="pattern-desc-small"></span>
-                        </div>
-                    </div>
-                    <button onclick="showPatternSelector()" class="btn-change">Cambiar Patrón</button>
+            <!-- Patrón en Juego -->
+            <div class="pattern-box glass-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h4>🎯 Patrón en Juego</h4>
+                    <span id="current-pattern-name" class="badge"
+                        style="background: var(--primary); color: white;">LÍNEA</span>
+                </div>
+
+                <div id="current-pattern-grid" class="large-pattern-grid"
+                    style="margin: 0 auto; width: 200px; height: 200px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;">
+                </div>
+
+                <button onclick="showPatternSelector()" class="btn-primary btn-block" style="margin-top: 15px;">Cambiar
+                    Patrón</button>
+            </div>
+
+            <!-- Ticker -->
+            <div class="glass-card" style="padding: var(--spacing-md); margin-top: var(--spacing-md);">
+                <h4>📢 Mensaje en Vivo</h4>
+                <div style="display: flex; gap: 5px; margin-top: 5px;">
+                    <input type="text" id="admin-message" placeholder="Escribe mensaje..." style="flex: 1;">
+                    <button onclick="setMessage()" class="btn-secondary" style="padding: 0 1rem;">Enviar</button>
                 </div>
             </div>
         </section>
@@ -303,7 +439,8 @@
         <div id="chat-messages" class="chat-messages"></div>
         <div class="chat-input-area">
             <input type="text" id="chat-input" placeholder="Mensaje como ADMIN..." maxlength="100" autocomplete="off">
-            <button onclick="sendAdminChat()" class="btn-primary" style="border-radius: 50%; width: 40px; height: 40px; padding: 0;">➤</button>
+            <button onclick="sendAdminChat()" class="btn-primary"
+                style="border-radius: 50%; width: 40px; height: 40px; padding: 0;">➤</button>
         </div>
     </div>
 
@@ -319,9 +456,9 @@
                 this.ctx = null;
                 try {
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                } catch(e) {}
+                } catch (e) { }
             }
-            
+
             tone(freq, dur, type = 'sine', vol = 0.3) {
                 if (!this.ctx) return;
                 if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -337,25 +474,25 @@
                 osc.start();
                 osc.stop(this.ctx.currentTime + dur);
             }
-            
+
             numberCall() {
                 this.tone(600, 0.1, 'sawtooth');
                 setTimeout(() => this.tone(500, 0.1, 'sawtooth'), 50);
                 setTimeout(() => this.tone(400, 0.15, 'sawtooth'), 100);
             }
-            
+
             bingo() {
                 this.tone(261.63, 0.8, 'triangle', 0.4);
                 setTimeout(() => this.tone(329.63, 0.8, 'triangle', 0.4), 100);
                 setTimeout(() => this.tone(392.00, 1.0, 'triangle', 0.4), 200);
             }
-            
+
             newPlayer() {
                 this.tone(440, 0.1);
                 setTimeout(() => this.tone(554, 0.1), 100);
             }
         }
-        
+
         const audio = new AdminAudio();
 
         // ═══════════════════════════════════════════════════════════════
@@ -371,7 +508,7 @@
 
         // Patrones se cargan desde el servidor (no hardcodeados)
         let PATTERNS = {};
-        
+
         // Categorías para organizar los patrones en el selector
         const PATTERN_CATEGORIES = {
             basic: ['line', 'corners', 'full', 'corners_center', 'small_square'],
@@ -384,7 +521,7 @@
         // GENERADOR DE CARTONES (igual que servidor)
         // ═══════════════════════════════════════════════════════════════
         function mulberry32(seed) {
-            return function() {
+            return function () {
                 let t = seed += 0x6D2B79F5;
                 t = Math.imul(t ^ (t >>> 15), t | 1);
                 t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
@@ -420,7 +557,7 @@
         function initBoard() {
             const board = document.getElementById('numbers-board');
             board.innerHTML = '';
-            
+
             // Headers B I N G O
             ['B', 'I', 'N', 'G', 'O'].forEach(letter => {
                 const h = document.createElement('div');
@@ -428,9 +565,9 @@
                 h.textContent = letter;
                 board.appendChild(h);
             });
-            
+
             // Números 1-75 en columnas
-            const ranges = [[1,15], [16,30], [31,45], [46,60], [61,75]];
+            const ranges = [[1, 15], [16, 30], [31, 45], [46, 60], [61, 75]];
             for (let row = 0; row < 15; row++) {
                 ranges.forEach(([min], colIdx) => {
                     const num = min + row;
@@ -454,10 +591,10 @@
         function updateRoulette(num) {
             const wheel = document.getElementById('roulette-wheel');
             const display = document.getElementById('roulette-number');
-            
+
             wheel.classList.add('spin');
             display.textContent = num;
-            
+
             setTimeout(() => wheel.classList.remove('spin'), 500);
         }
 
@@ -483,7 +620,7 @@
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
+
             document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
             document.getElementById(`${tab}-tab`).classList.add('active');
         }
@@ -505,10 +642,10 @@
         function showPatternCategory(category) {
             document.querySelectorAll('.pattern-tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`[onclick="showPatternCategory('${category}')"]`).classList.add('active');
-            
+
             const grid = document.getElementById('patterns-grid');
             const customArea = document.getElementById('custom-pattern-area');
-            
+
             if (category === 'custom') {
                 grid.classList.add('hidden');
                 customArea.classList.remove('hidden');
@@ -516,13 +653,13 @@
             } else {
                 customArea.classList.add('hidden');
                 grid.classList.remove('hidden');
-                
+
                 // Usar categorías predefinidas para filtrar
                 const patternIds = PATTERN_CATEGORIES[category] || [];
                 const filtered = patternIds
                     .filter(key => PATTERNS[key]) // Solo mostrar si existe en PATTERNS
                     .map(key => [key, PATTERNS[key]]);
-                
+
                 grid.innerHTML = filtered.map(([key, pattern]) => `
                     <div class="pattern-option ${currentPattern === key ? 'selected' : ''}" onclick="selectPattern('${key}')">
                         <div class="pattern-mini-grid">${renderMiniGrid(pattern.positions)}</div>
@@ -541,7 +678,7 @@
             const row = Math.floor(i / 5), col = i % 5;
             return col * 5 + row;
         }
-        
+
         /**
          * Renderiza mini grid. positions usa índices flatCard (igual que checkWin en servidor).
          */
@@ -551,7 +688,7 @@
                 ? positions[0]
                 : positions;
             const flatSet = new Set(Array.isArray(flatPos[0]) ? flatPos.flat() : flatPos);
-            
+
             let html = '';
             for (let i = 0; i < 25; i++) {
                 const flatIdx = displayToFlatIdx(i);
@@ -574,7 +711,7 @@
             grid.innerHTML = '';
             customGrid = Array(25).fill(false);
             customGrid[12] = true; // FREE siempre activo
-            
+
             for (let i = 0; i < 25; i++) {
                 const cell = document.createElement('div');
                 cell.className = `custom-cell ${customGrid[i] ? 'active' : ''} ${i === 12 ? 'free' : ''}`;
@@ -600,21 +737,21 @@
             const pattern = PATTERNS[currentPattern];
             const nameEl = document.getElementById('current-pattern-name');
             const descEl = document.getElementById('current-pattern-desc');
-            
+
             if (!pattern && currentPattern !== 'custom') {
                 console.warn(`⚠️ Patrón "${currentPattern}" no encontrado en PATTERNS. Esperando sincronización...`);
                 nameEl.textContent = 'Cargando...';
                 descEl.textContent = '';
                 return;
             }
-            
+
             const mult = pattern?.multiplier ?? (currentPattern === 'custom' ? 2 : 1);
             nameEl.textContent = pattern?.name || (currentPattern === 'custom' ? 'PERSONALIZADO' : currentPattern);
             descEl.textContent = (pattern?.description || '') + (mult !== 1 ? ` • x${mult} pts` : '');
-            
+
             const grid = document.getElementById('current-pattern-grid');
             if (currentPattern === 'custom') {
-                grid.innerHTML = customGrid.map((active, i) => 
+                grid.innerHTML = customGrid.map((active, i) =>
                     `<div class="large-pattern-cell ${active ? 'active' : ''} ${i === 12 ? 'free' : ''}">${i === 12 ? '★' : ''}</div>`
                 ).join('');
             } else if (pattern && pattern.positions) {
@@ -623,7 +760,7 @@
                 grid.innerHTML = '<div class="pattern-loading">Cargando patrón...</div>';
             }
         }
-        
+
         /**
          * Función estandarizada para renderizar patrón (idéntica a index.html)
          * Sistema de índices row-major (fila por fila, de izquierda a derecha):
@@ -642,7 +779,7 @@
                 ? positions[0]
                 : positions;
             const flatSet = new Set(Array.isArray(flatPos[0]) ? flatPos.flat() : flatPos);
-            
+
             let html = '';
             for (let i = 0; i < 25; i++) {
                 const flatIdx = displayToFlatIdx(i);
@@ -692,24 +829,24 @@
 
         function speakAdminNumber(text) {
             if (!('speechSynthesis' in window)) return;
-            
+
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.volume = adminVoiceSettings.volume;
-            
+
             // Seleccionar voz según género
             const voices = speechSynthesis.getVoices();
-            const preferredVoice = voices.find(v => 
+            const preferredVoice = voices.find(v =>
                 (adminVoiceSettings.gender === 'male' && /male|man|español.*mexicano/i.test(v.name)) ||
                 (adminVoiceSettings.gender === 'female' && /female|woman|español.*mexicano/i.test(v.name))
             ) || voices.find(v => /español/i.test(v.lang)) || voices[0];
-            
+
             if (preferredVoice) {
                 utterance.voice = preferredVoice;
             }
-            
+
             utterance.rate = 1.0;
             utterance.pitch = adminVoiceSettings.gender === 'male' ? 0.8 : 1.2;
-            
+
             speechSynthesis.cancel();
             speechSynthesis.speak(utterance);
         }
@@ -785,12 +922,12 @@
             const list = document.getElementById('pending-list');
             const badge = document.getElementById('pending-badge');
             badge.textContent = players.length;
-            
+
             if (!players.length) {
                 list.innerHTML = '<li class="empty">No hay solicitudes pendientes</li>';
                 return;
             }
-            
+
             list.innerHTML = players.map(p => `
                 <li class="player-item pending">
                     <div class="player-info">
@@ -810,12 +947,12 @@
             const badge = document.getElementById('active-badge');
             badge.textContent = players.length;
             document.getElementById('players-count').textContent = `${players.length} jugadores`;
-            
+
             if (!players.length) {
                 list.innerHTML = '<li class="empty">No hay jugadores activos</li>';
                 return;
             }
-            
+
             list.innerHTML = players.map(p => `
                 <li class="player-item">
                     <div class="player-info">
@@ -872,15 +1009,15 @@
         function addPlayer() {
             const name = document.getElementById('new-player-name').value.trim();
             const cardsInput = document.getElementById('new-player-cards').value;
-            
+
             if (!name) return alert('Ingresa un nombre');
-            
+
             const cardIds = cardsInput.split(',')
                 .map(s => parseInt(s.trim()))
                 .filter(n => !isNaN(n) && n >= 1 && n <= 300);
-            
+
             if (cardIds.length === 0) return alert('Ingresa cartones válidos');
-            
+
             socket.emit('admin_add_player', { name, cardIds });
             hideModal('add-player-modal');
             document.getElementById('new-player-name').value = '';
@@ -914,7 +1051,7 @@
         function appendChatMessage(data) {
             const container = document.getElementById('chat-messages');
             const isMine = data.isAdmin; // Si es admin, es mío (en este panel)
-            
+
             const div = document.createElement('div');
             div.id = `chat-msg-${data.id}`;
             div.className = `chat-bubble ${isMine ? 'mine' : 'others'}`;
@@ -948,13 +1085,13 @@
 
         function updateCardStatus(data) {
             takenCards = new Set(data.takenCards);
-            
+
             document.getElementById('stat-available').textContent = data.availableCount;
             document.getElementById('stat-used').textContent = data.usedCount;
-            
+
             const grid = document.getElementById('cards-grid');
             grid.innerHTML = '';
-            
+
             for (let i = 1; i <= 300; i++) {
                 const cell = document.createElement('div');
                 cell.className = `card-status-cell ${takenCards.has(i) ? 'taken' : 'available'}`;
@@ -980,7 +1117,7 @@
         socket.on('sync_state', (state) => {
             calledNumbers = state.calledNumbers;
             currentPattern = state.pattern;
-            
+
             // Sincronizar patrones recibidos del servidor (fuente de verdad)
             if (state.patterns && state.patterns.length > 0) {
                 PATTERNS = {}; // Limpiar patrones anteriores
@@ -994,17 +1131,17 @@
                 });
                 console.log('✅ Patrones sincronizados desde servidor:', Object.keys(PATTERNS).length);
             }
-            
+
             document.getElementById('called-count').textContent = calledNumbers.length;
             document.getElementById('admin-message').value = state.message;
-            
+
             calledNumbers.forEach(n => markBoardNumber(n, true));
             updateLastNumbers(state.last5Numbers);
             updateWinnersList(state.last5Winners);
             updatePatternDisplay();
-            
+
             if (state.calledNumbers.length > 0) {
-                document.getElementById('roulette-number').textContent = 
+                document.getElementById('roulette-number').textContent =
                     state.calledNumbers[state.calledNumbers.length - 1];
             }
         });
@@ -1023,7 +1160,7 @@
             markBoardNumber(data.number, false);
             updateLastNumbers(data.last5);
             document.getElementById('called-count').textContent = data.totalCalled;
-            document.getElementById('roulette-number').textContent = 
+            document.getElementById('roulette-number').textContent =
                 calledNumbers.length > 0 ? calledNumbers[calledNumbers.length - 1] : '--';
         });
 
@@ -1055,29 +1192,29 @@
         socket.on('winner_announced', (data) => {
             audio.bingo();
             confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
-            
+
             document.getElementById('winner-name').textContent = data.user;
             document.getElementById('winner-card-id').textContent = `#${data.card}`;
             document.getElementById('winner-pattern').textContent = `Patrón: ${data.patternName || data.pattern}`;
-            
+
             showModal('winner-detail-modal');
         });
 
         socket.on('winner_card_details', (data) => {
             const preview = document.getElementById('winner-card-preview');
             const card = data.card;
-            
+
             preview.innerHTML = `
                 <div class="preview-grid">
-                    ${['B','I','N','G','O'].map(l => `<div class="preview-header">${l}</div>`).join('')}
-                    ${[0,1,2,3,4].map(row => 
-                        ['B','I','N','G','O'].map(col => {
-                            const val = card[col][row];
-                            const isFree = val === "FREE";
-                            const isMarked = isFree || data.calledNumbers.includes(val);
-                            return `<div class="preview-cell ${isMarked ? 'marked' : ''}">${isFree ? '★' : val}</div>`;
-                        }).join('')
-                    ).join('')}
+                    ${['B', 'I', 'N', 'G', 'O'].map(l => `<div class="preview-header">${l}</div>`).join('')}
+                    ${[0, 1, 2, 3, 4].map(row =>
+                ['B', 'I', 'N', 'G', 'O'].map(col => {
+                    const val = card[col][row];
+                    const isFree = val === "FREE";
+                    const isMarked = isFree || data.calledNumbers.includes(val);
+                    return `<div class="preview-cell ${isMarked ? 'marked' : ''}">${isFree ? '★' : val}</div>`;
+                }).join('')
+            ).join('')}
                 </div>
             `;
         });
@@ -1103,7 +1240,7 @@
             document.getElementById('called-count').textContent = '0';
             document.getElementById('last-numbers').innerHTML = '';
         });
-        
+
         socket.on('game_paused', (isPaused) => {
             const btn = document.getElementById('pause-btn');
             btn.textContent = isPaused ? '▶️ Reanudar' : '⏸️ Pausar';
@@ -1119,7 +1256,7 @@
         socket.on('admin_error', (data) => {
             alert('Error: ' + data.message);
         });
-        
+
         socket.on('chat_message', (data) => {
             appendChatMessage(data);
             const panel = document.getElementById('chat-panel');
@@ -1130,7 +1267,7 @@
                 badge.classList.remove('hidden');
             }
         });
-        
+
         socket.on('chat_message_deleted', (msgId) => {
             const el = document.getElementById(`chat-msg-${msgId}`);
             if (el) el.remove();
@@ -1142,15 +1279,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             initBoard();
             updatePatternDisplay();
-            
+
             document.getElementById('admin-message').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') setMessage();
             });
-            
+
             document.getElementById('chat-input').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') sendAdminChat();
             });
         });
     </script>
 </body>
+
 </html>
