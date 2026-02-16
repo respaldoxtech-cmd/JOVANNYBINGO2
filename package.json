@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node --max-old-space-size=450 server-local.js",
-    "dev": "node server-local.js"
+    "dev": "node server-local.js",
+    "fix": "node fix_structure.js",
+    "repair": "node repair_project.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

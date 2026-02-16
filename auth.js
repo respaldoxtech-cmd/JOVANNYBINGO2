@@ -8,6 +8,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const formRegisterContainer = document.getElementById('form-register');
     const errorDisplay = document.getElementById('error-display');
 
+    // 🔊 Efecto de Sonido para Botones (Generado con Web Audio API)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playClickSound() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime); // Frecuencia en Hz
+        osc.type = 'sine'; // Tipo de onda (suave)
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+    }
+
+    document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', playClickSound);
+    });
+
     // Gestión de Pestañas
     function switchTab(tab) {
         errorDisplay.textContent = '';
