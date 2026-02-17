@@ -130,14 +130,13 @@ function checkWin(card, called, patternType, customGrid) {
         ],
         'full': [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]], // All positions
         'corners': [[0,4,20,24]], // 4 corners
-        'x': [[0,6,12,18,24], [4,8,12,16,20]], // Both diagonals (either one wins)
+        'x': [[0,6,12,18,24, 4,8,16,20]], // X Shape (Both diagonals required)
         'plus': [[7,11,12,13,17]], // Plus shape: center + 4 arms
         'corners_center': [[0,4,12,20,24]], // Corners plus center
         'frame': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]], // Outer frame
         'inner_frame': [[6,7,8,11,13,16,17,18]], // Inner square (3x3 center)
-        'letter_h': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]], // H shape (all positions)
-        'letter_t': [[0,1,2,3,4,7,12,17]], // T shape (top row + center column)
-        'small_square': [[0,1,5,6]], // Top-left 2x2 square
+        'letter_h': [[0,1,2,3,4, 20,21,22,23,24, 7,12,17]], // H shape (Left Col, Right Col, Middle Row)
+        'letter_t': [[0,5,10,15,20, 11,12,13,14]], // T shape (Top Row + Middle Col)
         'diamond': [[2,6,10,14,18,22]], // Diamond shape (hourglass)
         'star': [[2,6,8,10,12,14,16,18,7,11,12,13,17]], // Star shape (corners + plus)
         'heart': [[1,3,6,7,8,9,11,12,13,16,18]], // Heart shape
