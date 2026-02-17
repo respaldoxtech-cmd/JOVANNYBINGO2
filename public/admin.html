@@ -454,6 +454,7 @@
         class AdminAudio {
             constructor() {
                 this.ctx = null;
+                this.winSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
                 try {
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 } catch (e) { }
@@ -482,9 +483,8 @@
             }
 
             bingo() {
-                this.tone(261.63, 0.8, 'triangle', 0.4);
-                setTimeout(() => this.tone(329.63, 0.8, 'triangle', 0.4), 100);
-                setTimeout(() => this.tone(392.00, 1.0, 'triangle', 0.4), 200);
+                this.winSound.currentTime = 0;
+                this.winSound.play().catch(e => console.log(e));
             }
 
             newPlayer() {
@@ -507,7 +507,7 @@
         let unreadChatCount = 0;
 
         // Patrones se cargan desde el servidor (no hardcodeados)
-        let PATTERNS = {
+        const PATTERNS = {
             'line': { name: 'LÍNEA', positions: [[0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24], [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24], [0,6,12,18,24], [4,8,12,16,20]] },
             'full': { name: 'CARTÓN LLENO', positions: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24] },
             'corners': { name: '4 ESQUINAS', positions: [0,4,20,24] },
@@ -662,7 +662,7 @@
         function showPatternCategory(category) {
             document.querySelectorAll('.pattern-tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`[onclick="showPatternCategory('${category}')"]`).classList.add('active');
-
+            
             const grid = document.getElementById('patterns-grid');
             const customArea = document.getElementById('custom-pattern-area');
 
@@ -673,11 +673,11 @@
             } else {
                 customArea.classList.add('hidden');
                 grid.classList.remove('hidden');
+                grid.style.display = 'grid'; // Asegurar display grid
 
                 // Usar categorías predefinidas para filtrar
                 const patternIds = PATTERN_CATEGORIES[category] || [];
                 const filtered = patternIds
-                    .filter(key => PATTERNS[key]) // Solo mostrar si existe en PATTERNS
                     .map(key => [key, PATTERNS[key]]);
 
                 grid.innerHTML = filtered.map(([key, pattern]) => `
@@ -1140,14 +1140,14 @@
 
             // Sincronizar patrones recibidos del servidor (fuente de verdad)
             if (state.patterns && state.patterns.length > 0) {
-                // PATTERNS = {}; // No limpiar para mantener defaults si el servidor envía parcial
+                // Actualizar definiciones si el servidor envía nuevas
                 state.patterns.forEach(p => {
-                    PATTERNS[p.id] = {
-                        name: p.name,
-                        description: p.description || '',
-                        positions: p.positions || [],
-                        multiplier: p.multiplier || 1
-                    };
+                    if(PATTERNS[p.id]) {
+                        PATTERNS[p.id].name = p.name;
+                        PATTERNS[p.id].positions = p.positions || PATTERNS[p.id].positions;
+                    } else {
+                        PATTERNS[p.id] = p;
+                    }
                 });
                 console.log('✅ Patrones sincronizados desde servidor:', Object.keys(PATTERNS).length);
             }

@@ -833,6 +833,8 @@
             constructor() {
                 this.ctx = null;
                 this.enabled = true;
+                // Cargar sonido personalizado (puedes cambiar esta URL por tu propio archivo mp3)
+                this.winSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
                 try {
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 } catch (e) { this.enabled = false; }
@@ -862,12 +864,10 @@
             }
 
             bingo() {
-                this.tone(261.63, 0.8, 'triangle', 0.4);
-                setTimeout(() => this.tone(329.63, 0.8, 'triangle', 0.4), 100);
-                setTimeout(() => this.tone(392.00, 1.0, 'triangle', 0.4), 200);
-                setTimeout(() => this.tone(523.25, 0.3, 'sine', 0.3), 800);
-                setTimeout(() => this.tone(659.25, 0.3, 'sine', 0.3), 900);
-                setTimeout(() => this.tone(783.99, 0.5, 'sine', 0.3), 1000);
+                // Reproducir el sonido cargado
+                this.winSound.currentTime = 0;
+                this.winSound.play().catch(e => console.log('Error audio:', e));
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 500]);
             }
 
             click() { this.tone(800, 0.05, 'square', 0.1); }
@@ -1755,6 +1755,7 @@
             document.getElementById('winner-overlay').classList.remove('hidden');
 
             confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+            audio.bingo(); // <--- IMPORTANTE: Reproducir sonido al anunciar ganador
         });
 
         socket.on('bingo_audio', () => {
