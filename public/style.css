@@ -2835,3 +2835,153 @@ body.theme-slate {
     transform: scale(1.1);
     border-color: white;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN VOICE CONTROLS - REFINED AESTHETICS
+   ═══════════════════════════════════════════════════════════════════════════ */
+.voice-controls-panel {
+    margin-bottom: var(--spacing-lg);
+    overflow: hidden;
+}
+
+.panel-header-simple {
+    padding: var(--spacing-md);
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.panel-header-simple h4 {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+}
+
+.voice-settings-new {
+    padding: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.voice-select-group label,
+.voice-volume-modern label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+    font-weight: 500;
+}
+
+.custom-select-wrapper {
+    position: relative;
+}
+
+#admin-voice-selector {
+    width: 100%;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    border: 1px solid var(--glass-border);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    cursor: pointer;
+    appearance: none;
+    transition: all var(--transition-fast);
+}
+
+#admin-voice-selector:hover {
+    border-color: var(--primary);
+    background: var(--bg-surface);
+}
+
+#admin-voice-selector:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.custom-select-wrapper::after {
+    content: "▼";
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.voice-volume-modern {
+    background: rgba(0, 0, 0, 0.2);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+}
+
+.volume-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+}
+
+#admin-volume-display {
+    font-family: monospace;
+    font-weight: bold;
+    color: var(--primary-light);
+    font-size: 1rem;
+}
+
+/* Rango Moderno */
+input[type="range"]#admin-voice-volume {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--bg-dark);
+    border-radius: 3px;
+    outline: none;
+}
+
+input[type="range"]#admin-voice-volume::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: var(--primary);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+    transition: transform var(--transition-fast);
+}
+
+input[type="range"]#admin-voice-volume::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.btn-test-voice-modern {
+    width: 100%;
+    padding: var(--spacing-md);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    transition: all var(--transition-normal);
+}
+
+.btn-test-voice-modern:hover {
+    background: var(--primary);
+    border-color: var(--primary-light);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.btn-test-voice-modern span {
+    font-size: 1.2rem;
+}

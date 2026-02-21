@@ -53,39 +53,32 @@
         <section class="panel-left">
             <!-- Controles de voz -->
             <div class="voice-controls-panel glass-card">
-                <h4>🔊 Control de Voz</h4>
-                <div class="voice-settings">
-                    <div class="voice-gender">
-                        <label>Género de voz:</label>
-                        <div class="gender-buttons">
-                            <button id="admin-voice-male" class="gender-btn active"
-                                onclick="setAdminVoiceGender('male')">
-                                👨 Masculino
-                            </button>
-                            <button id="admin-voice-female" class="gender-btn" onclick="setAdminVoiceGender('female')">
-                                👩 Femenino
-                            </button>
+                <div class="panel-header-simple">
+                    <h4>🔊 Control de Voz</h4>
+                </div>
+                <div class="voice-settings-new">
+                    <div class="voice-select-group">
+                        <label>Voz del Locutor:</label>
+                        <div class="custom-select-wrapper">
+                            <select id="admin-voice-selector" onchange="updateSelectedVoice()">
+                                <option value="">Selección automática</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="voice-volume">
-                        <label>Volúmen:</label>
+
+                    <div class="voice-volume-modern">
+                        <div class="volume-info">
+                            <label>Volumen:</label>
+                            <span id="admin-volume-display">80%</span>
+                        </div>
                         <input type="range" id="admin-voice-volume" min="0" max="100" value="80"
                             oninput="setAdminVoiceVolume(this.value)">
-                        <span id="admin-volume-display">80%</span>
                     </div>
 
-                    <div class="voice-advanced"
-                        style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.5rem;">
-                        <label style="font-size: 0.8rem; opacity: 0.8;">Voz específica (Opcional):</label>
-                        <select id="admin-voice-selector"
-                            style="width: 100%; padding: 0.4rem; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; font-size: 0.8rem;"
-                            onchange="updateSelectedVoice()">
-                            <option value="">Selección automática</option>
-                        </select>
-                    </div>
-
-                    <div class="voice-test" style="margin-top: 1rem;">
-                        <button onclick="testAdminVoice()" class="btn-test-voice">🔊 Probar voz</button>
+                    <div class="voice-actions">
+                        <button onclick="testAdminVoice()" class="btn-test-voice-modern">
+                            <span>🔊</span> Probar Voz
+                        </button>
                     </div>
                 </div>
             </div>
@@ -637,15 +630,8 @@
         // SISTEMA DE VOZ PARA ADMIN
         // ═══════════════════════════════════════════════════════════════
         let adminVoiceSettings = {
-            gender: 'male',
             volume: 0.8
         };
-
-        function setAdminVoiceGender(gender) {
-            adminVoiceSettings.gender = gender;
-            document.getElementById('admin-voice-male').classList.toggle('active', gender === 'male');
-            document.getElementById('admin-voice-female').classList.toggle('active', gender === 'female');
-        }
 
         function setAdminVoiceVolume(value) {
             adminVoiceSettings.volume = value / 100;
@@ -668,14 +654,22 @@
             const currentVal = selector.value;
             selector.innerHTML = '<option value="">Selección automática</option>';
 
-            availableVoices.forEach(v => {
+            // Filtrar y ordenar voces en español primero
+            const sortedVoices = [...availableVoices].sort((a, b) => {
+                const isSpanA = a.lang.startsWith('es');
+                const isSpanB = b.lang.startsWith('es');
+                if (isSpanA && !isSpanB) return -1;
+                if (!isSpanA && isSpanB) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            sortedVoices.forEach(v => {
                 const opt = document.createElement('option');
                 opt.value = v.name;
                 opt.textContent = `${v.name} (${v.lang})`;
+                if (v.name === currentVal) opt.selected = true;
                 selector.appendChild(opt);
             });
-
-            if (currentVal) selector.value = currentVal;
         }
 
         function updateSelectedVoice() {
@@ -697,43 +691,17 @@
 
             let preferredVoice = null;
 
-            // 1. Usar voz seleccionada manualmente si existe
+            // 1. Usar voz seleccionada manualmente
             if (selectedVoiceName) {
                 preferredVoice = availableVoices.find(v => v.name === selectedVoiceName);
             }
 
-            // 2. Si no hay manual, buscar automáticamente
+            // 2. Búsqueda automática optimizada
             if (!preferredVoice) {
-                const isMale = adminVoiceSettings.gender === 'male';
-                const isFemale = adminVoiceSettings.gender === 'female';
-
-                // Prioridad 1: Idioma español Y match de género
-                preferredVoice = availableVoices.find(v => {
-                    const name = v.name.toLowerCase();
-                    const lang = v.lang.toLowerCase();
-                    const isSpanish = lang.startsWith('es-') || name.includes('español') || name.includes('spanish');
-                    if (!isSpanish) return false;
-
-                    if (isFemale) return /female|woman|helena|laura|lucia|monica|sabina|elvira|zira/i.test(name);
-                    if (isMale) return /male|man|pablo|raul|sergio|miguel|javier|enrique/i.test(name);
-                    return false;
-                });
-
-                // Prioridad 2: Cualquier idioma con match de género
-                if (!preferredVoice) {
-                    preferredVoice = availableVoices.find(v => {
-                        const name = v.name.toLowerCase();
-                        if (isFemale) return /female|woman|helena|laura|lucia|monica|zira/i.test(name);
-                        if (isMale) return /male|man|pablo|raul|sergio|miguel|javier/i.test(name);
-                        return false;
-                    });
-                }
-
-                // Prioridad 3: Cualquier español
-                if (!preferredVoice) {
-                    preferredVoice = availableVoices.find(v => v.lang.startsWith('es-')) ||
-                        availableVoices.find(v => /español/i.test(v.name));
-                }
+                // Prioridad 1: Español (México o España preferidos)
+                preferredVoice = availableVoices.find(v => v.lang === 'es-MX') ||
+                    availableVoices.find(v => v.lang === 'es-ES') ||
+                    availableVoices.find(v => v.lang.startsWith('es-'));
 
                 // Fallback: Primera disponible
                 if (!preferredVoice) preferredVoice = availableVoices[0];
@@ -745,8 +713,7 @@
             }
 
             utterance.rate = 1.0;
-            // Ajustar pitch radicalmente para diferenciar
-            utterance.pitch = adminVoiceSettings.gender === 'male' ? 0.6 : 1.4;
+            utterance.pitch = 1.0;
 
             speechSynthesis.cancel();
             speechSynthesis.speak(utterance);
