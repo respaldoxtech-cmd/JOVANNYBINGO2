@@ -67,7 +67,18 @@
                             oninput="setAdminVoiceVolume(this.value)">
                         <span id="admin-volume-display">80%</span>
                     </div>
-                    <div class="voice-test">
+
+                    <div class="voice-advanced"
+                        style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.5rem;">
+                        <label style="font-size: 0.8rem; opacity: 0.8;">Voz específica (Opcional):</label>
+                        <select id="admin-voice-selector"
+                            style="width: 100%; padding: 0.4rem; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; font-size: 0.8rem;"
+                            onchange="updateSelectedVoice()">
+                            <option value="">Selección automática</option>
+                        </select>
+                    </div>
+
+                    <div class="voice-test" style="margin-top: 1rem;">
                         <button onclick="testAdminVoice()" class="btn-test-voice">🔊 Probar voz</button>
                     </div>
                 </div>
@@ -641,9 +652,30 @@
         }
 
         let availableVoices = [];
+        let selectedVoiceName = '';
+
         function loadVoices() {
             availableVoices = speechSynthesis.getVoices();
+            const selector = document.getElementById('admin-voice-selector');
+            if (!selector) return;
+
+            const currentVal = selector.value;
+            selector.innerHTML = '<option value="">Selección automática</option>';
+
+            availableVoices.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.name;
+                opt.textContent = `${v.name} (${v.lang})`;
+                selector.appendChild(opt);
+            });
+
+            if (currentVal) selector.value = currentVal;
         }
+
+        function updateSelectedVoice() {
+            selectedVoiceName = document.getElementById('admin-voice-selector').value;
+        }
+
         if ('speechSynthesis' in window) {
             speechSynthesis.onvoiceschanged = loadVoices;
             loadVoices();
@@ -655,23 +687,60 @@
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.volume = adminVoiceSettings.volume;
 
-            // Seleccionar voz según género y español
             if (availableVoices.length === 0) loadVoices();
 
-            const preferredVoice = availableVoices.find(v =>
-                (adminVoiceSettings.gender === 'male' && /male|man|pablo|raul|sergio|miguel|javier|español/i.test(v.name.toLowerCase())) ||
-                (adminVoiceSettings.gender === 'female' && /female|woman|helena|laura|lucia|monica|español/i.test(v.name.toLowerCase()))
-            ) || availableVoices.find(v => /es-/i.test(v.lang)) || availableVoices[0];
+            let preferredVoice = null;
+
+            // 1. Usar voz seleccionada manualmente si existe
+            if (selectedVoiceName) {
+                preferredVoice = availableVoices.find(v => v.name === selectedVoiceName);
+            }
+
+            // 2. Si no hay manual, buscar automáticamente
+            if (!preferredVoice) {
+                const isMale = adminVoiceSettings.gender === 'male';
+                const isFemale = adminVoiceSettings.gender === 'female';
+
+                // Prioridad 1: Idioma español Y match de género
+                preferredVoice = availableVoices.find(v => {
+                    const name = v.name.toLowerCase();
+                    const lang = v.lang.toLowerCase();
+                    const isSpanish = lang.startsWith('es-') || name.includes('español') || name.includes('spanish');
+                    if (!isSpanish) return false;
+
+                    if (isFemale) return /female|woman|helena|laura|lucia|monica|sabina|elvira|zira/i.test(name);
+                    if (isMale) return /male|man|pablo|raul|sergio|miguel|javier|enrique/i.test(name);
+                    return false;
+                });
+
+                // Prioridad 2: Cualquier idioma con match de género
+                if (!preferredVoice) {
+                    preferredVoice = availableVoices.find(v => {
+                        const name = v.name.toLowerCase();
+                        if (isFemale) return /female|woman|helena|laura|lucia|monica|zira/i.test(name);
+                        if (isMale) return /male|man|pablo|raul|sergio|miguel|javier/i.test(name);
+                        return false;
+                    });
+                }
+
+                // Prioridad 3: Cualquier español
+                if (!preferredVoice) {
+                    preferredVoice = availableVoices.find(v => v.lang.startsWith('es-')) ||
+                        availableVoices.find(v => /español/i.test(v.name));
+                }
+
+                // Fallback: Primera disponible
+                if (!preferredVoice) preferredVoice = availableVoices[0];
+            }
 
             if (preferredVoice) {
                 utterance.voice = preferredVoice;
-                // Forzar idioma si es posible
                 utterance.lang = preferredVoice.lang;
             }
 
             utterance.rate = 1.0;
-            // Ajustar pitch radicalmente para diferenciar si la voz no cambia
-            utterance.pitch = adminVoiceSettings.gender === 'male' ? 0.7 : 1.3;
+            // Ajustar pitch radicalmente para diferenciar
+            utterance.pitch = adminVoiceSettings.gender === 'male' ? 0.6 : 1.4;
 
             speechSynthesis.cancel();
             speechSynthesis.speak(utterance);
