@@ -1148,6 +1148,8 @@
 
         function appendChatMessage(data) {
             const container = document.getElementById('chat-messages');
+            if (!container) return;
+
             const isMine = data.isAdmin === true; // En el panel admin, "mio" son los del admin
 
             const div = document.createElement('div');
@@ -1155,9 +1157,12 @@
             div.className = `chat-bubble ${data.isAdmin ? 'admin' : (isMine ? 'mine' : 'others')}`;
             div.style.position = 'relative';
 
+            // Detectar si el mensaje es solo emojis para aplicar clase especial
+            const isEmojiOnly = /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff]|[\s])*$/.test(data.text);
+
             div.innerHTML = `
                 ${!isMine ? `<span class="sender">${data.user}</span>` : ''}
-                ${data.text}
+                <div class="chat-content ${isEmojiOnly ? 'emoji-only' : ''}">${data.text}</div>
                 <span class="time">${data.time}</span>
                 <button onclick="deleteChatMessage('${data.id}')" 
                         style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s;" 
@@ -1170,8 +1175,8 @@
 
             container.appendChild(div);
 
-            // Mantener últimos 20 mensajes
-            while (container.children.length > 20) {
+            // Mantener últimos 25 mensajes para el admin
+            while (container.children.length > 25) {
                 container.removeChild(container.firstChild);
             }
 

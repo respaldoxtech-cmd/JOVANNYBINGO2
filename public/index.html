@@ -697,6 +697,29 @@
         </div>
     </div>
 
+    <!-- Panel de Chat -->
+    <div id="chat-panel" class="glass-card">
+        <div class="chat-header">
+            <h3>💬 Chat Global</h3>
+            <button onclick="toggleChat()" class="btn-close">×</button>
+        </div>
+        <div id="chat-messages" class="chat-messages">
+            <!-- Mensajes aquí -->
+        </div>
+        <div class="quick-reactions">
+            <button onclick="sendQuickEmoji('🔥')" class="reaction-btn">🔥</button>
+            <button onclick="sendQuickEmoji('🍀')" class="reaction-btn">🍀</button>
+            <button onclick="sendQuickEmoji('🎱')" class="reaction-btn">🎱</button>
+            <button onclick="sendQuickEmoji('💎')" class="reaction-btn">💎</button>
+            <button onclick="sendQuickEmoji('🎉')" class="reaction-btn">🎉</button>
+            <button onclick="sendQuickEmoji('👏')" class="reaction-btn">👏</button>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Escribe un mensaje..." maxlength="100">
+            <button onclick="sendChatMessage()" class="btn-send-chat">➡️</button>
+        </div>
+    </div>
+
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- JAVASCRIPT -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -1543,21 +1566,27 @@
 
         function appendChatMessage(data) {
             const container = document.getElementById('chat-messages');
+            if (!container) return;
+
             const isMine = data.user === playerSession?.username;
             const isAdmin = data.isAdmin;
 
             const div = document.createElement('div');
             div.id = `chat-msg-${data.id}`;
             div.className = `chat-bubble ${isAdmin ? 'admin' : (isMine ? 'mine' : 'others')}`;
+
+            // Detectar si el mensaje es solo emojis para aplicar clase especial
+            const isEmojiOnly = /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff]|[\s])*$/.test(data.text);
+
             div.innerHTML = `
                 ${!isMine ? `<span class="sender">${data.user}</span>` : ''}
-                ${data.text}
+                <div class="chat-content ${isEmojiOnly ? 'emoji-only' : ''}">${data.text}</div>
                 <span class="time">${data.time}</span>
             `;
             container.appendChild(div);
 
-            // OPTIMIZACIÓN: Mantener solo los últimos 15 mensajes
-            while (container.children.length > 15) {
+            // Mantener últimos 20 mensajes
+            while (container.children.length > 20) {
                 container.removeChild(container.firstChild);
             }
 
