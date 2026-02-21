@@ -29,9 +29,9 @@ app.use(express.static('public'));
 // ═══════════════════════════════════════════════════════════════
 // 🔐 CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════
-const ADMIN_PASS = process.env.ADMIN_PASS;
-if (!ADMIN_PASS) {
-    console.warn('⚠️ WARNING: ADMIN_PASS not set in .env. Admin functionality will be restricted or use a default (not recommended for production).');
+const ADMIN_PASS = process.env.ADMIN_PASS || "admin123";
+if (!process.env.ADMIN_PASS) {
+    console.warn('⚠️ WARNING: ADMIN_PASS not set in .env. Using default "admin123". Please set a secure password in production.');
 }
 const TOTAL_CARDS = 300;
 
