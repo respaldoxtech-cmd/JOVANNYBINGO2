@@ -1394,6 +1394,41 @@ io.on('connection', (socket) => {
     });
 
     // ─────────────────────────────────────────────────────────────
+    // CHAT: Mensajería global y moderación
+    // ─────────────────────────────────────────────────────────────
+    socket.on('send_chat', (text) => {
+        if (!text || !text.trim()) return;
+
+        const username = socket.data?.username;
+        if (username) {
+            const msgId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+            io.emit('chat_message', {
+                id: msgId,
+                user: username,
+                text: text.trim(),
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                isAdmin: false
+            });
+        }
+    });
+
+    socket.on('admin_send_chat', (text) => {
+        if (!text || !text.trim()) return;
+        const msgId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+        io.emit('chat_message', {
+            id: msgId,
+            user: 'ADMIN',
+            text: text.trim(),
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isAdmin: true
+        });
+    });
+
+    socket.on('admin_delete_chat', (msgId) => {
+        io.emit('chat_message_deleted', msgId);
+    });
+
+    // ─────────────────────────────────────────────────────────────
     // ADMIN: Aceptar jugador
     // ─────────────────────────────────────────────────────────────
     socket.on('admin_accept_player', async (socketId) => {

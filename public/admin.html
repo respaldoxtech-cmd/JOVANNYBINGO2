@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yovanny Bingo - Panel de Control</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="chat.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -25,6 +26,11 @@
         <div class="header-status">
             <span id="connection-status" class="status-indicator online">🟢 Conectado</span>
             <span id="players-count" class="players-badge">0 jugadores</span>
+            <button onclick="toggleChat()" class="nav-btn"
+                style="background: none; border: none; color: white; cursor: pointer; position: relative;">
+                <span class="nav-icon">💬</span>
+                <div id="chat-badge" class="chat-badge hidden">0</div>
+            </button>
             <a href="/admin-login.html" class="btn-logout" title="Cerrar sesión">🚪 Salir</a>
         </div>
     </header>
@@ -1097,8 +1103,126 @@
             document.getElementById('admin-message').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') setMessage();
             });
+
+            document.getElementById('chat-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendChatMessage();
+            });
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // CHAT GLOBAL Y MODERACIÓN
+        // ═══════════════════════════════════════════════════════════════
+        let unreadChatCount = 0;
+
+        function toggleChat() {
+            const panel = document.getElementById('chat-panel');
+            panel.classList.toggle('open');
+            if (panel.classList.contains('open')) {
+                unreadChatCount = 0;
+                document.getElementById('chat-badge').classList.add('hidden');
+                scrollToBottomChat();
+                setTimeout(() => document.getElementById('chat-input').focus(), 100);
+            }
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (text) {
+                socket.emit('admin_send_chat', text);
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function sendQuickEmoji(emoji) {
+            socket.emit('admin_send_chat', emoji);
+            document.getElementById('chat-input').focus();
+        }
+
+        function deleteChatMessage(msgId) {
+            if (confirm('¿Eliminar este mensaje?')) {
+                socket.emit('admin_delete_chat', msgId);
+            }
+        }
+
+        function appendChatMessage(data) {
+            const container = document.getElementById('chat-messages');
+            const isMine = data.isAdmin === true; // En el panel admin, "mio" son los del admin
+
+            const div = document.createElement('div');
+            div.id = `chat-msg-${data.id}`;
+            div.className = `chat-bubble ${data.isAdmin ? 'admin' : (isMine ? 'mine' : 'others')}`;
+            div.style.position = 'relative';
+
+            div.innerHTML = `
+                ${!isMine ? `<span class="sender">${data.user}</span>` : ''}
+                ${data.text}
+                <span class="time">${data.time}</span>
+                <button onclick="deleteChatMessage('${data.id}')" 
+                        style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s;" 
+                        class="delete-btn">×</button>
+            `;
+
+            // Mostrar botón de borrar al pasar el mouse
+            div.onmouseover = () => div.querySelector('.delete-btn').style.opacity = '1';
+            div.onmouseout = () => div.querySelector('.delete-btn').style.opacity = '0';
+
+            container.appendChild(div);
+
+            // Mantener últimos 20 mensajes
+            while (container.children.length > 20) {
+                container.removeChild(container.firstChild);
+            }
+
+            scrollToBottomChat();
+        }
+
+        function scrollToBottomChat() {
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Socket Events para Chat
+        socket.on('chat_message', (data) => {
+            appendChatMessage(data);
+            const panel = document.getElementById('chat-panel');
+            if (!panel.classList.contains('open')) {
+                unreadChatCount++;
+                const badge = document.getElementById('chat-badge');
+                badge.textContent = unreadChatCount > 9 ? '9+' : unreadChatCount;
+                badge.classList.remove('hidden');
+            }
+        });
+
+        socket.on('chat_message_deleted', (msgId) => {
+            const el = document.getElementById(`chat-msg-${msgId}`);
+            if (el) el.remove();
         });
     </script>
+
+    <!-- Chat Panel -->
+    <div id="chat-panel" class="glass-card">
+        <div class="chat-header">
+            <h3>💬 Chat Global</h3>
+            <button onclick="toggleChat()" class="btn-close">×</button>
+        </div>
+        <div id="chat-messages" class="chat-messages">
+            <!-- Mensajes aquí -->
+        </div>
+        <div class="quick-reactions">
+            <button onclick="sendQuickEmoji('🔥')" class="reaction-btn">🔥</button>
+            <button onclick="sendQuickEmoji('🍀')" class="reaction-btn">🍀</button>
+            <button onclick="sendQuickEmoji('🎱')" class="reaction-btn">🎱</button>
+            <button onclick="sendQuickEmoji('💎')" class="reaction-btn">💎</button>
+            <button onclick="sendQuickEmoji('🎉')" class="reaction-btn">🎉</button>
+            <button onclick="sendQuickEmoji('👏')" class="reaction-btn">👏</button>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Escribe un mensaje como ADMIN..." maxlength="100">
+            <button onclick="sendChatMessage()" class="btn-set">➡️</button>
+        </div>
+    </div>
 </body>
 
 </html>
