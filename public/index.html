@@ -902,6 +902,7 @@
         let patterns = {};
         let playerSession = loadSession(); // Cargar sesión inmediatamente
         let unreadChatCount = 0;
+        let wakeLock = null;
 
         const WINNING_PATTERNS = {
             'line': [
@@ -1030,7 +1031,13 @@
                 authLayout.style.display = 'none';
                 gameScreen.classList.add('active');
                 gameScreen.style.display = 'block'; // Ensure visibility
+                requestWakeLock();
                 return;
+            }
+
+            // If leaving game-screen, release lock
+            if (gameScreen.classList.contains('active')) {
+                releaseWakeLock();
             }
 
             // It's an auth-related screen
@@ -1055,6 +1062,37 @@
         function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
         function hideOverlay() { document.getElementById('winner-overlay').classList.add('hidden'); }
+
+        // ═══════════════════════════════════════════════════════════════
+        // WAKE LOCK (MANTENER PANTALLA PRENDIDA)
+        // ═══════════════════════════════════════════════════════════════
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('✅ Wake Lock activo: La pantalla no se apagará.');
+                    wakeLock.addEventListener('release', () => {
+                        console.log('🔒 Wake Lock liberado.');
+                    });
+                } catch (err) {
+                    console.error(`❌ Error al solicitar Wake Lock: ${err.name}, ${err.message}`);
+                }
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+        }
+
+        // Re-activar si se vuelve a la pestaña
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
 
         // ═══════════════════════════════════════════════════════════════
         // UI: SELECTOR DE CARTONES

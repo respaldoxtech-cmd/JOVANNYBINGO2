@@ -356,6 +356,7 @@ input:focus {
     background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
     text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     letter-spacing: -0.02em;
 }
@@ -396,21 +397,31 @@ input:focus {
     }
 
     .split-right {
-        display: none;
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        opacity: 0.6;
     }
 
     .split-left {
+        width: 100%;
         max-width: 100%;
         padding: var(--spacing-md);
-        background: radial-gradient(circle at 50% 50%, #1e1e2e 0%, #0f0f1a 100%);
+        background: transparent;
+        position: relative;
+        z-index: 10;
+        min-height: 100vh;
     }
 
-    /* Restore card look on mobile */
+    /* Keep the card-like container for better readability over the animation */
     .split-left .login-container {
         padding: var(--spacing-lg);
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(15, 15, 26, 0.85);
+        /* Darker semi-transparent */
+        backdrop-filter: blur(10px);
         border: 1px solid var(--glass-border);
         border-radius: var(--radius-lg);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
 }
 
