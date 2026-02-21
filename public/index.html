@@ -905,13 +905,14 @@
 
         const WINNING_PATTERNS = {
             'line': [
-                [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24], // Cols
-                [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24], // Rows
+                [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24], // Rows (column-major internal)
+                [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24], // Cols
                 [0, 6, 12, 18, 24], [4, 8, 12, 16, 20] // Diagonals
             ],
-            'full': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]],
+            'full': [Array.from({ length: 25 }, (_, i) => i)],
             'corners': [[0, 4, 20, 24]],
-            'x': [[0, 6, 12, 18, 24], [4, 8, 12, 16, 20]]
+            'x': [[0, 6, 12, 18, 24], [4, 8, 12, 16, 20]],
+            'plus': [[2, 7, 10, 11, 12, 13, 14, 17, 22]]
         };
 
         function loadSession() {
@@ -1269,20 +1270,23 @@
             const cardEl = document.getElementById(`card-${card.id}`);
             if (!cardEl) return;
 
+            const badge = cardEl.querySelector('.proximity-badge');
             const flatValues = [...card.B, ...card.I, ...card.N, ...card.G, ...card.O];
             let sets = WINNING_PATTERNS[currentPattern];
 
-            // Fallback para patrones dinámicos o no definidos en WINNING_PATTERNS
+            // Patrones personalizados del servidor
             if (!sets && patterns[currentPattern]?.positions) {
-                sets = [patterns[currentPattern].positions];
+                const pos = patterns[currentPattern].positions;
+                sets = pos.length > 0 && Array.isArray(pos[0]) ? pos : [pos];
             }
 
             if (!sets) {
                 cardEl.classList.remove('near-win');
+                if (badge) badge.style.display = 'none';
                 return;
             }
 
-            let isNearWin = false;
+            let minMissing = 99;
             for (const set of sets) {
                 let missing = 0;
                 for (const idx of set) {
@@ -1290,13 +1294,21 @@
                     if (val === "FREE") continue;
                     const cell = document.getElementById(`c${card.id}-n${val}`);
                     if (!cell || !cell.classList.contains('marked')) missing++;
-                    if (missing > 1) break;
                 }
-                if (missing === 1) { isNearWin = true; break; }
+                if (missing < minMissing) minMissing = missing;
             }
 
-            if (isNearWin) cardEl.classList.add('near-win');
-            else cardEl.classList.remove('near-win');
+            if (minMissing > 0 && minMissing <= 3) {
+                cardEl.classList.add('near-win');
+                if (badge) {
+                    badge.style.display = 'block';
+                    badge.textContent = minMissing === 1 ? '🔥 ¡FALTA 1!' : `🔥 ¡Faltan ${minMissing}!`;
+                    badge.className = `proximity-badge level-${minMissing}`;
+                }
+            } else {
+                cardEl.classList.remove('near-win');
+                if (badge) badge.style.display = 'none';
+            }
         }
 
         function updateLastNumbers(arr) {
@@ -1754,8 +1766,28 @@
             document.getElementById('winner-card-id').textContent = `#${data.card}`;
             document.getElementById('winner-overlay').classList.remove('hidden');
 
-            confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
-            audio.bingo(); // <--- IMPORTANTE: Reproducir sonido al anunciar ganador
+            const duration = 5 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            const interval = setInterval(function () {
+                const timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+
+                const particleCount = 50 * (timeLeft / duration);
+                // since particles fall down, start a bit higher than random
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+
+            audio.bingo();
         });
 
         socket.on('bingo_audio', () => {
