@@ -802,6 +802,42 @@
         </div>
     </div>
 
+    <!-- Modal de Recuperación de Contraseña -->
+    <div id="recovery-modal" class="modal hidden">
+        <div class="modal-content glass-card slide-up">
+            <div class="modal-header">
+                <h3>🔒 Recuperar Contraseña</h3>
+                <button onclick="hideModal('recovery-modal')" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div id="recovery-step-1">
+                    <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">Ingresa tu usuario y el correo que
+                        registraste para verificar tu identidad.</p>
+                    <div class="form-group">
+                        <label>👤 Usuario</label>
+                        <input type="text" id="recovery-username" placeholder="Tu usuario...">
+                    </div>
+                    <div class="form-group">
+                        <label>📧 Correo Registrado</label>
+                        <input type="email" id="recovery-email" placeholder="tu@correo.com">
+                    </div>
+                    <div id="recovery-error-1" class="error-msg"></div>
+                    <button onclick="doVerifyRecovery()" class="btn-primary btn-block">Verificar Datos</button>
+                </div>
+                <div id="recovery-step-2" class="hidden">
+                    <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">Datos verificados. Ahora puedes
+                        establecer tu nueva contraseña.</p>
+                    <div class="form-group">
+                        <label>🔑 Nueva Contraseña</label>
+                        <input type="password" id="recovery-new-password" placeholder="Mínimo 4 caracteres...">
+                    </div>
+                    <div id="recovery-error-2" class="error-msg"></div>
+                    <button onclick="doResetPassword()" class="btn-primary btn-block">Cambiar Contraseña</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast para logros desbloqueados -->
     <div id="achievement-toast" class="achievement-toast hidden">
         <span class="toast-icon">🏆</span>
@@ -963,7 +999,77 @@
         }
 
         function forgotPassword() {
-            alert("Por favor contacta al administrador para restablecer tu contraseña.");
+            document.getElementById('recovery-step-1').classList.remove('hidden');
+            document.getElementById('recovery-step-2').classList.add('hidden');
+            document.getElementById('recovery-error-1').style.display = 'none';
+            document.getElementById('recovery-error-2').style.display = 'none';
+            document.getElementById('recovery-username').value = '';
+            document.getElementById('recovery-email').value = '';
+            showModal('recovery-modal');
+        }
+
+        async function doVerifyRecovery() {
+            const username = document.getElementById('recovery-username').value.trim();
+            const email = document.getElementById('recovery-email').value.trim();
+            const err = document.getElementById('recovery-error-1');
+
+            if (!username || !email) {
+                err.textContent = 'Completa ambos campos';
+                err.style.display = 'block';
+                return;
+            }
+
+            try {
+                const r = await fetch('/api/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email })
+                });
+                const d = await r.json();
+                if (!d.success) {
+                    err.textContent = d.error || 'Datos incorrectos';
+                    err.style.display = 'block';
+                    return;
+                }
+                document.getElementById('recovery-step-1').classList.add('hidden');
+                document.getElementById('recovery-step-2').classList.remove('hidden');
+            } catch (e) {
+                err.textContent = 'Error de conexión';
+                err.style.display = 'block';
+            }
+        }
+
+        async function doResetPassword() {
+            const username = document.getElementById('recovery-username').value.trim();
+            const email = document.getElementById('recovery-email').value.trim();
+            const newPassword = document.getElementById('recovery-new-password').value;
+            const err = document.getElementById('recovery-error-2');
+
+            if (!newPassword || newPassword.length < 4) {
+                err.textContent = 'Contraseña mínimo 4 caracteres';
+                err.style.display = 'block';
+                return;
+            }
+
+            try {
+                const r = await fetch('/api/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, newPassword })
+                });
+                const d = await r.json();
+                if (!d.success) {
+                    err.textContent = d.error || 'Error al restablecer';
+                    err.style.display = 'block';
+                    return;
+                }
+                alert('¡Contraseña actualizada! Ahora puedes iniciar sesión.');
+                hideModal('recovery-modal');
+                showScreen('auth-login');
+            } catch (e) {
+                err.textContent = 'Error de conexión';
+                err.style.display = 'block';
+            }
         }
 
         function logoutFromGame() {
@@ -1202,25 +1308,36 @@
             speakNumber(msg);
         }
 
+        let availableVoices = [];
+        function loadVoices() {
+            availableVoices = speechSynthesis.getVoices();
+        }
+        if ('speechSynthesis' in window) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+            loadVoices();
+        }
+
         function speakNumber(text) {
             if (!('speechSynthesis' in window)) return;
 
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.volume = voiceSettings.volume;
 
-            // Seleccionar voz según género
-            const voices = speechSynthesis.getVoices();
-            const preferredVoice = voices.find(v =>
-                (voiceSettings.gender === 'male' && /male|man|español.*mexicano/i.test(v.name)) ||
-                (voiceSettings.gender === 'female' && /female|woman|español.*mexicano/i.test(v.name))
-            ) || voices.find(v => /español/i.test(v.lang)) || voices[0];
+            // Seleccionar voz según género y español
+            if (availableVoices.length === 0) loadVoices();
+
+            const preferredVoice = availableVoices.find(v =>
+                (voiceSettings.gender === 'male' && /male|man|pablo|raul|sergio|miguel|javier|español/i.test(v.name.toLowerCase())) ||
+                (voiceSettings.gender === 'female' && /female|woman|helena|laura|lucia|monica|español/i.test(v.name.toLowerCase()))
+            ) || availableVoices.find(v => /es-/i.test(v.lang)) || availableVoices[0];
 
             if (preferredVoice) {
                 utterance.voice = preferredVoice;
+                utterance.lang = preferredVoice.lang;
             }
 
             utterance.rate = 1.0;
-            utterance.pitch = voiceSettings.gender === 'male' ? 0.8 : 1.2;
+            utterance.pitch = voiceSettings.gender === 'male' ? 0.7 : 1.3;
 
             speechSynthesis.cancel();
             speechSynthesis.speak(utterance);

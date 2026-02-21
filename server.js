@@ -1038,6 +1038,53 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+app.post('/api/forgot-password', async (req, res) => {
+    try {
+        const { username, email } = req.body || {};
+        if (!username || !email) {
+            return res.status(400).json({ error: 'Usuario y correo requeridos' });
+        }
+        const user = await User.findOne({
+            username: username.trim().toLowerCase(),
+            email: email.trim().toLowerCase()
+        });
+        if (!user) {
+            return res.status(404).json({ error: 'Los datos no coinciden con ninguna cuenta' });
+        }
+        res.json({ success: true, message: 'Datos verificados' });
+    } catch (e) {
+        res.status(500).json({ error: e.message || 'Error en el servidor' });
+    }
+});
+
+app.post('/api/reset-password', async (req, res) => {
+    try {
+        const { username, email, newPassword } = req.body || {};
+        if (!username || !email || !newPassword) {
+            return res.status(400).json({ error: 'Todos los campos son requeridos' });
+        }
+        if (newPassword.length < 4) {
+            return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+        }
+
+        const user = await User.findOne({
+            username: username.trim().toLowerCase(),
+            email: email.trim().toLowerCase()
+        });
+
+        if (!user) {
+            return res.status(401).json({ error: 'Verificación fallida' });
+        }
+
+        user.passwordHash = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+    } catch (e) {
+        res.status(500).json({ error: e.message || 'Error al restablecer contraseña' });
+    }
+});
+
 app.get('/api/active-game/:username', async (req, res) => {
     try {
         await syncTakenCards();

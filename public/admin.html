@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yovanny Bingo - Panel de Control</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
 </head>
+
 <body class="admin-app">
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- HEADER PRINCIPAL -->
@@ -49,7 +52,8 @@
                     <div class="voice-gender">
                         <label>Género de voz:</label>
                         <div class="gender-buttons">
-                            <button id="admin-voice-male" class="gender-btn active" onclick="setAdminVoiceGender('male')">
+                            <button id="admin-voice-male" class="gender-btn active"
+                                onclick="setAdminVoiceGender('male')">
                                 👨 Masculino
                             </button>
                             <button id="admin-voice-female" class="gender-btn" onclick="setAdminVoiceGender('female')">
@@ -59,7 +63,8 @@
                     </div>
                     <div class="voice-volume">
                         <label>Volúmen:</label>
-                        <input type="range" id="admin-voice-volume" min="0" max="100" value="80" oninput="setAdminVoiceVolume(this.value)">
+                        <input type="range" id="admin-voice-volume" min="0" max="100" value="80"
+                            oninput="setAdminVoiceVolume(this.value)">
                         <span id="admin-volume-display">80%</span>
                     </div>
                     <div class="voice-test">
@@ -98,13 +103,13 @@
                     <li class="empty">No hay solicitudes pendientes</li>
                 </ul>
             </div>
-            
+
             <div id="active-tab" class="tab-content">
                 <ul id="active-list" class="player-list">
                     <li class="empty">No hay jugadores activos</li>
                 </ul>
             </div>
-            
+
             <div id="winners-tab" class="tab-content">
                 <ul id="winners-list" class="player-list winners">
                     <li class="empty">No hay ganadores aún</li>
@@ -131,12 +136,12 @@
             <div id="numbers-board" class="numbers-board">
                 <!-- Los números se generan por JS -->
             </div>
-            
+
             <div class="last-balls">
                 <span class="label">Últimos:</span>
                 <div id="last-numbers" class="balls-row"></div>
             </div>
-            
+
             <div class="roulette-box roulette-box-mini">
                 <div class="roulette-display">
                     <div id="roulette-wheel" class="roulette-wheel">
@@ -265,9 +270,9 @@
                 this.ctx = null;
                 try {
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                } catch(e) {}
+                } catch (e) { }
             }
-            
+
             tone(freq, dur, type = 'sine', vol = 0.3) {
                 if (!this.ctx) return;
                 if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -283,25 +288,25 @@
                 osc.start();
                 osc.stop(this.ctx.currentTime + dur);
             }
-            
+
             numberCall() {
                 this.tone(600, 0.1, 'sawtooth');
                 setTimeout(() => this.tone(500, 0.1, 'sawtooth'), 50);
                 setTimeout(() => this.tone(400, 0.15, 'sawtooth'), 100);
             }
-            
+
             bingo() {
                 this.tone(261.63, 0.8, 'triangle', 0.4);
                 setTimeout(() => this.tone(329.63, 0.8, 'triangle', 0.4), 100);
                 setTimeout(() => this.tone(392.00, 1.0, 'triangle', 0.4), 200);
             }
-            
+
             newPlayer() {
                 this.tone(440, 0.1);
                 setTimeout(() => this.tone(554, 0.1), 100);
             }
         }
-        
+
         const audio = new AdminAudio();
 
         // ═══════════════════════════════════════════════════════════════
@@ -316,7 +321,7 @@
 
         // Patrones se cargan desde el servidor (no hardcodeados)
         let PATTERNS = {};
-        
+
         // Categorías para organizar los patrones en el selector
         const PATTERN_CATEGORIES = {
             basic: ['line', 'corners', 'full', 'corners_center', 'small_square'],
@@ -329,7 +334,7 @@
         // GENERADOR DE CARTONES (igual que servidor)
         // ═══════════════════════════════════════════════════════════════
         function mulberry32(seed) {
-            return function() {
+            return function () {
                 let t = seed += 0x6D2B79F5;
                 t = Math.imul(t ^ (t >>> 15), t | 1);
                 t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
@@ -365,7 +370,7 @@
         function initBoard() {
             const board = document.getElementById('numbers-board');
             board.innerHTML = '';
-            
+
             // Headers B I N G O
             ['B', 'I', 'N', 'G', 'O'].forEach(letter => {
                 const h = document.createElement('div');
@@ -373,9 +378,9 @@
                 h.textContent = letter;
                 board.appendChild(h);
             });
-            
+
             // Números 1-75 en columnas
-            const ranges = [[1,15], [16,30], [31,45], [46,60], [61,75]];
+            const ranges = [[1, 15], [16, 30], [31, 45], [46, 60], [61, 75]];
             for (let row = 0; row < 15; row++) {
                 ranges.forEach(([min], colIdx) => {
                     const num = min + row;
@@ -399,10 +404,10 @@
         function updateRoulette(num) {
             const wheel = document.getElementById('roulette-wheel');
             const display = document.getElementById('roulette-number');
-            
+
             wheel.classList.add('spin');
             display.textContent = num;
-            
+
             setTimeout(() => wheel.classList.remove('spin'), 500);
         }
 
@@ -428,7 +433,7 @@
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
+
             document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
             document.getElementById(`${tab}-tab`).classList.add('active');
         }
@@ -450,10 +455,10 @@
         function showPatternCategory(category) {
             document.querySelectorAll('.pattern-tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`[onclick="showPatternCategory('${category}')"]`).classList.add('active');
-            
+
             const grid = document.getElementById('patterns-grid');
             const customArea = document.getElementById('custom-pattern-area');
-            
+
             if (category === 'custom') {
                 grid.classList.add('hidden');
                 customArea.classList.remove('hidden');
@@ -461,13 +466,13 @@
             } else {
                 customArea.classList.add('hidden');
                 grid.classList.remove('hidden');
-                
+
                 // Usar categorías predefinidas para filtrar
                 const patternIds = PATTERN_CATEGORIES[category] || [];
                 const filtered = patternIds
                     .filter(key => PATTERNS[key]) // Solo mostrar si existe en PATTERNS
                     .map(key => [key, PATTERNS[key]]);
-                
+
                 grid.innerHTML = filtered.map(([key, pattern]) => `
                     <div class="pattern-option ${currentPattern === key ? 'selected' : ''}" onclick="selectPattern('${key}')">
                         <div class="pattern-mini-grid">${renderMiniGrid(pattern.positions)}</div>
@@ -486,7 +491,7 @@
             const row = Math.floor(i / 5), col = i % 5;
             return col * 5 + row;
         }
-        
+
         /**
          * Renderiza mini grid. positions usa índices flatCard (igual que checkWin en servidor).
          */
@@ -496,7 +501,7 @@
                 ? positions[0]
                 : positions;
             const flatSet = new Set(Array.isArray(flatPos[0]) ? flatPos.flat() : flatPos);
-            
+
             let html = '';
             for (let i = 0; i < 25; i++) {
                 const flatIdx = displayToFlatIdx(i);
@@ -519,7 +524,7 @@
             grid.innerHTML = '';
             customGrid = Array(25).fill(false);
             customGrid[12] = true; // FREE siempre activo
-            
+
             for (let i = 0; i < 25; i++) {
                 const cell = document.createElement('div');
                 cell.className = `custom-cell ${customGrid[i] ? 'active' : ''} ${i === 12 ? 'free' : ''}`;
@@ -545,21 +550,21 @@
             const pattern = PATTERNS[currentPattern];
             const nameEl = document.getElementById('current-pattern-name');
             const descEl = document.getElementById('current-pattern-desc');
-            
+
             if (!pattern && currentPattern !== 'custom') {
                 console.warn(`⚠️ Patrón "${currentPattern}" no encontrado en PATTERNS. Esperando sincronización...`);
                 nameEl.textContent = 'Cargando...';
                 descEl.textContent = '';
                 return;
             }
-            
+
             const mult = pattern?.multiplier ?? (currentPattern === 'custom' ? 2 : 1);
             nameEl.textContent = pattern?.name || (currentPattern === 'custom' ? 'PERSONALIZADO' : currentPattern);
             descEl.textContent = (pattern?.description || '') + (mult !== 1 ? ` • x${mult} pts` : '');
-            
+
             const grid = document.getElementById('current-pattern-grid');
             if (currentPattern === 'custom') {
-                grid.innerHTML = customGrid.map((active, i) => 
+                grid.innerHTML = customGrid.map((active, i) =>
                     `<div class="large-pattern-cell ${active ? 'active' : ''} ${i === 12 ? 'free' : ''}">${i === 12 ? '★' : ''}</div>`
                 ).join('');
             } else if (pattern && pattern.positions) {
@@ -568,7 +573,7 @@
                 grid.innerHTML = '<div class="pattern-loading">Cargando patrón...</div>';
             }
         }
-        
+
         /**
          * Función estandarizada para renderizar patrón (idéntica a index.html)
          * Sistema de índices row-major (fila por fila, de izquierda a derecha):
@@ -587,7 +592,7 @@
                 ? positions[0]
                 : positions;
             const flatSet = new Set(Array.isArray(flatPos[0]) ? flatPos.flat() : flatPos);
-            
+
             let html = '';
             for (let i = 0; i < 25; i++) {
                 const flatIdx = displayToFlatIdx(i);
@@ -635,26 +640,39 @@
             speakAdminNumber(msg);
         }
 
+        let availableVoices = [];
+        function loadVoices() {
+            availableVoices = speechSynthesis.getVoices();
+        }
+        if ('speechSynthesis' in window) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+            loadVoices();
+        }
+
         function speakAdminNumber(text) {
             if (!('speechSynthesis' in window)) return;
-            
+
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.volume = adminVoiceSettings.volume;
-            
-            // Seleccionar voz según género
-            const voices = speechSynthesis.getVoices();
-            const preferredVoice = voices.find(v => 
-                (adminVoiceSettings.gender === 'male' && /male|man|español.*mexicano/i.test(v.name)) ||
-                (adminVoiceSettings.gender === 'female' && /female|woman|español.*mexicano/i.test(v.name))
-            ) || voices.find(v => /español/i.test(v.lang)) || voices[0];
-            
+
+            // Seleccionar voz según género y español
+            if (availableVoices.length === 0) loadVoices();
+
+            const preferredVoice = availableVoices.find(v =>
+                (adminVoiceSettings.gender === 'male' && /male|man|pablo|raul|sergio|miguel|javier|español/i.test(v.name.toLowerCase())) ||
+                (adminVoiceSettings.gender === 'female' && /female|woman|helena|laura|lucia|monica|español/i.test(v.name.toLowerCase()))
+            ) || availableVoices.find(v => /es-/i.test(v.lang)) || availableVoices[0];
+
             if (preferredVoice) {
                 utterance.voice = preferredVoice;
+                // Forzar idioma si es posible
+                utterance.lang = preferredVoice.lang;
             }
-            
+
             utterance.rate = 1.0;
-            utterance.pitch = adminVoiceSettings.gender === 'male' ? 0.8 : 1.2;
-            
+            // Ajustar pitch radicalmente para diferenciar si la voz no cambia
+            utterance.pitch = adminVoiceSettings.gender === 'male' ? 0.7 : 1.3;
+
             speechSynthesis.cancel();
             speechSynthesis.speak(utterance);
         }
@@ -726,12 +744,12 @@
             const list = document.getElementById('pending-list');
             const badge = document.getElementById('pending-badge');
             badge.textContent = players.length;
-            
+
             if (!players.length) {
                 list.innerHTML = '<li class="empty">No hay solicitudes pendientes</li>';
                 return;
             }
-            
+
             list.innerHTML = players.map(p => `
                 <li class="player-item pending">
                     <div class="player-info">
@@ -751,12 +769,12 @@
             const badge = document.getElementById('active-badge');
             badge.textContent = players.length;
             document.getElementById('players-count').textContent = `${players.length} jugadores`;
-            
+
             if (!players.length) {
                 list.innerHTML = '<li class="empty">No hay jugadores activos</li>';
                 return;
             }
-            
+
             list.innerHTML = players.map(p => `
                 <li class="player-item">
                     <div class="player-info">
@@ -809,15 +827,15 @@
         function addPlayer() {
             const name = document.getElementById('new-player-name').value.trim();
             const cardsInput = document.getElementById('new-player-cards').value;
-            
+
             if (!name) return alert('Ingresa un nombre');
-            
+
             const cardIds = cardsInput.split(',')
                 .map(s => parseInt(s.trim()))
                 .filter(n => !isNaN(n) && n >= 1 && n <= 300);
-            
+
             if (cardIds.length === 0) return alert('Ingresa cartones válidos');
-            
+
             socket.emit('admin_add_player', { name, cardIds });
             hideModal('add-player-modal');
             document.getElementById('new-player-name').value = '';
@@ -834,13 +852,13 @@
 
         function updateCardStatus(data) {
             takenCards = new Set(data.takenCards);
-            
+
             document.getElementById('stat-available').textContent = data.availableCount;
             document.getElementById('stat-used').textContent = data.usedCount;
-            
+
             const grid = document.getElementById('cards-grid');
             grid.innerHTML = '';
-            
+
             for (let i = 1; i <= 300; i++) {
                 const cell = document.createElement('div');
                 cell.className = `card-status-cell ${takenCards.has(i) ? 'taken' : 'available'}`;
@@ -866,7 +884,7 @@
         socket.on('sync_state', (state) => {
             calledNumbers = state.calledNumbers;
             currentPattern = state.pattern;
-            
+
             // Sincronizar patrones recibidos del servidor (fuente de verdad)
             if (state.patterns && state.patterns.length > 0) {
                 PATTERNS = {}; // Limpiar patrones anteriores
@@ -880,17 +898,17 @@
                 });
                 console.log('✅ Patrones sincronizados desde servidor:', Object.keys(PATTERNS).length);
             }
-            
+
             document.getElementById('called-count').textContent = calledNumbers.length;
             document.getElementById('admin-message').value = state.message;
-            
+
             calledNumbers.forEach(n => markBoardNumber(n, true));
             updateLastNumbers(state.last5Numbers);
             updateWinnersList(state.last5Winners);
             updatePatternDisplay();
-            
+
             if (state.calledNumbers.length > 0) {
-                document.getElementById('roulette-number').textContent = 
+                document.getElementById('roulette-number').textContent =
                     state.calledNumbers[state.calledNumbers.length - 1];
             }
         });
@@ -909,7 +927,7 @@
             markBoardNumber(data.number, false);
             updateLastNumbers(data.last5);
             document.getElementById('called-count').textContent = data.totalCalled;
-            document.getElementById('roulette-number').textContent = 
+            document.getElementById('roulette-number').textContent =
                 calledNumbers.length > 0 ? calledNumbers[calledNumbers.length - 1] : '--';
         });
 
@@ -941,29 +959,29 @@
         socket.on('winner_announced', (data) => {
             audio.bingo();
             confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
-            
+
             document.getElementById('winner-name').textContent = data.user;
             document.getElementById('winner-card-id').textContent = `#${data.card}`;
             document.getElementById('winner-pattern').textContent = `Patrón: ${data.patternName || data.pattern}`;
-            
+
             showModal('winner-detail-modal');
         });
 
         socket.on('winner_card_details', (data) => {
             const preview = document.getElementById('winner-card-preview');
             const card = data.card;
-            
+
             preview.innerHTML = `
                 <div class="preview-grid">
-                    ${['B','I','N','G','O'].map(l => `<div class="preview-header">${l}</div>`).join('')}
-                    ${[0,1,2,3,4].map(row => 
-                        ['B','I','N','G','O'].map(col => {
-                            const val = card[col][row];
-                            const isFree = val === "FREE";
-                            const isMarked = isFree || data.calledNumbers.includes(val);
-                            return `<div class="preview-cell ${isMarked ? 'marked' : ''}">${isFree ? '★' : val}</div>`;
-                        }).join('')
-                    ).join('')}
+                    ${['B', 'I', 'N', 'G', 'O'].map(l => `<div class="preview-header">${l}</div>`).join('')}
+                    ${[0, 1, 2, 3, 4].map(row =>
+                ['B', 'I', 'N', 'G', 'O'].map(col => {
+                    const val = card[col][row];
+                    const isFree = val === "FREE";
+                    const isMarked = isFree || data.calledNumbers.includes(val);
+                    return `<div class="preview-cell ${isMarked ? 'marked' : ''}">${isFree ? '★' : val}</div>`;
+                }).join('')
+            ).join('')}
                 </div>
             `;
         });
@@ -1006,11 +1024,12 @@
         document.addEventListener('DOMContentLoaded', () => {
             initBoard();
             updatePatternDisplay();
-            
+
             document.getElementById('admin-message').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') setMessage();
             });
         });
     </script>
 </body>
+
 </html>

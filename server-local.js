@@ -29,20 +29,20 @@ app.post('/api/register', async (req, res) => {
     try {
         const { username, password, email } = req.body || {};
         if (!username || !password || !email) return res.status(400).json({ error: 'Faltan datos' });
-        
+
         const userLower = username.trim().toLowerCase();
         if (users.has(userLower)) return res.status(400).json({ error: 'El usuario ya existe' });
-        
+
         const passwordHash = await bcrypt.hash(password, 10);
-        users.set(userLower, { 
-            username: username.trim(), 
+        users.set(userLower, {
+            username: username.trim(),
             email: email.trim().toLowerCase(),
             passwordHash,
             stats: { totalGames: 0, wins: 0, winRate: 0 },
             level: { current: 1, exp: 0, expToNext: 100 },
             achievements: []
         });
-        
+
         res.json({ success: true, username: username.trim() });
     } catch (e) { res.status(500).json({ error: 'Error interno' }); }
 });
@@ -52,13 +52,46 @@ app.post('/api/login', async (req, res) => {
         const { username, password } = req.body || {};
         const userLower = (username || '').trim().toLowerCase();
         const user = users.get(userLower);
-        
+
         if (!user) return res.status(401).json({ error: 'Usuario no encontrado' });
-        
+
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return res.status(401).json({ error: 'Contraseña incorrecta' });
-        
+
         res.json({ success: true, username: user.username, stats: user.stats, level: user.level, achievements: user.achievements });
+    } catch (e) { res.status(500).json({ error: 'Error interno' }); }
+});
+
+app.post('/api/forgot-password', async (req, res) => {
+    try {
+        const { username, email } = req.body || {};
+        if (!username || !email) return res.status(400).json({ error: 'Faltan datos' });
+
+        const userLower = username.trim().toLowerCase();
+        const user = users.get(userLower);
+
+        if (!user || user.email !== email.trim().toLowerCase()) {
+            return res.status(404).json({ error: 'Los datos no coinciden' });
+        }
+
+        res.json({ success: true, message: 'Datos verificados' });
+    } catch (e) { res.status(500).json({ error: 'Error interno' }); }
+});
+
+app.post('/api/reset-password', async (req, res) => {
+    try {
+        const { username, email, newPassword } = req.body || {};
+        if (!username || !email || !newPassword) return res.status(400).json({ error: 'Faltan datos' });
+
+        const userLower = username.trim().toLowerCase();
+        const user = users.get(userLower);
+
+        if (!user || user.email !== email.trim().toLowerCase()) {
+            return res.status(401).json({ error: 'Verificación fallida' });
+        }
+
+        user.passwordHash = await bcrypt.hash(newPassword, 10);
+        res.json({ success: true, message: 'Contraseña actualizada' });
     } catch (e) { res.status(500).json({ error: 'Error interno' }); }
 });
 
@@ -73,11 +106,11 @@ let gameState = {
 };
 
 function mulberry32(a) {
-    return function() {
-      var t = a += 0x6D2B79F5;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    return function () {
+        var t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     }
 }
 
@@ -86,7 +119,7 @@ function generateCard(cardId) {
     const fillCol = (min, max, count) => {
         let nums = new Set();
         let safety = 0;
-        while(nums.size < count && safety < 500) {
+        while (nums.size < count && safety < 500) {
             let n = Math.floor(rng() * (max - min + 1)) + min;
             nums.add(n);
             safety++;
@@ -122,36 +155,36 @@ function checkWin(card, called, patternType, customGrid) {
     const patterns = {
         'line': [
             // Columnas (B, I, N, G, O)
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
+            [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
             // Filas
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
+            [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
             // Diagonales
-            [0,6,12,18,24], [4,8,12,16,20]
+            [0, 6, 12, 18, 24], [4, 8, 12, 16, 20]
         ],
-        'full': [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]], // All positions
-        'corners': [[0,4,20,24]], // 4 corners
-        'x': [[0,6,12,18,24, 4,8,16,20]], // X Shape (Both diagonals required)
-        'plus': [[7,11,12,13,17]], // Plus shape: center + 4 arms
-        'corners_center': [[0,4,12,20,24]], // Corners plus center
-        'frame': [[0,1,2,3,4,9,14,19,24,23,22,21,20,15,10,5]], // Outer frame
-        'inner_frame': [[6,7,8,11,13,16,17,18]], // Inner square (3x3 center)
-        'letter_h': [[0,1,2,3,4, 20,21,22,23,24, 7,12,17]], // H shape (Left Col, Right Col, Middle Row)
-        'letter_t': [[0,5,10,15,20, 11,12,13,14]], // T shape (Top Row + Middle Col)
-        'diamond': [[2,6,10,14,18,22]], // Diamond shape (hourglass)
-        'star': [[2,6,8,10,12,14,16,18,7,11,12,13,17]], // Star shape (corners + plus)
-        'heart': [[1,3,6,7,8,9,11,12,13,16,18]], // Heart shape
-        'airplane': [[1,3,5,7,9,11,13,15,17,19,21,23]], // Airplane shape
-        'arrow': [[2,7,10,11,12,13,14,17]], // Arrow pointing down
-        'crazy': [[0,2,4,6,8,10,12,14,16,18,20,22,24]], // Crazy zigzag pattern
-        'pyramid': [[2,6,7,8,10,11,12,13,14,16,17,18]], // Pyramid shape
-        'cross': [[2,7,11,12,13,17,22]], // Cross shape
+        'full': [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]], // All positions
+        'corners': [[0, 4, 20, 24]], // 4 corners
+        'x': [[0, 6, 12, 18, 24, 4, 8, 16, 20]], // X Shape (Both diagonals required)
+        'plus': [[7, 11, 12, 13, 17]], // Plus shape: center + 4 arms
+        'corners_center': [[0, 4, 12, 20, 24]], // Corners plus center
+        'frame': [[0, 1, 2, 3, 4, 9, 14, 19, 24, 23, 22, 21, 20, 15, 10, 5]], // Outer frame
+        'inner_frame': [[6, 7, 8, 11, 13, 16, 17, 18]], // Inner square (3x3 center)
+        'letter_h': [[0, 1, 2, 3, 4, 20, 21, 22, 23, 24, 7, 12, 17]], // H shape (Left Col, Right Col, Middle Row)
+        'letter_t': [[0, 5, 10, 15, 20, 11, 12, 13, 14]], // T shape (Top Row + Middle Col)
+        'diamond': [[2, 6, 10, 14, 18, 22]], // Diamond shape (hourglass)
+        'star': [[2, 6, 8, 10, 12, 14, 16, 18, 7, 11, 12, 13, 17]], // Star shape (corners + plus)
+        'heart': [[1, 3, 6, 7, 8, 9, 11, 12, 13, 16, 18]], // Heart shape
+        'airplane': [[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23]], // Airplane shape
+        'arrow': [[2, 7, 10, 11, 12, 13, 14, 17]], // Arrow pointing down
+        'crazy': [[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]], // Crazy zigzag pattern
+        'pyramid': [[2, 6, 7, 8, 10, 11, 12, 13, 14, 16, 17, 18]], // Pyramid shape
+        'cross': [[2, 7, 11, 12, 13, 17, 22]], // Cross shape
         'custom': null // Handled separately
     };
 
     // MODO LÍNEA HORIZONTAL
     if (patternType === 'line_horizontal') {
         const horizontalLines = [
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24]
+            [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24]
         ];
         return horizontalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
     }
@@ -159,7 +192,7 @@ function checkWin(card, called, patternType, customGrid) {
     // MODO LÍNEA VERTICAL
     if (patternType === 'line_vertical') {
         const verticalLines = [
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24]
+            [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24]
         ];
         return verticalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
     }
@@ -167,7 +200,7 @@ function checkWin(card, called, patternType, customGrid) {
     // MODO LÍNEA DIAGONAL
     if (patternType === 'line_diagonal') {
         const diagonalLines = [
-            [0,6,12,18,24], [4,8,12,16,20]
+            [0, 6, 12, 18, 24], [4, 8, 12, 16, 20]
         ];
         return diagonalLines.some(line => line.every(idx => isMarked(flatCard[idx])));
     }
@@ -176,11 +209,11 @@ function checkWin(card, called, patternType, customGrid) {
     if (patternType === 'line') {
         const winningLines = [
             // Columnas (B, I, N, G, O)
-            [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
+            [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
             // Filas
-            [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
+            [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
             // Diagonales
-            [0,6,12,18,24], [4,8,12,16,20]
+            [0, 6, 12, 18, 24], [4, 8, 12, 16, 20]
         ];
         return winningLines.some(line => line.every(idx => isMarked(flatCard[idx])));
     }
@@ -283,12 +316,12 @@ function checkWin(card, called, patternType, customGrid) {
         // Admin Grid: Fila 1 = índices 0,1,2,3,4.
         // FlatCard:   Fila 1 = índices 0,5,10,15,20.
 
-        for(let r=0; r<5; r++) {
-            for(let c=0; c<5; c++) {
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c < 5; c++) {
                 const adminIdx = r * 5 + c; // Indice lineal del admin (filas)
                 const cardIdx = c * 5 + r;  // Indice lineal del cartón (columnas)
 
-                if(customGrid[adminIdx] && !isMarked(flatCard[cardIdx])) {
+                if (customGrid[adminIdx] && !isMarked(flatCard[cardIdx])) {
                     return false;
                 }
             }
@@ -301,7 +334,7 @@ function checkWin(card, called, patternType, customGrid) {
 
 io.on('connection', (socket) => {
     socket.emit('sync_state', gameState);
-    
+
     // Si es admin, enviar listas de jugadores
     socket.emit('update_pending_players', getPendingPlayers());
     socket.emit('update_players', getActivePlayers());
@@ -320,7 +353,7 @@ io.on('connection', (socket) => {
             // Validar que los IDs estén en el rango válido (1-300)
             ids = ids.filter(id => id >= 1 && id <= 300);
 
-            if(ids.length === 0) return;
+            if (ids.length === 0) return;
 
             // --- VALIDACIÓN DE DUPLICADOS ---
             const duplicates = ids.filter(id => takenCards.has(id));
@@ -417,14 +450,14 @@ io.on('connection', (socket) => {
                 player.cardIds.forEach(id => takenCards.delete(id));
             }
             players.delete(targetUsername);
-            
+
             // Si está conectado, desconectarlo
             const targetSocket = io.sockets.sockets.get(socketId);
             if (targetSocket) {
                 targetSocket.emit('kicked');
                 targetSocket.disconnect();
             }
-            
+
             io.emit('update_players', getActivePlayers());
             return;
         }
@@ -458,7 +491,7 @@ io.on('connection', (socket) => {
 
             // Aceptar al jugador: registrar cartones y inicializar
             pendingPlayer.cardIds.forEach(id => takenCards.add(id));
-            
+
             // Agregar al mapa unificado de jugadores
             players.set(pendingPlayer.username, {
                 id: socketId,
@@ -513,7 +546,7 @@ io.on('connection', (socket) => {
 
             // Check for duplicates in both memory and database
             const duplicates = validCardIds.filter(id => takenCards.has(id));
-            
+
             if (duplicates.length > 0) {
                 socket.emit('admin_error', {
                     message: `Los cartones #${duplicates.join(', #')} ya están en uso.`
@@ -595,7 +628,7 @@ io.on('connection', (socket) => {
         // Disconnect all active players and clear their sessions
         // FIX: Convertir a array para evitar errores al modificar la colección mientras se itera
         const sockets = Array.from(io.sockets.sockets.values());
-        
+
         sockets.forEach(s => {
             if (s.data.cardIds) {
                 // This is a player, disconnect them and clear session
@@ -631,7 +664,7 @@ io.on('connection', (socket) => {
             // Successful reconnection
             player.id = socket.id;
             player.status = 'connected';
-            
+
             socket.data = {
                 username: username,
                 cardIds: cardIds
@@ -656,7 +689,7 @@ io.on('connection', (socket) => {
 
     socket.on('bingo_shout', () => {
         const { username, cardIds } = socket.data;
-        if(!cardIds || cardIds.length === 0) return;
+        if (!cardIds || cardIds.length === 0) return;
 
         let winnerCardId = null;
         for (let id of cardIds) {
@@ -668,11 +701,11 @@ io.on('connection', (socket) => {
         }
 
         if (winnerCardId) {
-            const winData = { user: username, card: winnerCardId, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) };
+            const winData = { user: username, card: winnerCardId, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
             const isDup = gameState.last5Winners.some(w => w.user === username && w.card === winnerCardId);
             if (!isDup) {
                 gameState.last5Winners.unshift(winData);
-                if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
+                if (gameState.last5Winners.length > 5) gameState.last5Winners.pop();
             }
             updatePlayerStats(username, winData);
             // Anuncio automático inmediato
@@ -688,7 +721,7 @@ io.on('connection', (socket) => {
             socket.emit('invalid_bingo');
         }
     });
-    
+
     // Chat Global
     socket.on('send_chat', (text) => {
         if (!text || !text.trim()) return;
@@ -704,14 +737,14 @@ io.on('connection', (socket) => {
 
         if (username) {
             const msgId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-            
+
             console.log(`💬 Chat [Local Lookup]: ${username}: ${text}`);
 
             io.emit('chat_message', {
                 id: msgId,
                 user: username,
                 text: text.trim(),
-                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 isAdmin: false
             });
         } else {
@@ -727,7 +760,7 @@ io.on('connection', (socket) => {
             id: msgId,
             user: 'ADMIN',
             text: text.trim(),
-            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isAdmin: true
         });
     });
@@ -735,7 +768,7 @@ io.on('connection', (socket) => {
     socket.on('admin_delete_chat', (msgId) => {
         io.emit('chat_message_deleted', msgId);
     });
-    
+
     // Admin Pause
     socket.on('admin_toggle_pause', () => {
         gameState.isPaused = !gameState.isPaused;
@@ -769,24 +802,24 @@ io.on('connection', (socket) => {
 function updatePlayerStats(username, winData) {
     const userLower = username.trim().toLowerCase();
     const user = users.get(userLower);
-    
+
     if (user) {
         user.stats.totalGames++;
         if (winData) {
             user.stats.wins++;
             user.stats.winRate = (user.stats.wins / user.stats.totalGames) * 100;
-            
+
             // Sistema simple de XP: 100 XP por victoria
             user.level.exp += 100;
             let leveledUp = false;
-            
+
             while (user.level.exp >= user.level.expToNext) {
                 user.level.exp -= user.level.expToNext;
                 user.level.current++;
                 user.level.expToNext = Math.floor(user.level.expToNext * 1.2);
                 leveledUp = true;
             }
-            
+
             const player = players.get(username);
             if (player && player.status === 'connected') {
                 const socket = io.sockets.sockets.get(player.id);
@@ -843,14 +876,14 @@ function checkForAutomaticWinners() {
                 const winData = {
                     user: username,
                     card: cardId,
-                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 };
 
                 // Evitar duplicados (aunque ya verificamos por usuario)
                 const isDuplicate = gameState.last5Winners.some(w => w.user === username && w.card === cardId);
                 if (!isDuplicate) {
                     gameState.last5Winners.unshift(winData);
-                    if(gameState.last5Winners.length > 5) gameState.last5Winners.pop();
+                    if (gameState.last5Winners.length > 5) gameState.last5Winners.pop();
                     updatePlayerStats(username, winData);
 
                     // Anuncio automático inmediato
