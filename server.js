@@ -59,26 +59,34 @@ if (vapidKeys.publicKey && vapidKeys.privateKey) {
 const connectDB = async () => {
     try {
         if (!process.env.MONGO_URI) {
-            console.error('❌ MONGO_URI no configurada');
+            console.error('❌ MONGO_URI no configurada en las variables de entorno.');
             process.exit(1);
         }
 
+        // Log para depuración
         console.log('🔗 Conectando a MongoDB Atlas...');
+        console.log(`   - URI Hint: ${process.env.MONGO_URI.substring(0, 20)}...`); // No loguear la URI completa por seguridad
+
         const conn = await mongoose.connect(process.env.MONGO_URI, {
             serverSelectionTimeoutMS: 30000,
             socketTimeoutMS: 45000,
         });
 
-        console.log(`✅ MongoDB conectado: ${conn.connection.host}`);
+        console.log(`✅ MongoDB conectado exitosamente: ${conn.connection.host}`);
 
-        mongoose.connection.on('error', err => console.error('❌ MongoDB error:', err.message));
-        mongoose.connection.on('disconnected', () => console.warn('⚠️ MongoDB desconectado'));
-        mongoose.connection.on('reconnected', () => console.log('✅ MongoDB reconectado'));
+        mongoose.connection.on('error', err => console.error('❌ Error de conexión con MongoDB después de la conexión inicial:', err.message));
+        mongoose.connection.on('disconnected', () => console.warn('⚠️ MongoDB desconectado. Intentando reconectar...'));
+        mongoose.connection.on('reconnected', () => console.log('✅ MongoDB reconectado exitosamente.'));
 
         await loadGameState();
 
     } catch (error) {
-        console.error('❌ Error conectando MongoDB:', error.message);
+        console.error('❌ Error CRÍTICO al conectar con MongoDB:', error.message);
+        // Loguear detalles adicionales del error
+        if (error.reason) {
+            console.error('   - Razón del error:', error.reason.toString());
+        }
+        console.error('   - Por favor, verifica la variable de entorno MONGO_URI y la IP Whitelist en MongoDB Atlas.');
         process.exit(1);
     }
 };
